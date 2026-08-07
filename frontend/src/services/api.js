@@ -183,6 +183,7 @@ export const apiWallet = {
   getLedger: (userId) => request(`/wallet/${userId}/ledger`),
   getFullLedger: (userId) => request(`/wallet/${userId}/full-ledger`),
   getBalance: (userId) => request(`/wallet/${userId}`),
+  adminAdjustWallet: (payload) => request('/wallet/admin/adjust', { method: 'POST', body: JSON.stringify(payload) }),
 };
 
 export const apiSettings = {

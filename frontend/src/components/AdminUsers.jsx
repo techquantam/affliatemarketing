@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Edit2 } from 'lucide-react';
+import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Edit2, Wallet } from 'lucide-react';
 import { AdminTable, AdminModal, AdminFormInput, AdminFormSelect } from './AdminComponents';
+import AdminWalletModal from './AdminWalletModal';
 
-export default function AdminUsers({ users, setUsers, onEditUser, onAddNotification }) {
+export default function AdminUsers({ users, setUsers, onEditUser, onAddNotification, currentUser }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -12,6 +13,8 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [walletModalUser, setWalletModalUser] = useState(null);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
 
   // Edit Form Fields
   const [editName, setEditName] = useState('');
@@ -127,6 +130,14 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <Edit2 size={14} />
+          </button>
+          <button
+            className="admin-btn-icon"
+            onClick={() => { setWalletModalUser(item); setIsWalletModalOpen(true); }}
+            title="Manage Wallet & Ledger"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+          >
+            <Wallet size={14} />
           </button>
           <button
             className={`admin-btn-icon ${item.status === 'active' ? 'delete' : 'edit'}`}
@@ -345,6 +356,15 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
           </form>
         </AdminModal>
       )}
+
+      {/* Admin Wallet & Ledger Management Modal */}
+      <AdminWalletModal
+        isOpen={isWalletModalOpen}
+        onClose={() => setIsWalletModalOpen(false)}
+        user={walletModalUser}
+        currentUser={currentUser}
+        onAddNotification={onAddNotification}
+      />
     </div>
   );
 }

@@ -32,6 +32,18 @@ public class WalletTransaction {
 
     private String description;
 
+    private Double previousBalance;
+
+    private Double newBalance;
+
+    private String reason;
+
+    private String adminId;
+
+    private String adminName;
+
+    private String updatedBy;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

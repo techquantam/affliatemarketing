@@ -96,4 +96,65 @@ public class WalletService {
     public List<WalletTransaction> getLedgerForUser(String userId) {
         return walletTransactionRepository.findByUserId(userId);
     }
+
+    public WalletTransaction adminAdjustWallet(String userId, String actionType, Double amount, String reason, String adminId, String adminName) {
+        if (amount == null || amount <= 0) {
+            throw new IllegalArgumentException("Amount must be greater than zero");
+        }
+        if (reason == null || reason.trim().isEmpty()) {
+            throw new IllegalArgumentException("Reason is mandatory for every wallet adjustment");
+        }
+
+        Wallet wallet = getOrCreateWallet(userId);
+        Double previousBalance = wallet.getApprovedBalance() != null ? wallet.getApprovedBalance() : 0.0;
+        Double newBalance;
+
+        String normalizedAction = actionType != null ? actionType.toUpperCase() : "CREDIT";
+        String type;
+        String category;
+
+        if ("CREDIT".equals(normalizedAction)) {
+            newBalance = previousBalance + amount;
+            type = "CREDIT";
+            category = "ADMIN_CREDIT";
+        } else if ("DEBIT".equals(normalizedAction)) {
+            if (previousBalance < amount) {
+                throw new IllegalArgumentException("Insufficient balance for debit. Current approved balance: ₹" + String.format("%.2f", previousBalance));
+            }
+            newBalance = previousBalance - amount;
+            type = "DEBIT";
+            category = "ADMIN_DEBIT";
+        } else if ("ADJUSTMENT".equals(normalizedAction)) {
+            newBalance = previousBalance + amount;
+            type = "CREDIT";
+            category = "ADMIN_ADJUSTMENT";
+        } else {
+            throw new IllegalArgumentException("Invalid action type: " + actionType);
+        }
+
+        wallet.setApprovedBalance(newBalance);
+        wallet.setUpdatedAt(LocalDateTime.now());
+        walletRepository.save(wallet);
+
+        String adminStr = (adminName != null && !adminName.trim().isEmpty()) ? adminName : (adminId != null ? adminId : "Admin");
+
+        WalletTransaction transaction = WalletTransaction.builder()
+                .userId(userId)
+                .trackingId("TXN-" + System.currentTimeMillis() + "-" + (int)(Math.random() * 1000))
+                .amount(amount)
+                .type(type)
+                .category(category)
+                .status("COMPLETED")
+                .description(reason.trim())
+                .reason(reason.trim())
+                .previousBalance(previousBalance)
+                .newBalance(newBalance)
+                .adminId(adminId)
+                .adminName(adminStr)
+                .updatedBy(adminStr)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return walletTransactionRepository.save(transaction);
+    }
 }

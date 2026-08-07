@@ -10,16 +10,31 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class AffiliateAppApplication {
 
     static {
-        Dotenv dotenv = Dotenv.configure()
-                .ignoreIfMissing()
-                .load();
+        System.setProperty("java.net.preferIPv4Stack", "true");
 
-        dotenv.entries().forEach(entry ->
-                System.setProperty(entry.getKey(), entry.getValue()));
+        try {
+            Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+            dotenv.entries().forEach(entry -> {
+                System.setProperty(entry.getKey(), entry.getValue());
+            });
+        } catch (Exception e) {
+            // fallback
+        }
+
+        try {
+            Dotenv parentDotenv = Dotenv.configure().directory("../").ignoreIfMissing().load();
+            parentDotenv.entries().forEach(entry -> {
+                if (System.getProperty(entry.getKey()) == null) {
+                    System.setProperty(entry.getKey(), entry.getValue());
+                }
+            });
+        } catch (Exception e) {
+            // fallback
+        }
     }
 
     public static void main(String[] args) {
-        System.out.println("MONGODB_URI = " + System.getProperty("MONGODB_URI"));
+        System.out.println("[SpringBoot] MONGODB_URI = " + System.getProperty("MONGODB_URI"));
 
         SpringApplication.run(AffiliateAppApplication.class, args);
     }

@@ -6,11 +6,16 @@ Populates the affiliate_app database with initial test data including admin user
 
 from datetime import datetime, timedelta
 from pymongo import MongoClient
-import os
-import sys
+try:
+    from dotenv import load_dotenv
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    load_dotenv(os.path.join(base_dir, '.env'))
+    load_dotenv(os.path.join(base_dir, 'backend', '.env'))
+except ImportError:
+    pass
 
 # MongoDB Connection - Update with your Atlas connection string
-MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/affiliate_db')
+MONGO_URI = os.getenv('MONGO_URI') or os.getenv('MONGODB_URI') or 'mongodb://localhost:27017/affiliate_db'
 
 def init_database():
     """Initialize the database with test data"""

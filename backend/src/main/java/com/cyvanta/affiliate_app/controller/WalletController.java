@@ -66,6 +66,11 @@ public class WalletController {
             entry.put("type", wt.getType()); // CREDIT or DEBIT
             entry.put("category", wt.getCategory()); // COMMISSION, WITHDRAWAL, ADJUSTMENT, etc.
             entry.put("amount", wt.getAmount());
+            entry.put("previousBalance", wt.getPreviousBalance());
+            entry.put("newBalance", wt.getNewBalance());
+            entry.put("reason", wt.getReason() != null ? wt.getReason() : wt.getDescription());
+            entry.put("updatedBy", wt.getUpdatedBy() != null ? wt.getUpdatedBy() : (wt.getAdminName() != null ? wt.getAdminName() : "System"));
+            entry.put("adminName", wt.getAdminName());
             entry.put("status", wt.getStatus());
             entry.put("source", "wallet");
             entries.add(entry);
@@ -135,5 +140,34 @@ public class WalletController {
         entries.forEach(e -> e.remove("sortDate"));
 
         return ResponseEntity.ok(entries);
+    }
+
+    @PostMapping("/admin/adjust")
+    public ResponseEntity<?> adminAdjustWallet(@RequestBody AdminWalletAdjustmentRequest request) {
+        try {
+            WalletTransaction txn = walletService.adminAdjustWallet(
+                    request.getUserId(),
+                    request.getActionType(),
+                    request.getAmount(),
+                    request.getReason(),
+                    request.getAdminId(),
+                    request.getAdminName()
+            );
+            return ResponseEntity.ok(txn);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to process wallet adjustment: " + e.getMessage()));
+        }
+    }
+
+    @lombok.Data
+    public static class AdminWalletAdjustmentRequest {
+        private String userId;
+        private String actionType; // CREDIT, DEBIT, ADJUSTMENT
+        private Double amount;
+        private String reason;
+        private String adminId;
+        private String adminName;
     }
 }

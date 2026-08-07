@@ -53,11 +53,14 @@ export default function AdminLedger({ users }) {
     return true;
   });
 
-  const headers = ['Date', 'User', 'Type', 'Category', 'Description', 'Amount', 'Status', 'Actions'];
+  const headers = ['Date', 'Txn ID', 'User', 'Type', 'Amount', 'Prev. Bal', 'New Bal', 'Reason / Description', 'Updated By', 'Status', 'Actions'];
 
   const renderRow = (item) => (
     <tr key={item.id} className="animate-fade">
       <td>{new Date(item.date).toLocaleDateString()} {new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+      <td style={{ fontFamily: 'monospace', fontSize: '11px', color: '#a855f7' }}>
+        {item.transactionId || item.id || '-'}
+      </td>
       <td>
         <button 
           className="admin-link-btn" 
@@ -74,21 +77,31 @@ export default function AdminLedger({ users }) {
           display: 'flex', alignItems: 'center', gap: '4px'
         }}>
           {item.type === 'CREDIT' ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
-          {item.type}
+          {item.category === 'ADMIN_ADJUSTMENT' ? 'ADJUSTMENT' : item.type}
         </span>
       </td>
-      <td style={{ textTransform: 'capitalize' }}>{item.category?.toLowerCase() || '-'}</td>
-      <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.description}>
-        {item.description || '-'}
+      <td style={{ fontWeight: 'bold', color: item.type === 'CREDIT' ? '#10b981' : '#ef4444' }}>
+        ₹{item.amount?.toFixed(2) || '0.00'}
       </td>
-      <td style={{ fontWeight: 'bold' }}>₹{item.amount?.toFixed(2) || '0.00'}</td>
+      <td style={{ color: 'var(--text-muted)' }}>
+        {item.previousBalance !== undefined && item.previousBalance !== null ? `₹${item.previousBalance.toFixed(2)}` : '-'}
+      </td>
+      <td style={{ fontWeight: '600' }}>
+        {item.newBalance !== undefined && item.newBalance !== null ? `₹${item.newBalance.toFixed(2)}` : '-'}
+      </td>
+      <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.reason || item.description}>
+        {item.reason || item.description || '-'}
+      </td>
+      <td style={{ color: '#c084fc', fontWeight: '600' }}>
+        {item.updatedBy || item.adminName || 'System'}
+      </td>
       <td>
-        <span className={`status-badge ${item.status?.toLowerCase() || 'pending'}`}>{item.status || 'Pending'}</span>
+        <span className={`status-badge ${item.status?.toLowerCase() || 'completed'}`}>{item.status || 'Completed'}</span>
       </td>
       <td>
         <button 
           className="admin-btn-icon view"
-          onClick={() => alert(`Transaction Details:\n\nID: ${item.id}\nTracking ID: ${item.trackingId || 'N/A'}\nCategory: ${item.category}\nAmount: ₹${item.amount}\nStatus: ${item.status}\nDescription: ${item.description}`)}
+          onClick={() => alert(`Transaction Details:\n\nTxn ID: ${item.transactionId || item.id}\nUser: ${getUserName(item.userId)}\nCategory: ${item.category}\nAmount: ₹${item.amount}\nPrevious Balance: ${item.previousBalance != null ? '₹' + item.previousBalance : 'N/A'}\nNew Balance: ${item.newBalance != null ? '₹' + item.newBalance : 'N/A'}\nReason: ${item.reason || item.description}\nUpdated By: ${item.updatedBy || item.adminName || 'System'}\nStatus: ${item.status}`)}
           title="View Details"
         >
           <Search size={14} />

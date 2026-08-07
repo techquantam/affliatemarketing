@@ -9,8 +9,10 @@ import sys
 from dotenv import load_dotenv
 import os
 
-# Load .env from backend directory
-load_dotenv('/home/shailavi-srivastava/Desktop/affiliate-app/backend/.env')
+# Load .env configuration
+base_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(base_dir, 'backend', '.env'))
+load_dotenv(os.path.join(base_dir, '.env'))
 
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')

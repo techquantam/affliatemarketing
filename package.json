@@ -1,5 +1,11 @@
 {
   "name": "lio-mart",
+  "scripts": {
+    "start": "npm run dev --prefix frontend",
+    "dev": "npm run dev --prefix frontend",
+    "frontend": "npm run dev --prefix frontend",
+    "backend": "cd backend && mvnw.cmd spring-boot:run"
+  },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",
     "@capacitor/core": "^8.4.0"

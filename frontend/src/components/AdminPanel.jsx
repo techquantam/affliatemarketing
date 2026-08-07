@@ -759,6 +759,7 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
             setUsers={setUsers}
             onEditUser={editUser}
             onAddNotification={onAddNotification}
+            currentUser={currentUser}
           />
         );
       case 'roles':
