@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: cyvanta-backend
+    env: docker
+    dockerContext: backend
+    dockerfilePath: backend/Dockerfile
+    plan: free
+    region: singapore # or oregon, frankfurt, etc.
+    envVars:
+      - key: MONGODB_URI
+        sync: false # Set your MongoDB Atlas URI in Render dashboard
+      - key: MONGODB_DATABASE
+        value: affiliate-app
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: "86400000"
+      - key: APP_CORS_ORIGINS
+        value: "*"

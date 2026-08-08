@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.cyvanta.affiliate.app',
+  appId: 'com.cyvanta.liommart',
   appName: 'LIO MART',
   webDir: 'dist',
   server: {
