@@ -1,63 +1,41 @@
 import React from 'react';
-import { Layers, Shirt, Smartphone, Heart, ShoppingCart, Plane, ShoppingBag, Sparkles, Tag, Gift, Tv, Laptop, Watch, Zap } from 'lucide-react';
-
-const ICON_MAP = {
-  layers: Layers,
-  shirt: Shirt,
-  fashion: Shirt,
-  clothing: Shirt,
-  smartphone: Smartphone,
-  electronics: Smartphone,
-  heart: Heart,
-  health: Heart,
-  beauty: Heart,
-  shoppingcart: ShoppingCart,
-  grocery: ShoppingCart,
-  food: ShoppingCart,
-  plane: Plane,
-  travel: Plane,
-  flights: Plane,
-  shoppingbag: ShoppingBag,
-  sparkles: Sparkles,
-  tag: Tag,
-  gift: Gift,
-  tv: Tv,
-  laptop: Laptop,
-  watch: Watch,
-  zap: Zap
-};
+import { Layers } from 'lucide-react';
+import CategoryIcon from './CategoryIcon';
 
 const DEFAULT_CATEGORIES = [
-  { id: 'all', name: 'All Stores', icon: Layers },
-  { id: 'fashion', name: 'Fashion', icon: Shirt },
-  { id: 'electronics', name: 'Electronics', icon: Smartphone },
-  { id: 'health', name: 'Health & Beauty', icon: Heart },
-  { id: 'grocery', name: 'Food & Grocery', icon: ShoppingCart },
-  { id: 'travel', name: 'Travel & Flights', icon: Plane },
+  { id: 'all', slug: 'all', name: 'All Stores', icon: 'Layers', badgeColor: '#3b82f6' },
+  { id: 'fashion', slug: 'fashion', name: 'Fashion', icon: 'Shirt', badgeColor: '#ec4899' },
+  { id: 'electronics', slug: 'electronics', name: 'Electronics', icon: 'Smartphone', badgeColor: '#3b82f6' },
+  { id: 'health', slug: 'health', name: 'Health & Beauty', icon: 'Heart', badgeColor: '#10b981' },
+  { id: 'grocery', slug: 'grocery', name: 'Food & Grocery', icon: 'ShoppingBag', badgeColor: '#f59e0b' },
+  { id: 'travel', slug: 'travel', name: 'Travel & Flights', icon: 'Plane', badgeColor: '#8b5cf6' },
 ];
 
 export default function CategoryGrid({ activeCategory, onCategoryChange, categories = [] }) {
   const mergedCategories = React.useMemo(() => {
-    const list = [...DEFAULT_CATEGORIES];
-    const existingIds = new Set(list.map(c => c.id.toLowerCase()));
+    // If admin categories are provided from backend/admin state
+    if (categories && Array.isArray(categories) && categories.length > 0) {
+      const activeOnly = categories.filter(c => c && (c.status === 'active' || c.status === undefined));
+      
+      const adminList = activeOnly.map(c => ({
+        id: (c.slug || c.id || c.name).toLowerCase().replace(/\s+/g, '-'),
+        slug: c.slug || c.id || c.name,
+        name: c.name,
+        icon: c.icon,
+        iconType: c.iconType,
+        customIconUrl: c.customIconUrl,
+        badgeColor: c.badgeColor || '#3b82f6',
+        displayOrder: c.displayOrder ?? 0,
+        featured: c.featured
+      })).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
-    if (categories && Array.isArray(categories)) {
-      categories.forEach(cat => {
-        if (!cat || !cat.name) return;
-        const id = (cat.slug || cat.id || cat.name).toLowerCase().replace(/\s+/g, '-');
-        if (!existingIds.has(id) && !existingIds.has(cat.name.toLowerCase())) {
-          existingIds.add(id);
-          const iconKey = (cat.icon || cat.name || '').toLowerCase().replace(/[^a-z]/g, '');
-          const IconComponent = ICON_MAP[iconKey] || ShoppingBag;
-          list.push({
-            id: id,
-            name: cat.name,
-            icon: IconComponent
-          });
-        }
-      });
+      return [
+        { id: 'all', slug: 'all', name: 'All Stores', icon: 'Layers', badgeColor: 'var(--primary)' },
+        ...adminList
+      ];
     }
-    return list;
+
+    return DEFAULT_CATEGORIES;
   }, [categories]);
 
   return (
@@ -71,16 +49,30 @@ export default function CategoryGrid({ activeCategory, onCategoryChange, categor
 
       <div className="categories-container">
         {mergedCategories.map((cat) => {
-          const Icon = cat.icon || ShoppingBag;
-          const isActive = activeCategory === cat.id || (activeCategory && activeCategory.toLowerCase() === cat.id.toLowerCase());
+          const isActive = activeCategory === cat.id || 
+            (activeCategory && cat.slug && activeCategory.toLowerCase() === cat.slug.toLowerCase()) ||
+            (activeCategory && activeCategory.toLowerCase() === cat.name.toLowerCase());
+
           return (
             <div
-              key={cat.id}
+              key={cat.id || cat.slug || cat.name}
               className={`category-card ${isActive ? 'active' : ''}`}
-              onClick={() => onCategoryChange(cat.id)}
+              onClick={() => onCategoryChange(cat.slug || cat.id)}
             >
-              <div className="category-icon-box">
-                <Icon size={22} />
+              <div 
+                className="category-icon-box"
+                style={{
+                  color: cat.badgeColor || 'var(--primary)',
+                  borderColor: isActive ? (cat.badgeColor || 'var(--primary)') : undefined
+                }}
+              >
+                <CategoryIcon
+                  icon={cat.icon}
+                  iconType={cat.iconType}
+                  customIconUrl={cat.customIconUrl}
+                  color={cat.badgeColor || 'var(--primary)'}
+                  size={22}
+                />
               </div>
               <span className="category-name">{cat.name}</span>
             </div>

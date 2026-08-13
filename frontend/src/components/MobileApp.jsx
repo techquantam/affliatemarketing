@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
+import CategoryIcon from './CategoryIcon';
 import { apiAffiliate } from '../services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from '../utils/openUrl';
 
@@ -110,6 +111,7 @@ export default function MobileApp({
   onAddWithdrawalRequest,
   storesData = [],
   dealsData = [],
+  categoriesData = [],
   onAddNotification,
   openAuthModal,
   onLogout,
@@ -161,14 +163,34 @@ export default function MobileApp({
     }
   ];
 
-  const CATEGORIES = [
-    { id: 'all', name: 'All Stores', icon: Layers },
-    { id: 'fashion', name: 'Fashion', icon: Shirt },
-    { id: 'electronics', name: 'Electronics', icon: Smartphone },
-    { id: 'health', name: 'Health & Beauty', icon: Heart },
-    { id: 'grocery', name: 'Food & Grocery', icon: ShoppingCart },
-    { id: 'travel', name: 'Travel & Flights', icon: Plane },
-  ];
+  const CATEGORIES = React.useMemo(() => {
+    if (categoriesData && Array.isArray(categoriesData) && categoriesData.length > 0) {
+      const activeOnly = categoriesData.filter(c => c && (c.status === 'active' || c.status === undefined));
+      const list = activeOnly.map(c => ({
+        id: (c.slug || c.id || c.name).toLowerCase().replace(/\s+/g, '-'),
+        slug: c.slug || c.id || c.name,
+        name: c.name,
+        icon: c.icon,
+        iconType: c.iconType,
+        customIconUrl: c.customIconUrl,
+        badgeColor: c.badgeColor || '#3b82f6',
+        displayOrder: c.displayOrder ?? 0
+      })).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+
+      return [
+        { id: 'all', slug: 'all', name: 'All Stores', icon: 'Layers', badgeColor: 'var(--primary)' },
+        ...list
+      ];
+    }
+    return [
+      { id: 'all', slug: 'all', name: 'All Stores', icon: 'Layers', badgeColor: 'var(--primary)' },
+      { id: 'fashion', slug: 'fashion', name: 'Fashion', icon: 'Shirt', badgeColor: '#ec4899' },
+      { id: 'electronics', slug: 'electronics', name: 'Electronics', icon: 'Smartphone', badgeColor: '#3b82f6' },
+      { id: 'health', slug: 'health', name: 'Health & Beauty', icon: 'Heart', badgeColor: '#10b981' },
+      { id: 'grocery', slug: 'grocery', name: 'Food & Grocery', icon: 'ShoppingCart', badgeColor: '#f59e0b' },
+      { id: 'travel', slug: 'travel', name: 'Travel & Flights', icon: 'Plane', badgeColor: '#8b5cf6' },
+    ];
+  }, [categoriesData]);
 
   const searchedStores = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];
@@ -786,12 +808,13 @@ export default function MobileApp({
                       </h3>
                       <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
                         {CATEGORIES.map((cat) => {
-                          const Icon = cat.icon;
-                          const isActive = selectedCategory === cat.id;
+                          const isActive = selectedCategory === cat.id || 
+                            (selectedCategory && cat.slug && selectedCategory.toLowerCase() === cat.slug.toLowerCase()) ||
+                            (selectedCategory && selectedCategory.toLowerCase() === cat.name.toLowerCase());
                           return (
                             <div
-                              key={cat.id}
-                              onClick={() => setSelectedCategory(cat.id)}
+                              key={cat.id || cat.slug || cat.name}
+                              onClick={() => setSelectedCategory(cat.slug || cat.id)}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -809,7 +832,13 @@ export default function MobileApp({
                                 boxShadow: isActive ? '0 4px 10px rgba(255, 79, 47, 0.2)' : 'none'
                               }}
                             >
-                              <Icon size={12} />
+                              <CategoryIcon
+                                icon={cat.icon}
+                                iconType={cat.iconType}
+                                customIconUrl={cat.customIconUrl}
+                                color={isActive ? '#fff' : (cat.badgeColor || 'var(--primary)')}
+                                size={13}
+                              />
                               <span>{cat.name}</span>
                             </div>
                           );

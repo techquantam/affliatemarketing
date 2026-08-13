@@ -21,7 +21,23 @@ public class Category {
     private String id;
     
     private String name;
+    private String slug;
     private String icon;
+    
+    @Builder.Default
+    private String iconType = "lucide"; // "lucide", "url", "emoji"
+    
+    private String customIconUrl;
+    private String description;
+    
+    @Builder.Default
+    private String badgeColor = "#3b82f6";
+    
+    @Builder.Default
+    private Integer displayOrder = 0;
+    
+    @Builder.Default
+    private Boolean featured = false;
     
     @Builder.Default
     private String status = "active";

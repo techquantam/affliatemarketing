@@ -17,6 +17,7 @@ import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
 import MobileApp from './components/MobileApp';
 import SearchBar from './components/SearchBar';
+import CategoryIcon from './components/CategoryIcon';
 import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories } from './services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from './utils/openUrl';
 import './index.css';
@@ -962,13 +963,26 @@ export default function App() {
     });
   }, [dynamicDeals, activeCategory]);
 
-  const CATEGORIES_LIST = React.useMemo(() => [
-    { id: 'fashion', name: 'Fashion', icon: Shirt },
-    { id: 'electronics', name: 'Electronics', icon: Smartphone },
-    { id: 'health', name: 'Health & Beauty', icon: Heart },
-    { id: 'grocery', name: 'Food & Grocery', icon: ShoppingCart },
-    { id: 'travel', name: 'Travel & Flights', icon: Plane },
-  ], []);
+  const CATEGORIES_LIST = React.useMemo(() => {
+    if (categoriesData && Array.isArray(categoriesData) && categoriesData.length > 0) {
+      return categoriesData.filter(c => c && (c.status === 'active' || c.status === undefined)).map(c => ({
+        id: c.slug || c.id || c.name.toLowerCase().replace(/\s+/g, '-'),
+        slug: c.slug || c.id || c.name,
+        name: c.name,
+        icon: c.icon,
+        iconType: c.iconType,
+        customIconUrl: c.customIconUrl,
+        badgeColor: c.badgeColor || '#3b82f6'
+      }));
+    }
+    return [
+      { id: 'fashion', slug: 'fashion', name: 'Fashion', icon: 'Shirt', badgeColor: '#ec4899' },
+      { id: 'electronics', slug: 'electronics', name: 'Electronics', icon: 'Smartphone', badgeColor: '#3b82f6' },
+      { id: 'health', slug: 'health', name: 'Health & Beauty', icon: 'Heart', badgeColor: '#10b981' },
+      { id: 'grocery', slug: 'grocery', name: 'Food & Grocery', icon: 'ShoppingCart', badgeColor: '#f59e0b' },
+      { id: 'travel', slug: 'travel', name: 'Travel & Flights', icon: 'Plane', badgeColor: '#8b5cf6' },
+    ];
+  }, [categoriesData]);
 
   const searchedStores = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];
@@ -981,7 +995,8 @@ export default function App() {
   const searchedCategories = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];
     return CATEGORIES_LIST.filter(cat => 
-      (cat.name || '').toLowerCase().includes(homeSearchQuery.toLowerCase())
+      (cat.name || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
+      (cat.slug || '').toLowerCase().includes(homeSearchQuery.toLowerCase())
     );
   }, [homeSearchQuery, CATEGORIES_LIST]);
 
@@ -1010,6 +1025,7 @@ export default function App() {
           onStoreSelect={handleStoreSelect}
           setHomeSearchQuery={setHomeSearchQuery}
           dealsData={dynamicDeals}
+          categoriesData={categoriesData}
           onCategorySelect={(categoryId) => {
             setActiveCategory(categoryId);
             setHomeSearchQuery('');
@@ -1104,6 +1120,7 @@ export default function App() {
             onAddWithdrawalRequest={handleAppWithdrawalRequest}
             storesData={storesData}
             dealsData={dynamicDeals}
+            categoriesData={categoriesData}
             onAddNotification={addNotification}
             openAuthModal={() => setIsAuthModalOpen(true)}
             onLogout={handleLogout}
@@ -1399,6 +1416,7 @@ export default function App() {
         onStoreSelect={handleStoreSelect}
         setHomeSearchQuery={setHomeSearchQuery}
         dealsData={dynamicDeals}
+        categoriesData={categoriesData}
         onCategorySelect={(categoryId) => {
           setActiveCategory(categoryId);
           setHomeSearchQuery('');
@@ -1481,22 +1499,25 @@ export default function App() {
                   <div className="search-results-group">
                     <h3 className="search-results-group-title">📂 Matching Categories</h3>
                     <div className="search-categories-grid">
-                      {searchedCategories.map(cat => {
-                        const Icon = cat.icon || Layers;
-                        return (
-                          <div 
-                            key={cat.id} 
-                            className="search-category-badge"
-                            onClick={() => {
-                              setActiveCategory(cat.id);
-                              setHomeSearchQuery('');
-                            }}
-                          >
-                            <Icon size={16} style={{ color: 'var(--primary)' }} />
-                            <span>{cat.name}</span>
-                          </div>
-                        );
-                      })}
+                      {searchedCategories.map(cat => (
+                        <div 
+                          key={cat.id || cat.slug || cat.name} 
+                          className="search-category-badge"
+                          onClick={() => {
+                            setActiveCategory(cat.slug || cat.id);
+                            setHomeSearchQuery('');
+                          }}
+                        >
+                          <CategoryIcon
+                            icon={cat.icon}
+                            iconType={cat.iconType}
+                            customIconUrl={cat.customIconUrl}
+                            color={cat.badgeColor || 'var(--primary)'}
+                            size={16}
+                          />
+                          <span>{cat.name}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Sun, Moon, ShoppingBag, User, Wallet, LogOut, ChevronDown, Folder, Tag } from 'lucide-react';
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { id: 'fashion', name: 'Fashion' },
   { id: 'electronics', name: 'Electronics' },
   { id: 'health', name: 'Health & Beauty' },
@@ -21,12 +21,18 @@ export default function Header({
   onStoreSelect,
   setHomeSearchQuery,
   dealsData = [],
+  categoriesData = [],
   onCategorySelect,
   onDealSelect,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef(null);
+
+  // Active categories list
+  const activeCategories = (categoriesData && categoriesData.length > 0)
+    ? categoriesData.filter(c => c && (c.status === 'active' || c.status === undefined))
+    : DEFAULT_CATEGORIES;
 
   // Filter stores, categories, and deals based on search query
   const getSuggestions = () => {
@@ -45,12 +51,12 @@ export default function Header({
         original: store
       }));
       
-    const matchedCategories = CATEGORIES
-      .filter(cat => cat.name.toLowerCase().includes(query))
+    const matchedCategories = activeCategories
+      .filter(cat => (cat.name || '').toLowerCase().includes(query) || (cat.slug || '').toLowerCase().includes(query))
       .slice(0, 3)
       .map(cat => ({
         type: 'category',
-        id: cat.id,
+        id: cat.slug || cat.id,
         name: cat.name,
         badge: 'Category'
       }));
