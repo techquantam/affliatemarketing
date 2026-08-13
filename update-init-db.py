@@ -95,7 +95,7 @@ def process_file(filename):
                 "comparisons": [
                     {
                         "platform": "Amazon",
-                        "listedPrice": 29.99,
+                        "listedPrice": 999.00,
                         "cashbackPercent": 10.0,
                         "link": "https://amazon.in/dp/example"
                     }
@@ -113,7 +113,7 @@ def process_file(filename):
                 "comparisons": [
                     {
                         "platform": "Myntra",
-                        "listedPrice": 110.00,
+                        "listedPrice": 11999.00,
                         "cashbackPercent": 12.0,
                         "link": "https://myntra.com/shoes/example"
                     }
@@ -123,7 +123,7 @@ def process_file(filename):
                 "_id": "d3",
                 "name": "HP Pavilion 15.6\\\" Touchscreen Laptop (Intel Core i5, 16GB RAM)",
                 "image": "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=300",
-                "offerText": "Save $250",
+                "offerText": "Save Rs. 11,000",
                 "link": "https://flipkart.com/laptop/example",
                 "cashback": "8.5%",
                 "status": "active",
@@ -131,7 +131,7 @@ def process_file(filename):
                 "comparisons": [
                     {
                         "platform": "Flipkart",
-                        "listedPrice": 549.99,
+                        "listedPrice": 54990.00,
                         "cashbackPercent": 8.5,
                         "link": "https://flipkart.com/laptop/example"
                     }
@@ -149,7 +149,7 @@ def process_file(filename):
                 "comparisons": [
                     {
                         "platform": "Nykaa Beauty",
-                        "listedPrice": 14.99,
+                        "listedPrice": 449.00,
                         "cashbackPercent": 7.0,
                         "link": "https://nykaa.com/beauty/example"
                     }

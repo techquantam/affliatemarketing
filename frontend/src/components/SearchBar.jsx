@@ -5,7 +5,7 @@ export default function SearchBar({ placeholder, onSearch, value, onChange }) {
   return (
     <div className="home-search-wrapper animate-fade">
       <div className="home-search-container">
-        <Search size={22} className="home-search-icon" />
+        <Search size={18} className="home-search-icon" />
         <input
           type="text"
           className="home-search-input"
@@ -25,7 +25,7 @@ export default function SearchBar({ placeholder, onSearch, value, onChange }) {
             }}
             aria-label="Clear search"
           >
-            <X size={18} />
+            <X size={15} />
           </button>
         )}
       </div>

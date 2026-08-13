@@ -150,7 +150,7 @@ def init_database():
             {
                 "name": "boAt Rockerz 450 Bluetooth Headphones",
                 "platform": "Amazon",
-                "price": 29.99,
+                "price": 999.00,
                 "cashbackValue": 10.0,
                 "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300",
                 "status": "active",
@@ -159,7 +159,7 @@ def init_database():
             {
                 "name": "Adidas UltraBoost 22 Running Shoes",
                 "platform": "Myntra",
-                "price": 110.00,
+                "price": 11999.00,
                 "cashbackValue": 12.0,
                 "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300",
                 "status": "active",
@@ -168,7 +168,7 @@ def init_database():
             {
                 "name": "HP Pavilion Touchscreen Laptop",
                 "platform": "Flipkart",
-                "price": 549.99,
+                "price": 54990.00,
                 "cashbackValue": 8.5,
                 "image": "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=300",
                 "status": "active",
@@ -177,7 +177,7 @@ def init_database():
             {
                 "name": "Cetaphil Daily Facial Cleanser",
                 "platform": "Nykaa Beauty",
-                "price": 14.99,
+                "price": 449.00,
                 "cashbackValue": 7.0,
                 "image": "https://images.unsplash.com/photo-1608248597481-496100c8c836?w=300",
                 "status": "active",
@@ -279,7 +279,7 @@ def init_database():
                 "comparisons": [
                     {
                         "platform": "Amazon",
-                        "listedPrice": 29.99,
+                        "listedPrice": 999.00,
                         "cashbackPercent": 10.0,
                         "link": "https://amazon.in/dp/example"
                     }
@@ -297,7 +297,7 @@ def init_database():
                 "comparisons": [
                     {
                         "platform": "Myntra",
-                        "listedPrice": 110.00,
+                        "listedPrice": 11999.00,
                         "cashbackPercent": 12.0,
                         "link": "https://myntra.com/shoes/example"
                     }
@@ -307,7 +307,7 @@ def init_database():
                 "_id": "d3",
                 "name": "HP Pavilion 15.6\" Touchscreen Laptop (Intel Core i5, 16GB RAM)",
                 "image": "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=300",
-                "offerText": "Save $250",
+                "offerText": "Save Rs. 11,000",
                 "link": "https://flipkart.com/laptop/example",
                 "cashback": "8.5%",
                 "status": "active",
@@ -315,7 +315,7 @@ def init_database():
                 "comparisons": [
                     {
                         "platform": "Flipkart",
-                        "listedPrice": 549.99,
+                        "listedPrice": 54990.00,
                         "cashbackPercent": 8.5,
                         "link": "https://flipkart.com/laptop/example"
                     }
@@ -333,7 +333,7 @@ def init_database():
                 "comparisons": [
                     {
                         "platform": "Nykaa Beauty",
-                        "listedPrice": 14.99,
+                        "listedPrice": 449.00,
                         "cashbackPercent": 7.0,
                         "link": "https://nykaa.com/beauty/example"
                     }

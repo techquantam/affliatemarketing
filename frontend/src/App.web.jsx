@@ -790,8 +790,12 @@ export default function App() {
               }
           }
           
-          const dealPrice = typeof p.price === 'number' ? p.price : (parseFloat(p.price || p.dealPrice || p.discountPrice || '999') || 999);
-          const retailPrice = p.retailPrice || parseFloat((dealPrice * 1.5).toFixed(2));
+          const dealPrice = typeof p.price === 'number' && p.price > 0 
+            ? (p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price)
+            : (parseFloat(p.discountPrice || p.dealPrice || p.price || '999') || 999);
+          const retailPrice = typeof p.retailPrice === 'number' && p.retailPrice > 0 
+            ? p.retailPrice 
+            : (p.price && p.discountPrice && p.price > p.discountPrice ? p.price : parseFloat((dealPrice * 1.4).toFixed(2)));
           const cashbackVal = p.cashbackValue || p.commissionPercentage || 10;
           const cashbackEarned = parseFloat(((dealPrice * cashbackVal) / 100).toFixed(2));
           const productImage = p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
@@ -801,6 +805,7 @@ export default function App() {
             title: prodName,
             name: prodName,
             platform: platform,
+            price: dealPrice,
             retailPrice,
             dealPrice,
             cashbackEarned,
@@ -818,18 +823,39 @@ export default function App() {
               (other.name || other.title)?.toLowerCase() === prodName.toLowerCase()
           );
 
-          let dbComparisons = sameNameProducts.map(other => ({
-               platform: other.platform || other.sourcePlatform || 'Amazon',
-               listedPrice: typeof other.price === 'number' ? other.price : (parseFloat(other.price || other.dealPrice || dealPrice) || dealPrice),
-               cashbackPercent: other.cashbackValue || other.commissionPercentage || 10,
-               link: other.affiliateUrl || getProductPlatformUrl(other, other.platform || other.sourcePlatform || 'Amazon')
-          }));
+          let dbComparisons = sameNameProducts.map(other => {
+            const otherPrice = typeof other.price === 'number' && other.price > 0
+              ? (other.discountPrice && other.discountPrice < other.price ? other.discountPrice : other.price)
+              : (parseFloat(other.discountPrice || other.dealPrice || other.price || dealPrice) || dealPrice);
+            const otherRetail = typeof other.retailPrice === 'number' && other.retailPrice > 0
+              ? other.retailPrice
+              : (other.price && other.discountPrice && other.price > other.discountPrice ? other.price : retailPrice);
+            const otherCb = other.cashbackValue || other.commissionPercentage || 10;
+            const otherCbEarned = parseFloat(((otherPrice * otherCb) / 100).toFixed(2));
+            const otherPlatform = other.platform || other.sourcePlatform || 'Amazon';
+            return {
+              platform: otherPlatform,
+              dealPrice: otherPrice,
+              price: otherPrice,
+              listedPrice: otherPrice,
+              retailPrice: otherRetail,
+              cashbackPercent: otherCb,
+              cashbackEarned: otherCbEarned,
+              effectivePrice: parseFloat((otherPrice - otherCbEarned).toFixed(2)),
+              link: other.affiliateUrl || getProductPlatformUrl(other, otherPlatform)
+            };
+          });
 
           if (dbComparisons.length === 0) {
              dbComparisons = [{
                platform: platform,
+               dealPrice: dealPrice,
+               price: dealPrice,
                listedPrice: dealPrice,
+               retailPrice: retailPrice,
                cashbackPercent: cashbackVal,
+               cashbackEarned: cashbackEarned,
+               effectivePrice: parseFloat((dealPrice - cashbackEarned).toFixed(2)),
                link: p.affiliateUrl || getProductPlatformUrl(p, platform)
              }];
           }
@@ -851,37 +877,70 @@ export default function App() {
         let lowestListedPrice = 0;
         let highestCashbackPercent = 0;
         
+        let formattedComparisons = [];
         if (d.comparisons && d.comparisons.length > 0) {
-          lowestListedPrice = Math.min(...d.comparisons.map(c => c.listedPrice || 0));
-          highestCashbackPercent = Math.max(...d.comparisons.map(c => c.cashbackPercent || 0));
+          formattedComparisons = d.comparisons.map(c => {
+            const cPrice = typeof c.listedPrice === 'number' && c.listedPrice > 0
+              ? c.listedPrice
+              : (typeof c.dealPrice === 'number' && c.dealPrice > 0 ? c.dealPrice : (parseFloat(c.listedPrice || c.dealPrice || c.price || '0') || 0));
+            const cCb = c.cashbackPercent || c.cashbackValue || 10;
+            const cEarned = parseFloat(((cPrice * cCb) / 100).toFixed(2));
+            const cRetail = c.retailPrice || parseFloat((cPrice * 1.4).toFixed(2));
+            return {
+              platform: c.platform || 'Amazon',
+              dealPrice: cPrice,
+              price: cPrice,
+              listedPrice: cPrice,
+              retailPrice: cRetail,
+              cashbackPercent: cCb,
+              cashbackEarned: cEarned,
+              effectivePrice: parseFloat((cPrice - cEarned).toFixed(2)),
+              link: c.link || c.affiliateUrl || getProductPlatformUrl(d, c.platform || 'Amazon')
+            };
+          });
+          
+          const validPrices = formattedComparisons.map(c => c.dealPrice).filter(p => p > 0);
+          lowestListedPrice = validPrices.length > 0 ? Math.min(...validPrices) : 0;
+          highestCashbackPercent = Math.max(...formattedComparisons.map(c => c.cashbackPercent));
         }
         
-        const dealPrice = lowestListedPrice > 0 ? lowestListedPrice : 0;
-        const retailPrice = dealPrice > 0 ? parseFloat((dealPrice * 1.5).toFixed(2)) : 0;
-        const cashbackEarned = dealPrice > 0 ? parseFloat(((dealPrice * highestCashbackPercent) / 100).toFixed(2)) : 0;
+        const dealPrice = lowestListedPrice > 0 ? lowestListedPrice : (parseFloat(d.price || d.dealPrice || '0') || 0);
+        const retailPrice = d.retailPrice || (dealPrice > 0 ? parseFloat((dealPrice * 1.4).toFixed(2)) : 0);
+        const cashbackVal = highestCashbackPercent > 0 ? highestCashbackPercent : (parseFloat(d.cashback || d.cashbackValue || '10') || 10);
+        const cashbackEarned = dealPrice > 0 ? parseFloat(((dealPrice * cashbackVal) / 100).toFixed(2)) : 0;
         
         const baseDeal = {
           ...d,
           title: d.name || d.title,
-          platform: d.platform || (d.comparisons && d.comparisons.length > 0 ? d.comparisons[0].platform : 'Amazon'),
+          platform: d.platform || (formattedComparisons.length > 0 ? formattedComparisons[0].platform : 'Amazon'),
           category: (d.category || 'electronics').toLowerCase(),
           storeLogo: storesLogoMap['Amazon'] || fallbackLogo,
+          price: dealPrice,
           retailPrice,
           dealPrice,
           cashbackEarned,
+          cashbackValue: cashbackVal,
+          comparisons: formattedComparisons.length > 0 ? formattedComparisons : [{
+            platform: d.platform || 'Amazon',
+            dealPrice: dealPrice,
+            price: dealPrice,
+            listedPrice: dealPrice,
+            retailPrice: retailPrice,
+            cashbackPercent: cashbackVal,
+            cashbackEarned: cashbackEarned,
+            effectivePrice: parseFloat((dealPrice - cashbackEarned).toFixed(2)),
+            link: d.link || d.affiliateUrl || getProductPlatformUrl(d, d.platform || 'Amazon')
+          }]
         };
-        if (!baseDeal.comparisons || baseDeal.comparisons.length === 0) {
-            const defaultPlatform = d.platform || 'Amazon';
-            baseDeal.comparisons = [{
-              platform: defaultPlatform,
-              listedPrice: baseDeal.dealPrice,
-              cashbackPercent: d.cashbackValue || 10,
-              link: d.link || d.affiliateUrl || getProductPlatformUrl(d, defaultPlatform)
-            }];
-        }
         return baseDeal;
       });
-      combinedDeals = [...combinedDeals, ...explicitDeals];
+
+      explicitDeals.forEach(ed => {
+        const matchTitle = (ed.title || ed.name || '').trim().toLowerCase();
+        if (!combinedDeals.some(cd => (cd.title || cd.name || '').trim().toLowerCase() === matchTitle)) {
+          combinedDeals.push(ed);
+        }
+      });
     }
 
     return combinedDeals;
@@ -1160,18 +1219,29 @@ export default function App() {
                   </div>
                 ) : [...activeComparisonDeal.comparisons]
                   .map(comp => {
-                    const dealPrice = comp.listedPrice || comp.dealPrice || 0;
-                    const cashbackEarned = parseFloat(((dealPrice * (comp.cashbackPercent || 0)) / 100).toFixed(2));
+                    const dealPrice = typeof comp.dealPrice === 'number' && comp.dealPrice > 0 
+                      ? comp.dealPrice 
+                      : (typeof comp.listedPrice === 'number' && comp.listedPrice > 0 ? comp.listedPrice : (typeof comp.price === 'number' && comp.price > 0 ? comp.price : (activeComparisonDeal.dealPrice || activeComparisonDeal.price || 0)));
+                    const retailPrice = typeof comp.retailPrice === 'number' && comp.retailPrice > 0 
+                      ? comp.retailPrice 
+                      : (activeComparisonDeal.retailPrice && activeComparisonDeal.retailPrice > dealPrice ? activeComparisonDeal.retailPrice : parseFloat((dealPrice * 1.4).toFixed(2)));
+                    const cashbackPercent = comp.cashbackPercent || comp.cashbackValue || activeComparisonDeal.cashbackValue || 10;
+                    const cashbackEarned = parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
+                    const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
                     return {
-                      platform: comp.platform,
-                      logo: storesData.find(s => s.name === comp.platform)?.logo || 'default-logo-url',
+                      platform: comp.platform || activeComparisonDeal.platform || 'Amazon',
+                      logo: storesData.find(s => s.name?.toLowerCase() === comp.platform?.toLowerCase())?.logo || 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg',
+                      dealPrice,
                       price: dealPrice,
-                      cashbackPercent: comp.cashbackPercent || 0,
+                      listedPrice: dealPrice,
+                      retailPrice,
+                      cashbackPercent,
                       cashbackEarned,
-                      link: comp.link || getProductPlatformUrl(activeComparisonDeal, comp.platform)
+                      effectivePrice,
+                      link: comp.link || comp.affiliateUrl || getProductPlatformUrl(activeComparisonDeal, comp.platform)
                     };
                   })
-                  .sort((a, b) => a.price - b.price)
+                  .sort((a, b) => a.dealPrice - b.dealPrice)
                   .map((item, index) => {
                   const isBestValue = index === 0;
                   return (
@@ -1220,17 +1290,24 @@ export default function App() {
                             }}
                           />
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <span style={{ fontSize: '10px', color: 'var(--text)', textDecoration: 'line-through' }}>
-                              ₹{(item.price || 0).toFixed(2)}
-                            </span>
+                            {item.retailPrice > item.dealPrice && (
+                              <span style={{ fontSize: '10px', color: 'var(--text)', textDecoration: 'line-through' }}>
+                                MRP: ₹{item.retailPrice.toFixed(2)}
+                              </span>
+                            )}
                             <span style={{ fontSize: '11px', color: 'var(--secondary)', fontWeight: '600' }}>
                               -{item.cashbackPercent}% (-₹{item.cashbackEarned.toFixed(2)})
                             </span>
                           </div>
                         </div>
-                        <span style={{ fontSize: '16px', fontWeight: '800', color: isBestValue ? 'var(--secondary)' : 'var(--text-bold)' }}>
-                          ₹{item.price.toFixed(2)}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <span style={{ fontSize: '15px', fontWeight: '800', color: isBestValue ? 'var(--secondary)' : 'var(--text-bold)' }}>
+                            ₹{item.dealPrice.toFixed(2)}
+                          </span>
+                          <span style={{ fontSize: '10px', color: 'var(--secondary)', fontWeight: '600' }}>
+                            Net: ₹{item.effectivePrice.toFixed(2)}
+                          </span>
+                        </div>
                       </div>
 
                       <div style={{ display: 'flex', gap: '8px' }}>
@@ -1631,18 +1708,29 @@ export default function App() {
                 </div>
               ) : [...activeComparisonDeal.comparisons]
                 .map(comp => {
-                  const dealPrice = comp.listedPrice || comp.dealPrice || 0;
-                  const cashbackEarned = parseFloat(((dealPrice * (comp.cashbackPercent || 0)) / 100).toFixed(2));
+                  const dealPrice = typeof comp.dealPrice === 'number' && comp.dealPrice > 0 
+                    ? comp.dealPrice 
+                    : (typeof comp.listedPrice === 'number' && comp.listedPrice > 0 ? comp.listedPrice : (typeof comp.price === 'number' && comp.price > 0 ? comp.price : (activeComparisonDeal.dealPrice || activeComparisonDeal.price || 0)));
+                  const retailPrice = typeof comp.retailPrice === 'number' && comp.retailPrice > 0 
+                    ? comp.retailPrice 
+                    : (activeComparisonDeal.retailPrice && activeComparisonDeal.retailPrice > dealPrice ? activeComparisonDeal.retailPrice : parseFloat((dealPrice * 1.4).toFixed(2)));
+                  const cashbackPercent = comp.cashbackPercent || comp.cashbackValue || activeComparisonDeal.cashbackValue || 10;
+                  const cashbackEarned = parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
+                  const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
                   return {
-                    platform: comp.platform,
-                    logo: storesData.find(s => s.name === comp.platform)?.logo || 'default-logo-url',
+                    platform: comp.platform || activeComparisonDeal.platform || 'Amazon',
+                    logo: storesData.find(s => s.name?.toLowerCase() === comp.platform?.toLowerCase())?.logo || 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg',
+                    dealPrice,
                     price: dealPrice,
-                    cashbackPercent: comp.cashbackPercent || 0,
+                    listedPrice: dealPrice,
+                    retailPrice,
+                    cashbackPercent,
                     cashbackEarned,
-                    link: comp.link
+                    effectivePrice,
+                    link: comp.link || comp.affiliateUrl || getProductPlatformUrl(activeComparisonDeal, comp.platform)
                   };
                 })
-                .sort((a, b) => a.price - b.price)
+                .sort((a, b) => a.dealPrice - b.dealPrice)
                 .map((item, index) => {
                 const isBestValue = index === 0;
                 return (
@@ -1691,9 +1779,11 @@ export default function App() {
                         }}
                       />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text)', textDecoration: 'line-through' }}>
-                          Listed Price: ₹{(item.price || 0).toFixed(2)}
-                        </span>
+                        {item.retailPrice > item.dealPrice && (
+                          <span style={{ fontSize: '11px', color: 'var(--text)', textDecoration: 'line-through' }}>
+                            MRP: ₹{item.retailPrice.toFixed(2)}
+                          </span>
+                        )}
                         <span style={{ fontSize: '12px', color: 'var(--secondary)', fontWeight: '600' }}>
                           -{item.cashbackPercent}% Commission (-₹{item.cashbackEarned.toFixed(2)})
                         </span>
@@ -1702,10 +1792,13 @@ export default function App() {
 
                     {/* Right Price & CTA */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: '6px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: '4px' }}>
                         <span style={{ fontSize: '11px', color: 'var(--text)' }}>Deal Price:</span>
                         <span style={{ fontSize: '18px', fontWeight: '800', color: isBestValue ? 'var(--secondary)' : 'var(--text-bold)' }}>
-                          ₹{item.price.toFixed(2)}
+                          ₹{item.dealPrice.toFixed(2)}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--secondary)', fontWeight: '600' }}>
+                          Net: ₹{item.effectivePrice.toFixed(2)}
                         </span>
                       </div>
                       

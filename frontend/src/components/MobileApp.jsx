@@ -47,66 +47,60 @@ const STORES_INFO = [
 const generatePriceComparisons = (deal) => {
   if (!deal) return [];
   
+  const basePrice = typeof deal.dealPrice === 'number' && deal.dealPrice > 0 
+    ? deal.dealPrice 
+    : (typeof deal.price === 'number' && deal.price > 0 ? deal.price : (parseFloat(deal.dealPrice || deal.price || '0') || 0));
+    
+  const retailPrice = typeof deal.retailPrice === 'number' && deal.retailPrice > 0 
+    ? deal.retailPrice 
+    : (deal.price && deal.dealPrice && deal.price > deal.dealPrice ? deal.price : parseFloat((basePrice * 1.4).toFixed(2)));
+
   if (deal.comparisons && deal.comparisons.length > 0) {
     return deal.comparisons.map(comp => {
-      const platformName = comp.platform || 'Amazon';
+      const platformName = comp.platform || deal.platform || 'Amazon';
       const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
-      const dealPrice = comp.listedPrice || comp.dealPrice || deal.dealPrice || 0;
-      const cashbackPercent = comp.cashbackPercent || store.cashbackPercent || 10;
+      const dealPrice = typeof comp.listedPrice === 'number' && comp.listedPrice > 0 
+        ? comp.listedPrice 
+        : (typeof comp.dealPrice === 'number' && comp.dealPrice > 0 ? comp.dealPrice : basePrice);
+      const cashbackPercent = comp.cashbackPercent || comp.cashbackValue || store.cashbackPercent || deal.cashbackValue || 10;
       const cashbackEarned = parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
       const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
-      const link = comp.link || getProductPlatformUrl(deal, platformName);
+      const link = comp.link || comp.affiliateUrl || getProductPlatformUrl(deal, platformName);
       return {
         platform: platformName,
         logo: comp.logo || store.logo,
         dealPrice,
+        price: dealPrice,
+        retailPrice: comp.retailPrice || retailPrice,
         cashbackPercent,
         cashbackEarned,
         effectivePrice,
         link,
         isOriginal: platformName.toLowerCase() === (deal.platform || '').toLowerCase()
       };
-    }).sort((a, b) => a.effectivePrice - b.effectivePrice);
+    }).sort((a, b) => a.dealPrice - b.dealPrice);
   }
 
-  let platforms = ['Amazon', 'Flipkart'];
-  if (deal.category === 'fashion') {
-    platforms = ['Myntra', 'Ajio', 'Flipkart', 'Amazon'];
-  } else if (deal.category === 'health' || deal.category === 'beauty') {
-    platforms = ['Nykaa Beauty', 'Amazon', 'Flipkart'];
-  } else if (deal.category === 'travel') {
-    platforms = ['MakeMyTrip', 'Amazon'];
-  } else {
-    platforms = ['Amazon', 'Flipkart', 'Myntra', 'Ajio'];
-  }
+  const platformName = deal.platform || 'Amazon';
+  const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
+  const dealPrice = basePrice;
+  const cashbackPercent = deal.cashbackValue || store.cashbackPercent || 10;
+  const cashbackEarned = deal.cashbackEarned || parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
+  const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
+  const link = deal.affiliateUrl || deal.link || getProductPlatformUrl(deal, platformName);
 
-  return platforms.map(platformName => {
-    const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
-    
-    let dealPrice = deal.dealPrice || 0;
-    const isOriginal = (deal.platform && platformName.toLowerCase() === deal.platform.toLowerCase());
-    if (!isOriginal) {
-      const hash = platformName.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-      const percentDiff = ((hash % 21) - 10) / 100; // -10% to +10%
-      dealPrice = parseFloat((dealPrice * (1 + percentDiff)).toFixed(2));
-    }
-    
-    const cashbackValue = store.cashbackPercent;
-    const cashbackEarned = parseFloat(((dealPrice * cashbackValue) / 100).toFixed(2));
-    const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
-    const link = getProductPlatformUrl(deal, platformName);
-    
-    return {
-      platform: platformName,
-      logo: store.logo,
-      dealPrice,
-      cashbackPercent: cashbackValue,
-      cashbackEarned,
-      effectivePrice,
-      link,
-      isOriginal
-    };
-  }).sort((a, b) => a.effectivePrice - b.effectivePrice);
+  return [{
+    platform: platformName,
+    logo: store.logo,
+    dealPrice,
+    price: dealPrice,
+    retailPrice,
+    cashbackPercent,
+    cashbackEarned,
+    effectivePrice,
+    link,
+    isOriginal: true
+  }];
 };
 
 export default function MobileApp({
@@ -460,9 +454,11 @@ export default function MobileApp({
                     {/* Left side info */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                       <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-bold)' }}>{item.platform}</span>
-                      <span style={{ fontSize: '8px', color: 'var(--text)', textDecoration: 'line-through' }}>
-                        ₹{item.dealPrice.toFixed(2)}
-                      </span>
+                      {item.retailPrice > item.dealPrice && (
+                        <span style={{ fontSize: '8px', color: 'var(--text)', textDecoration: 'line-through' }}>
+                          MRP: ₹{item.retailPrice.toFixed(2)}
+                        </span>
+                      )}
                       <span style={{ fontSize: '9px', color: '#10b981', fontWeight: '600' }}>
                         -{item.cashbackPercent}% CB (-₹{item.cashbackEarned.toFixed(2)})
                       </span>
@@ -471,9 +467,12 @@ export default function MobileApp({
                     {/* Right side Price & CTA */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <span style={{ fontSize: '8px', color: 'var(--text)' }}>Net Price:</span>
+                        <span style={{ fontSize: '8px', color: 'var(--text)' }}>Deal Price:</span>
                         <span style={{ fontSize: '12px', fontWeight: '800', color: isBestValue ? '#10b981' : 'var(--text-bold)' }}>
-                          ₹{item.effectivePrice.toFixed(2)}
+                          ₹{item.dealPrice.toFixed(2)}
+                        </span>
+                        <span style={{ fontSize: '8px', color: '#10b981', fontWeight: '600' }}>
+                          Net: ₹{item.effectivePrice.toFixed(2)}
                         </span>
                       </div>
                       
@@ -743,9 +742,33 @@ export default function MobileApp({
                                 }}>
                                   {deal.title}
                                 </h4>
-                                <div className="app-deal-prices" style={{ display: 'flex', flexDirection: 'column', marginTop: '2px' }}>
-                                  <span className="deal-price-val" style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-bold)' }}>₹{deal.dealPrice.toFixed(2)}</span>
-                                  <span className="deal-price-cb" style={{ fontSize: '9px', color: '#10b981', fontWeight: '700' }}>+₹{deal.cashbackEarned.toFixed(2)} CB</span>
+                                <div className="app-deal-prices" style={{ display: 'flex', flexDirection: 'column', marginTop: '2px', gap: '4px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span className="deal-price-val" style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-bold)' }}>₹{deal.dealPrice.toFixed(2)}</span>
+                                    <span className="deal-price-cb" style={{ fontSize: '9px', color: '#10b981', fontWeight: '700' }}>+₹{deal.cashbackEarned.toFixed(2)} CB</span>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const targetStore = { platform: deal.platform || 'Amazon', link: deal.affiliateUrl || deal.link };
+                                        executeSimulatorGrabDeal(deal, targetStore);
+                                      }}
+                                      style={{
+                                        flex: 1,
+                                        backgroundColor: '#ff4f2f',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '4px 0',
+                                        fontSize: '9px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      Shop
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>

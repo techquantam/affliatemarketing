@@ -8,7 +8,13 @@ export default function CheckoutModal({ deal, store, onClose, onPlaceOrder }) {
   const [redirectingUpi, setRedirectingUpi] = useState(false);
 
   const deliveryFee = 0;
-  const totalAmount = (store.dealPrice || store.effectivePrice || 0) + deliveryFee;
+  const rawPrice = (store && (store.dealPrice ?? store.price ?? store.listedPrice ?? store.effectivePrice)) 
+    ?? (deal && (deal.dealPrice ?? deal.price)) 
+    ?? 0;
+  const totalAmount = (typeof rawPrice === 'number' ? rawPrice : (parseFloat(rawPrice) || 0)) + deliveryFee;
+  const cashbackEarnedVal = (store && store.cashbackEarned != null)
+    ? (typeof store.cashbackEarned === 'number' ? store.cashbackEarned : (parseFloat(store.cashbackEarned) || 0))
+    : (deal && deal.cashbackEarned != null ? (typeof deal.cashbackEarned === 'number' ? deal.cashbackEarned : (parseFloat(deal.cashbackEarned) || 0)) : 0);
 
   const handlePlaceOrder = (e) => {
     if (e) e.preventDefault();
@@ -73,7 +79,7 @@ export default function CheckoutModal({ deal, store, onClose, onPlaceOrder }) {
             <CheckCircle size={80} color="#10b981" style={{ animation: 'bounce 1s ease' }} />
             <h2 style={{ color: '#10b981', marginTop: '20px', marginBottom: '8px' }}>Order Placed!</h2>
             <p style={{ color: '#64748b', fontSize: '15px' }}>Your order has been placed successfully via {selectedMethod.toUpperCase()}.</p>
-            <p style={{ color: '#10b981', fontWeight: '600', marginTop: '12px' }}>₹{store.cashbackEarned.toFixed(2)} Cashback Tracked</p>
+            <p style={{ color: '#10b981', fontWeight: '600', marginTop: '12px' }}>₹{cashbackEarnedVal.toFixed(2)} Cashback Tracked</p>
           </div>
         ) : redirectingUpi ? (
            /* UPI Redirecting Screen */
@@ -88,14 +94,14 @@ export default function CheckoutModal({ deal, store, onClose, onPlaceOrder }) {
             {/* Order Summary */}
             <div style={{ backgroundColor: '#fff', padding: '16px 20px', marginBottom: '10px' }}>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                <img src={deal.image} alt={deal.title} style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                <img src={deal?.image || (deal?.images && deal.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300'} alt={deal?.title || deal?.name} style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
                 <div style={{ flex: 1 }}>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>{deal.title}</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Sold by: {store.platform}</p>
+                  <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', color: '#1e293b', fontWeight: '600' }}>{deal?.title || deal?.name || 'Product'}</h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Sold by: {store?.platform || deal?.platform || 'Store'}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>₹{totalAmount.toFixed(2)}</div>
-                  <div style={{ fontSize: '12px', color: '#10b981', fontWeight: '600' }}>Cashback: ₹{store.cashbackEarned.toFixed(2)}</div>
+                  <div style={{ fontSize: '12px', color: '#10b981', fontWeight: '600' }}>Cashback: ₹{cashbackEarnedVal.toFixed(2)}</div>
                 </div>
               </div>
             </div>

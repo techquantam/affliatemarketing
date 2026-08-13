@@ -61,14 +61,22 @@ export default function Header({
         (deal.name || '').toLowerCase().includes(query)
       )
       .slice(0, 4)
-      .map(deal => ({
-        type: 'deal',
-        id: deal.id,
-        name: deal.title || deal.name,
-        logo: deal.image,
-        badge: `₹${deal.dealPrice || deal.price || 0} (+₹${deal.cashbackEarned || deal.cashbackAmount || 0} CB)`,
-        original: deal
-      }));
+      .map(deal => {
+        const dealPrice = typeof deal.dealPrice === 'number' && deal.dealPrice > 0 
+          ? deal.dealPrice 
+          : (typeof deal.price === 'number' && deal.price > 0 ? deal.price : (parseFloat(deal.dealPrice || deal.price || '0') || 0));
+        const cbVal = typeof deal.cashbackEarned === 'number' && deal.cashbackEarned > 0 
+          ? deal.cashbackEarned 
+          : (parseFloat(deal.cashbackEarned || deal.cashbackAmount || '0') || 0);
+        return {
+          type: 'deal',
+          id: deal.id,
+          name: deal.title || deal.name,
+          logo: deal.image,
+          badge: `₹${dealPrice.toFixed(2)}${cbVal > 0 ? ` (+₹${cbVal.toFixed(2)} CB)` : ''}`,
+          original: deal
+        };
+      });
       
     return [...matchedStores, ...matchedCategories, ...matchedDeals];
   };
