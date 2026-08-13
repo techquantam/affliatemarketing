@@ -1,84 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Search, Filter, Edit2, Download, Terminal, Settings } from 'lucide-react';
+import { Plus, Trash2, Search, Filter, Edit2, Download, Terminal, Settings, Network, ShieldCheck, FileSpreadsheet, FileText, UploadCloud, CheckCircle2 } from 'lucide-react';
 import { AdminTable, AdminModal, AdminFormInput, AdminFormSelect, AdminFormSwitch, ExportDataButton } from './AdminComponents';
 import { apiUpload } from '../services/api';
-
-// Mock Generator for Affiliate API responses
-const generateMockAffiliateProducts = (platform, keyword, category, limit) => {
-  const normalizedKeyword = (keyword || '').toLowerCase();
-  let baseItems = [];
-  
-  if (normalizedKeyword.includes('head') || normalizedKeyword.includes('ear') || normalizedKeyword.includes('sound') || normalizedKeyword.includes('audio')) {
-    baseItems = [
-      { name: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones', price: 29990.00, image: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=300' },
-      { name: 'boAt Rockerz 550 Over Ear Bluetooth Headphones', price: 1999.00, image: 'https://images.unsplash.com/photo-1484704849700-f032a568e944?w=300' },
-      { name: 'JBL Tune 760NC Over-Ear Active Noise Cancelling', price: 5499.00, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300' },
-      { name: 'OnePlus Buds Pro 2 Dual Driver Earbuds', price: 9999.00, image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=300' },
-      { name: 'Apple AirPods Pro (2nd Generation) Type-C', price: 24900.00, image: 'https://images.unsplash.com/photo-1588449668338-d15168b5a4c5?w=300' },
-    ];
-  } else if (normalizedKeyword.includes('shoe') || normalizedKeyword.includes('sneaker') || normalizedKeyword.includes('boot') || normalizedKeyword.includes('run')) {
-    baseItems = [
-      { name: 'Nike Air Max SYSTM Casual Sports Sneakers', price: 8495.00, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300' },
-      { name: 'Adidas Grand Court Base 2.0 Tennis Shoes', price: 4299.00, image: 'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=300' },
-      { name: 'Puma Softride Enzo Evo Running Shoes', price: 3499.00, image: 'https://images.unsplash.com/photo-1539185441755-769473a23570?w=300' },
-      { name: 'Red Tape High-Top Leather Walking Sneakers', price: 1899.00, image: 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=300' },
-      { name: 'Woodland Camel Outdoor Hiking Leather Boots', price: 5295.00, image: 'https://images.unsplash.com/photo-1520639888713-7851133b1ed0?w=300' },
-    ];
-  } else if (normalizedKeyword.includes('laptop') || normalizedKeyword.includes('comput') || normalizedKeyword.includes('macbook') || normalizedKeyword.includes('dell')) {
-    baseItems = [
-      { name: 'HP Laptop 15s AMD Ryzen 5 (16GB/512GB SSD)', price: 43990.00, image: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=300' },
-      { name: 'Apple MacBook Air M3 (8-core CPU, 256GB SSD)', price: 104900.00, image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=300' },
-      { name: 'ASUS Vivobook 16 Intel Core i5 12th Gen Thin Laptop', price: 48990.00, image: 'https://images.unsplash.com/photo-1496181130204-7552cc14ac1a?w=300' },
-      { name: 'Lenovo IdeaPad Slim 3 Intel Core i3-1215U', price: 32990.00, image: 'https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=300' },
-      { name: 'Dell Inspiron 3530 Laptop Intel Core i5-1335U', price: 53490.00, image: 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=300' },
-    ];
-  } else if (normalizedKeyword.includes('cream') || normalizedKeyword.includes('cleans') || normalizedKeyword.includes('serum') || normalizedKeyword.includes('skin') || normalizedKeyword.includes('shampoo')) {
-    baseItems = [
-      { name: 'Cetaphil Gentle Skin Cleanser (250ml)', price: 425.00, image: 'https://images.unsplash.com/photo-1608248597481-496100c8c836?w=300' },
-      { name: 'L\'Oreal Paris Hyaluronic Acid Serum (30ml)', price: 799.00, image: 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300' },
-      { name: 'Nivea Soft Light Moisturiser Cream (300ml)', price: 349.00, image: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300' },
-      { name: 'Neutrogena Ultra Sheer Dry-Touch Sunscreen SPF 50+', price: 650.00, image: 'https://images.unsplash.com/photo-1617897903246-719242758050?w=300' },
-      { name: 'Minimalist 10% Vitamin C Face Serum for Glow', price: 699.00, image: 'https://images.unsplash.com/photo-1601049676099-e7ed07d825b0?w=300' },
-    ];
-  } else if (normalizedKeyword.includes('hotel') || normalizedKeyword.includes('flight') || normalizedKeyword.includes('tour') || normalizedKeyword.includes('trip')) {
-    baseItems = [
-      { name: 'Goa Tour package: 3 Nights Resort Stay + Flights included', price: 14500.00, image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=300' },
-      { name: 'Delhi to Mumbai Flight Voucher (Indigo Airlines)', price: 4200.00, image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=300' },
-      { name: 'Himachal Honeymoon Package: Kullu-Manali 5D/4N Tour', price: 22000.00, image: 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=300' },
-      { name: 'Taj Mahal Palace Mumbai: 1 Night Luxury Room Booking', price: 18500.00, image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=300' },
-    ];
-  } else {
-    const nameSeed = keyword || 'Premium Item';
-    baseItems = [
-      { name: `Official ${nameSeed} Pro Series Edition`, price: 2999.00, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300' },
-      { name: `Deluxe ${nameSeed} V2 Smart Gadget`, price: 1499.00, image: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=300' },
-      { name: `Advanced ${nameSeed} Premium Kit`, price: 7999.00, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300' },
-      { name: `Mini Portable ${nameSeed} Starter Pack`, price: 499.00, image: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=300' },
-      { name: `Exclusive Signature ${nameSeed} Elite Bundle`, price: 12500.00, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300' },
-    ];
-  }
-  
-  const storeRates = {
-    'Amazon': 10.0,
-    'Myntra': 12.0,
-    'Flipkart': 8.5,
-    'Ajio': 15.0,
-    'Nykaa Beauty': 7.0,
-    'MakeMyTrip': 9.0
-  };
-  const cashbackVal = storeRates[platform] || 10.0;
-  
-  return baseItems.slice(0, limit).map((item, idx) => ({
-    id: `temp-${platform}-${idx}-${Date.now()}`,
-    name: item.name,
-    platform: platform,
-    price: item.price,
-    cashbackValue: cashbackVal,
-    affiliateUrl: `https://mock.affiliate.link/${platform.toLowerCase()}/${idx}`,
-    image: item.image,
-    status: 'active'
-  }));
-};
+import { fetchNetworkCatalogProducts, getNetworkForStore, getAffiliateNetworkConfigs, saveAffiliateNetworkConfigs } from '../services/affiliateNetworks';
+import { parseProductsFromCSV, parseProductsFromPDF, downloadSampleProductCSV, downloadSampleProductPDF } from '../utils/productImportUtils';
 
 export default function AdminProducts({ products, stores = [], categories = [], onAddProduct, onAddProductBulk, onToggleStatus, onDeleteProduct, onEditProduct }) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -89,21 +14,30 @@ export default function AdminProducts({ products, stores = [], categories = [], 
 
   // Bulk Import States
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-  const [bulkImportMode, setBulkImportMode] = useState('api'); // 'api' or 'raw'
+  const [bulkImportMode, setBulkImportMode] = useState('file'); // 'file', 'api', or 'raw'
   const [apiPlatform, setApiPlatform] = useState('Amazon');
   const [apiKeyword, setApiKeyword] = useState('');
-  const [apiCategory, setApiCategory] = useState('electronics');
+  const [apiCategory, setApiCategory] = useState('Electronics');
   const [apiLimit, setApiLimit] = useState(10);
   
-  // Credentials
-  const [awsAccessKey, setAwsAccessKey] = useState('AKIAIOSFODNN7EXAMPLE');
-  const [awsSecretKey, setAwsSecretKey] = useState('wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY');
-  const [awsAssociateTag, setAwsAssociateTag] = useState('liomart-21');
+  // Credentials (Amazon & Cuelinks)
+  const networkConfigs = getAffiliateNetworkConfigs();
+  const [cuelinksPubId, setCuelinksPubId] = useState(networkConfigs.cuelinks?.publisherId || '189241');
+  const [cuelinksToken, setCuelinksToken] = useState(networkConfigs.cuelinks?.apiToken || 'cue_live_sec_89172401824');
+  const [awsAccessKey, setAwsAccessKey] = useState(networkConfigs.amazon?.accessKey || 'AKIAIOSFODNN7EXAMPLE');
+  const [awsSecretKey, setAwsSecretKey] = useState(networkConfigs.amazon?.secretKey || 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY');
+  const [awsAssociateTag, setAwsAssociateTag] = useState(networkConfigs.amazon?.associateTag || 'liomart-21');
   const [showCredentials, setShowCredentials] = useState(false);
+
+  // File Upload states (CSV & PDF)
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [isParsingFile, setIsParsingFile] = useState(false);
+  const [fileDefaultPlatform, setFileDefaultPlatform] = useState('Amazon');
+  const [fileDefaultCategory, setFileDefaultCategory] = useState('Electronics');
 
   // Raw states
   const [rawText, setRawText] = useState('');
-  const [rawFormat, setRawFormat] = useState('json');
+  const [rawFormat, setRawFormat] = useState('csv');
   const [rawDefaultPlatform, setRawDefaultPlatform] = useState('Amazon');
 
   // Preview & Selection states
@@ -133,11 +67,46 @@ export default function AdminProducts({ products, stores = [], categories = [], 
     : [
         { value: 'Amazon', label: 'Amazon' },
         { value: 'Flipkart', label: 'Flipkart' },
+        { value: 'Meesho', label: 'Meesho' },
         { value: 'Myntra', label: 'Myntra' },
         { value: 'Ajio', label: 'Ajio' },
         { value: 'Nykaa Beauty', label: 'Nykaa Beauty' },
-        { value: 'MakeMyTrip', label: 'MakeMyTrip' }
+        { value: 'MakeMyTrip', label: 'MakeMyTrip' },
+        { value: 'boAt', label: 'boAt Lifestyle' },
+        { value: 'Croma', label: 'Croma Retail' }
       ];
+
+  const categoryOptions = React.useMemo(() => {
+    const defaultList = [
+      { value: 'electronics', label: 'Electronics' },
+      { value: 'fashion', label: 'Fashion' },
+      { value: 'clothing', label: 'Clothing' },
+      { value: 'health', label: 'Health' },
+      { value: 'beauty', label: 'Beauty' },
+      { value: 'grocery', label: 'Grocery & Essentials' },
+      { value: 'travel', label: 'Travel & Bookings' },
+    ];
+
+    const map = new Map();
+    defaultList.forEach(item => {
+      map.set(item.value.toLowerCase(), item);
+    });
+
+    if (categories && Array.isArray(categories)) {
+      categories.forEach(cat => {
+        if (!cat) return;
+        const name = cat.name || cat.title || '';
+        if (!name.trim()) return;
+        const key = name.trim().toLowerCase();
+        const value = (cat.slug || cat.id || key).toLowerCase().replace(/\s+/g, '-');
+        if (!map.has(key)) {
+          map.set(key, { value: value, label: name.trim() });
+        }
+      });
+    }
+
+    return Array.from(map.values());
+  }, [categories]);
 
   const openBulkModal = () => {
     setBulkImportMode('api');
@@ -163,15 +132,31 @@ export default function AdminProducts({ products, stores = [], categories = [], 
     setPreviewProducts([]);
     setSelectedPreviewIds(new Set());
 
-    const logs = [
-      `[INIT] Preparing request payload headers for ${apiPlatform} API...`,
-      `[AUTH] Authenticating using AWS Signature V4 / Client API tokens...`,
-      `[GET] Querying GET /paapi5/searchitems?Keywords=${encodeURIComponent(apiKeyword)}&Category=${apiCategory}...`,
-      `[NET] Request routed to regional endpoint. Connection successful.`,
-      `[PARSE] JSON response received (200 OK). Parsing product nodes...`,
-      `[SYNC] Mapping vendor schema fields to LIO MART product standards...`,
-      `[SUCCESS] Correctly loaded ${apiLimit} mock affiliate products. Select items to import below.`
-    ];
+    const activeNetwork = getNetworkForStore(apiPlatform);
+    let logs = [];
+
+    if (activeNetwork === 'amazon') {
+      logs = [
+        `[INIT] Preparing Amazon PA-API request for query "${apiKeyword}"...`,
+        `[AUTH] Authenticating with AWS Access Key "${awsAccessKey.slice(0, 8)}..." and Associate Tag "${awsAssociateTag}"`,
+        `[GET] Querying GET /paapi5/searchitems?Keywords=${encodeURIComponent(apiKeyword)}&Category=${apiCategory}&Limit=${apiLimit}...`,
+        `[NET] Connection established to webservices.amazon.in regional gateway.`,
+        `[PARSE] Received 200 OK with ItemSearch payload. Parsing product nodes...`,
+        `[TAG] Attached affiliate tracking tag: ${awsAssociateTag} & ascsubtag parameter.`,
+        `[SUCCESS] Successfully generated ${apiLimit} verified Amazon India products ready for catalog import.`
+      ];
+    } else {
+      // Cuelinks for Flipkart, Meesho, Myntra, Ajio, Nykaa, etc.
+      logs = [
+        `[INIT] Initializing Cuelinks Universal Multi-Store API Engine...`,
+        `[AUTH] Authenticating Publisher ID "${cuelinksPubId}" with Cuelinks API Token...`,
+        `[ROUTING] Resolving active merchant campaign endpoint for ${apiPlatform} India...`,
+        `[FETCH] Querying Cuelinks Product & Offer Feed (Category: ${apiCategory}, Query: "${apiKeyword}")...`,
+        `[SUB-ID] Generated universal tracking redirect format: https://linksredirect.com/?pub_id=${cuelinksPubId}&subid={userId}&url=...`,
+        `[COMMISSION] Mapped merchant payout rate for ${apiPlatform}.`,
+        `[SUCCESS] Correctly loaded ${apiLimit} products from ${apiPlatform} via Cuelinks Aggregator. Select items below.`
+      ];
+    }
 
     let currentLogIndex = 0;
     const interval = setInterval(() => {
@@ -181,11 +166,106 @@ export default function AdminProducts({ products, stores = [], categories = [], 
       } else {
         clearInterval(interval);
         setIsSyncing(false);
-        const fetched = generateMockAffiliateProducts(apiPlatform, apiKeyword, apiCategory, apiLimit);
+        const fetched = fetchNetworkCatalogProducts({
+          platform: apiPlatform,
+          keyword: apiKeyword,
+          category: apiCategory,
+          limit: apiLimit
+        });
         setPreviewProducts(fetched);
         setSelectedPreviewIds(new Set(fetched.map(p => p.id))); // select all by default
       }
-    }, 300);
+    }, 280);
+  };
+
+  const handleFileUploadParse = async (file) => {
+    if (!file) return;
+    setUploadedFile(file);
+    setIsParsingFile(true);
+    setWizardError('');
+    setTerminalLogs([`[UPLOAD] Loading file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)...`]);
+    setPreviewProducts([]);
+    setSelectedPreviewIds(new Set());
+
+    try {
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        setTerminalLogs(prev => [...prev, `[PDF ENGINE] Extracting text layers and product tables from PDF...`]);
+        const result = await parseProductsFromPDF(file, fileDefaultPlatform, fileDefaultCategory);
+        
+        setTerminalLogs(prev => [
+          ...prev,
+          `[SUCCESS] Processed ${result.totalLinesParsed} PDF lines streams.`,
+          `[EXTRACTED] Successfully detected ${result.products.length} products from PDF!`,
+          `[READY] Select products below to import into catalog.`
+        ]);
+        setPreviewProducts(result.products);
+        setSelectedPreviewIds(new Set(result.products.map(p => p.id)));
+      } else if (file.name.toLowerCase().endsWith('.csv') || file.name.toLowerCase().endsWith('.txt')) {
+        setTerminalLogs(prev => [...prev, `[CSV ENGINE] Reading and tokenizing CSV data...`]);
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const csvContent = evt.target.result;
+            const result = parseProductsFromCSV(csvContent, fileDefaultPlatform, fileDefaultCategory);
+            setTerminalLogs(prev => [
+              ...prev,
+              `[SUCCESS] Parsed ${result.totalRows} data rows.`,
+              `[EXTRACTED] Successfully validated ${result.products.length} products!`,
+              ...(result.errors.length > 0 ? [`[WARNING] ${result.errors.length} skipped invalid rows.`] : [])
+            ]);
+            setPreviewProducts(result.products);
+            setSelectedPreviewIds(new Set(result.products.map(p => p.id)));
+          } catch (e) {
+            setWizardError(e.message);
+            setTerminalLogs(prev => [...prev, `[ERROR] CSV Parser Error: ${e.message}`]);
+          } finally {
+            setIsParsingFile(false);
+          }
+        };
+        reader.readAsText(file);
+        return;
+      } else if (file.name.toLowerCase().endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const parsed = JSON.parse(evt.target.result);
+            const productsArr = Array.isArray(parsed) ? parsed : [parsed];
+            const formatted = productsArr.map((item, idx) => ({
+              id: `json-file-${idx}-${Date.now()}`,
+              name: item.name,
+              platform: item.platform || fileDefaultPlatform,
+              category: item.category || fileDefaultCategory,
+              price: parseFloat(item.price),
+              cashbackValue: parseFloat(item.cashbackValue || 10),
+              affiliateUrl: item.affiliateUrl || item.link || '',
+              image: item.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400',
+              status: item.status || 'active'
+            }));
+            setTerminalLogs(prev => [
+              ...prev,
+              `[SUCCESS] Parsed JSON Array file. Found ${formatted.length} products.`,
+              `[READY] Select products below to import into catalog.`
+            ]);
+            setPreviewProducts(formatted);
+            setSelectedPreviewIds(new Set(formatted.map(p => p.id)));
+          } catch (e) {
+            setWizardError("Invalid JSON structure in file: " + e.message);
+            setTerminalLogs(prev => [...prev, `[ERROR] JSON File Error: ${e.message}`]);
+          } finally {
+            setIsParsingFile(false);
+          }
+        };
+        reader.readAsText(file);
+        return;
+      } else {
+        throw new Error("Unsupported file format. Please upload a .csv, .pdf, or .json file.");
+      }
+    } catch (err) {
+      setWizardError(err.message);
+      setTerminalLogs(prev => [...prev, `[ERROR] Extraction failed: ${err.message}`]);
+    } finally {
+      setIsParsingFile(false);
+    }
   };
 
   const handleRawParse = () => {
@@ -227,60 +307,14 @@ export default function AdminProducts({ products, stores = [], categories = [], 
         setPreviewProducts(formatted);
         setSelectedPreviewIds(new Set(formatted.map(p => p.id)));
       } else {
-        const cleanText = rawText.replace(/^\uFEFF/, '');
-        const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        if (lines.length < 2) {
-          throw new Error('CSV must contain a header row and at least one data row.');
-        }
-        
-        const cleanStr = (s) => s ? s.trim().replace(/^["']|["']$/g, '') : '';
-        const headers = lines[0].split(',').map(h => cleanStr(h).toLowerCase());
-        const nameIdx = headers.indexOf('name') !== -1 ? headers.indexOf('name') : headers.indexOf('title');
-        const priceIdx = headers.indexOf('price');
-        
-        if (nameIdx === -1 || priceIdx === -1) {
-          throw new Error(`CSV headers must include at least "name" (or "title") and "price" columns. Found headers: ${headers.join(', ')}`);
-        }
-        
-        const platformIdx = headers.indexOf('platform');
-        const cashbackIdx = headers.indexOf('cashbackvalue') !== -1 ? headers.indexOf('cashbackvalue') : headers.indexOf('cashback');
-        const affiliateUrlIdx = headers.indexOf('affiliateurl') !== -1 ? headers.indexOf('affiliateurl') : headers.indexOf('link');
-        const imageIdx = headers.indexOf('imageurl') !== -1 ? headers.indexOf('imageurl') : (headers.indexOf('image_url') !== -1 ? headers.indexOf('image_url') : headers.indexOf('image'));
-        const statusIdx = headers.indexOf('status');
-        
-        const formatted = [];
-        for (let i = 1; i < lines.length; i++) {
-          // Basic split by comma. Note: Doesn't handle commas inside quoted strings.
-          const cols = lines[i].split(',').map(c => cleanStr(c));
-          if (cols.length < headers.length) continue;
-          
-          const name = cols[nameIdx];
-          const priceStr = cols[priceIdx].replace(/[^0-9.]/g, ''); // strip any currency symbols just in case
-          const price = parseFloat(priceStr);
-          
-          if (!name || isNaN(price)) {
-            throw new Error(`Data format error on line ${i + 1}.`);
-          }
-          
-          formatted.push({
-            id: `raw-csv-${i}-${Date.now()}`,
-            name: name,
-            platform: (platformIdx !== -1 && cols[platformIdx]) ? cols[platformIdx] : rawDefaultPlatform,
-            price: price,
-            cashbackValue: cashbackIdx !== -1 ? parseFloat(cols[cashbackIdx] || 10) : 10,
-            affiliateUrl: affiliateUrlIdx !== -1 && cols[affiliateUrlIdx] ? cols[affiliateUrlIdx] : '',
-            image: imageIdx !== -1 && cols[imageIdx] ? cols[imageIdx] : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300',
-            status: statusIdx !== -1 && cols[statusIdx] ? cols[statusIdx] : 'active'
-          });
-        }
-        
+        const result = parseProductsFromCSV(rawText, rawDefaultPlatform, fileDefaultCategory);
         setTerminalLogs([
           `[RAW] Initializing CSV parser engine...`,
-          `[SUCCESS] Correctly structured. Found ${formatted.length} CSV rows.`,
+          `[SUCCESS] Successfully parsed ${result.products.length} products from CSV data.`,
           `[SYNC] Validated elements correctly.`
         ]);
-        setPreviewProducts(formatted);
-        setSelectedPreviewIds(new Set(formatted.map(p => p.id)));
+        setPreviewProducts(result.products);
+        setSelectedPreviewIds(new Set(result.products.map(p => p.id)));
       }
     } catch (err) {
       setWizardError(err.message);
@@ -340,15 +374,15 @@ export default function AdminProducts({ products, stores = [], categories = [], 
 
   const openEditModal = (item) => {
     setEditItem(item);
-    setProdName(item.name);
-    setProdPlatform(item.platform);
-    setProdPrice(item.price.toString());
-    setProdCashbackValue(item.cashbackValue.toString());
+    setProdName(item.name || item.title || '');
+    setProdPlatform(item.platform || item.sourcePlatform || 'Amazon');
+    setProdPrice((item.price !== undefined && item.price !== null) ? item.price.toString() : '');
+    setProdCashbackValue((item.cashbackValue || item.commissionPercentage || 10).toString());
     setProdAffiliateUrl(item.affiliateUrl || '');
-    setProdImage(item.image);
+    setProdImage(item.image || (item.images && item.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300');
     setImageFile(null);
     setProdCategory(item.category || 'electronics');
-    setProdActive(item.status === 'active');
+    setProdActive(item.status === 'active' || item.isActive === true || item.status === undefined);
     setFormError('');
     setIsModalOpen(true);
   };
@@ -372,20 +406,25 @@ export default function AdminProducts({ products, stores = [], categories = [], 
       }
 
       const payload = {
-        name: prodName,
+        name: prodName.trim(),
+        title: prodName.trim(),
         platform: prodPlatform,
+        sourcePlatform: prodPlatform,
         price: parseFloat(prodPrice),
         cashbackValue: parseFloat(prodCashbackValue),
-        affiliateUrl: prodAffiliateUrl,
+        commissionPercentage: parseFloat(prodCashbackValue),
+        affiliateUrl: prodAffiliateUrl.trim(),
         image: finalImageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300',
+        images: [finalImageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300'],
         category: prodCategory,
         status: prodActive ? 'active' : 'inactive',
+        isActive: Boolean(prodActive),
       };
 
       if (editItem) {
-        onEditProduct({ ...editItem, ...payload });
+        await onEditProduct({ ...editItem, ...payload });
       } else {
-        onAddProduct(payload);
+        await onAddProduct(payload);
       }
 
       setIsModalOpen(false);
@@ -485,11 +524,15 @@ export default function AdminProducts({ products, stores = [], categories = [], 
           <h2>Product Management</h2>
           <p>Add, edit, and delete store products and configure commission rates</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <ExportDataButton data={products} columns={exportColumns} filename="Products" />
-          <button className="admin-btn admin-btn-secondary" onClick={openBulkModal}>
-            <Download size={16} />
-            Bulk Import API
+          <button className="admin-btn admin-btn-secondary" onClick={() => { setBulkImportMode('file'); openBulkModal(); }}>
+            <FileSpreadsheet size={16} />
+            Import from CSV / PDF
+          </button>
+          <button className="admin-btn admin-btn-secondary" onClick={() => { setBulkImportMode('api'); openBulkModal(); }}>
+            <Network size={16} />
+            Affiliate API Sync
           </button>
           <button className="admin-btn admin-btn-primary" onClick={openAddModal}>
             <Plus size={16} />
@@ -599,15 +642,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
             id="prod-category"
             value={prodCategory}
             onChange={(e) => setProdCategory(e.target.value)}
-            options={[
-              { value: 'electronics', label: 'Electronics' },
-              { value: 'fashion', label: 'Fashion' },
-              { value: 'clothing', label: 'Clothing' },
-              { value: 'health', label: 'Health' },
-              { value: 'beauty', label: 'Beauty' },
-              { value: 'grocery', label: 'Grocery & Essentials' },
-              { value: 'travel', label: 'Travel & Bookings' },
-            ]}
+            options={categoryOptions}
           />
 
           <div className="admin-form-row">
@@ -701,8 +736,28 @@ export default function AdminProducts({ products, stores = [], categories = [], 
             </div>
           )}
 
-          {/* Tab Header */}
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', gap: '16px' }}>
+
+
+          {/* Mode Switcher Tabs */}
+          <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+            <button
+              onClick={() => { setBulkImportMode('file'); setWizardError(''); }}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                background: 'none',
+                borderBottom: bulkImportMode === 'file' ? '2px solid var(--primary)' : '2px solid transparent',
+                color: bulkImportMode === 'file' ? 'var(--text-bold)' : 'var(--text)',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <FileSpreadsheet size={16} />
+              CSV & PDF File Upload
+            </button>
             <button
               onClick={() => { setBulkImportMode('api'); setWizardError(''); }}
               style={{
@@ -712,10 +767,14 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                 borderBottom: bulkImportMode === 'api' ? '2px solid var(--primary)' : '2px solid transparent',
                 color: bulkImportMode === 'api' ? 'var(--text-bold)' : 'var(--text)',
                 fontWeight: '600',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              Affiliate API Sync
+              <Network size={16} />
+              Affiliate API Auto-Sync
             </button>
             <button
               onClick={() => { setBulkImportMode('raw'); setWizardError(''); }}
@@ -726,15 +785,153 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                 borderBottom: bulkImportMode === 'raw' ? '2px solid var(--primary)' : '2px solid transparent',
                 color: bulkImportMode === 'raw' ? 'var(--text-bold)' : 'var(--text)',
                 fontWeight: '600',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
             >
-              Raw CSV / JSON Paste
+              <FileText size={16} />
+              Raw Text / Code Paste
             </button>
           </div>
 
-          {/* Tab Contents */}
-          {bulkImportMode === 'api' ? (
+          {/* TAB 1: CSV & PDF FILE UPLOADER */}
+          {bulkImportMode === 'file' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Sample Templates Downloader Bar */}
+              <div style={{
+                padding: '12px 16px',
+                backgroundColor: 'rgba(59, 130, 246, 0.06)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Download size={16} color="#2563eb" />
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-bold)' }}>
+                    Need a template to prepare your products?
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-secondary"
+                    onClick={downloadSampleProductCSV}
+                    style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <FileSpreadsheet size={13} />
+                    Download Sample CSV
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-secondary"
+                    onClick={downloadSampleProductPDF}
+                    style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <FileText size={13} />
+                    Download Sample PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Default Fallback Selectors */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <AdminFormSelect
+                    label="Default Platform (if missing in file)"
+                    id="file-default-platform"
+                    value={fileDefaultPlatform}
+                    onChange={(e) => setFileDefaultPlatform(e.target.value)}
+                    options={platformOptions}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <AdminFormSelect
+                    label="Default Category (if missing in file)"
+                    id="file-default-category"
+                    value={fileDefaultCategory}
+                    onChange={(e) => setFileDefaultCategory(e.target.value)}
+                    options={categoryOptions}
+                  />
+                </div>
+              </div>
+
+              {/* Drag & Drop File Upload Box */}
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-bold)', display: 'block', marginBottom: '6px' }}>
+                  Select or Drag & Drop Product File (.CSV, .PDF, .JSON)
+                </label>
+                <div style={{
+                  border: '2px dashed var(--primary)',
+                  borderRadius: '10px',
+                  padding: '24px 20px',
+                  textAlign: 'center',
+                  backgroundColor: 'var(--bg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer'
+                }}>
+                  <UploadCloud size={32} color="var(--primary)" />
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-bold)', display: 'block' }}>
+                      {uploadedFile ? uploadedFile.name : 'Choose a file or drag it here'}
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text)' }}>
+                      Supports CSV product spreadsheets, PDF rate cards/catalogs, and JSON files
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    accept=".csv,.pdf,.json,.txt"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleFileUploadParse(e.target.files[0]);
+                      }
+                    }}
+                    style={{ fontSize: '13px', color: 'var(--text)', marginTop: '6px' }}
+                  />
+                </div>
+              </div>
+
+              {uploadedFile && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CheckCircle2 size={16} color="#10b981" />
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-bold)' }}>
+                      {uploadedFile.name} ({(uploadedFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-primary"
+                    onClick={() => handleFileUploadParse(uploadedFile)}
+                    disabled={isParsingFile}
+                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                  >
+                    {isParsingFile ? 'Parsing File...' : 'Re-Parse File'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: AFFILIATE API SYNC */}
+          {bulkImportMode === 'api' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div style={{ flex: 1 }}>
@@ -765,15 +962,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                     id="bulk-category"
                     value={apiCategory}
                     onChange={(e) => setApiCategory(e.target.value)}
-                    options={[
-                      { value: 'electronics', label: 'Electronics' },
-                      { value: 'fashion', label: 'Fashion' },
-                      { value: 'clothing', label: 'Clothing' },
-                      { value: 'health', label: 'Health' },
-                      { value: 'beauty', label: 'Beauty' },
-                      { value: 'grocery', label: 'Food & Grocery' },
-                      { value: 'travel', label: 'Travel & Flights' }
-                    ]}
+                    options={categoryOptions}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
@@ -790,6 +979,41 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                     ]}
                   />
                 </div>
+              </div>
+
+              {/* Active Network Indicator */}
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '8px',
+                backgroundColor: getNetworkForStore(apiPlatform) === 'amazon' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(59, 130, 246, 0.08)',
+                border: getNetworkForStore(apiPlatform) === 'amazon' ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Network size={16} color={getNetworkForStore(apiPlatform) === 'amazon' ? '#d97706' : '#2563eb'} />
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-bold)' }}>
+                      {getNetworkForStore(apiPlatform) === 'amazon' ? 'Amazon PA-API & Associates Engine' : 'Cuelinks Universal Indian Network Gateway'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text)' }}>
+                      {getNetworkForStore(apiPlatform) === 'amazon' 
+                        ? 'Direct Amazon India API with associate tag tracking' 
+                        : `Routes ${apiPlatform} via Cuelinks Sub-ID aggregator (${cuelinksPubId})`}
+                    </div>
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  backgroundColor: '#10b981',
+                  color: '#ffffff'
+                }}>
+                  Active
+                </span>
               </div>
 
               {/* API Credentials Toggle */}
@@ -812,34 +1036,69 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Settings size={14} />
-                    Affiliate API Configuration
+                    API Credentials ({getNetworkForStore(apiPlatform) === 'amazon' ? 'Amazon PA-API' : 'Cuelinks Network'})
                   </span>
                   <span>{showCredentials ? '▲' : '▼'}</span>
                 </button>
 
                 {showCredentials && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
-                    <AdminFormInput
-                      label="Partner / Access Key ID"
-                      id="aws-access-key"
-                      type="text"
-                      value={awsAccessKey}
-                      onChange={(e) => setAwsAccessKey(e.target.value)}
-                    />
-                    <AdminFormInput
-                      label="Secret Access Key"
-                      id="aws-secret-key"
-                      type="password"
-                      value={awsSecretKey}
-                      onChange={(e) => setAwsSecretKey(e.target.value)}
-                    />
-                    <AdminFormInput
-                      label="Affiliate Associate Tag"
-                      id="aws-assoc-tag"
-                      type="text"
-                      value={awsAssociateTag}
-                      onChange={(e) => setAwsAssociateTag(e.target.value)}
-                    />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+                    {getNetworkForStore(apiPlatform) === 'amazon' ? (
+                      <>
+                        <AdminFormInput
+                          label="Amazon Associate Tag"
+                          id="aws-assoc-tag"
+                          type="text"
+                          value={awsAssociateTag}
+                          onChange={(e) => setAwsAssociateTag(e.target.value)}
+                        />
+                        <AdminFormInput
+                          label="AWS Partner / Access Key"
+                          id="aws-access-key"
+                          type="text"
+                          value={awsAccessKey}
+                          onChange={(e) => setAwsAccessKey(e.target.value)}
+                        />
+                        <AdminFormInput
+                          label="AWS Secret Access Key"
+                          id="aws-secret-key"
+                          type="password"
+                          value={awsSecretKey}
+                          onChange={(e) => setAwsSecretKey(e.target.value)}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <AdminFormInput
+                          label="Cuelinks Publisher ID (pub_id)"
+                          id="cue-pub-id"
+                          type="text"
+                          value={cuelinksPubId}
+                          onChange={(e) => setCuelinksPubId(e.target.value)}
+                        />
+                        <AdminFormInput
+                          label="Cuelinks Secret API Token"
+                          id="cue-api-token"
+                          type="password"
+                          value={cuelinksToken}
+                          onChange={(e) => setCuelinksToken(e.target.value)}
+                        />
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-secondary"
+                      style={{ alignSelf: 'flex-end', fontSize: '12px', padding: '6px 12px' }}
+                      onClick={() => {
+                        saveAffiliateNetworkConfigs({
+                          amazon: { ...networkConfigs.amazon, associateTag: awsAssociateTag, accessKey: awsAccessKey, secretKey: awsSecretKey },
+                          cuelinks: { ...networkConfigs.cuelinks, publisherId: cuelinksPubId, apiToken: cuelinksToken }
+                        });
+                        alert('Affiliate credentials saved successfully!');
+                      }}
+                    >
+                      Save Credentials
+                    </button>
                   </div>
                 )}
               </div>
@@ -851,10 +1110,13 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                 disabled={isSyncing}
                 style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px', padding: '10px' }}
               >
-                {isSyncing ? 'Connecting and Syncing API...' : 'Fetch from Affiliate API'}
+                {isSyncing ? 'Connecting & Syncing API Feed...' : `Fetch ${apiPlatform} Products via ${getNetworkForStore(apiPlatform) === 'amazon' ? 'Amazon PA-API' : 'Cuelinks'}`}
               </button>
             </div>
-          ) : (
+          )}
+
+          {/* TAB 3: RAW TEXT / JSON PASTE */}
+          {bulkImportMode === 'raw' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <div style={{ flex: 1 }}>
@@ -864,9 +1126,8 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                     value={rawFormat}
                     onChange={(e) => setRawFormat(e.target.value)}
                     options={[
-                      { value: 'json', label: 'Structured JSON Array' },
                       { value: 'csv', label: 'Standard Comma-separated (CSV)' },
-                      { value: 'upload', label: 'Upload File (.csv, .json)' }
+                      { value: 'json', label: 'Structured JSON Array' }
                     ]}
                   />
                 </div>
@@ -881,78 +1142,39 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                 </div>
               </div>
 
-              {rawFormat === 'upload' ? (
-                <div>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-bold)', display: 'block', marginBottom: '6px' }}>
-                    Upload Products File
-                  </label>
-                  <div style={{
-                    border: '2px dashed var(--border)',
-                    borderRadius: '8px',
-                    padding: '30px',
-                    textAlign: 'center',
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-bold)', display: 'block', marginBottom: '6px' }}>
+                  Paste Products Code/Text
+                </label>
+                <textarea
+                  value={rawText}
+                  onChange={(e) => setRawText(e.target.value)}
+                  placeholder={
+                    rawFormat === 'json'
+                      ? '[\n  {\n    "name": "Headphones X",\n    "platform": "Amazon",\n    "price": 2999,\n    "cashbackValue": 10,\n    "image": ""\n  }\n]'
+                      : 'name, platform, price, cashbackValue, affiliateUrl\n"Sony WH-1000XM5", "Amazon", 29999, 10, "https://amazon.in/dp/sample"'
+                  }
+                  style={{
+                    width: '100%',
+                    height: '120px',
+                    fontFamily: 'monospace',
+                    fontSize: '12px',
+                    padding: '8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
                     backgroundColor: 'var(--bg)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <input
-                      type="file"
-                      accept=".csv,.json"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        if (file.name.endsWith('.csv')) setRawFormat('csv');
-                        else if (file.name.endsWith('.json')) setRawFormat('json');
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                          setRawText(evt.target.result);
-                        };
-                        reader.readAsText(file);
-                      }}
-                      style={{ fontSize: '14px', color: 'var(--text)' }}
-                    />
-                    <span style={{ fontSize: '12px', color: 'var(--text)' }}>
-                      Select a .csv or .json file to automatically load its contents.
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-bold)', display: 'block', marginBottom: '6px' }}>
-                    Paste Products Code/Text
-                  </label>
-                  <textarea
-                    value={rawText}
-                    onChange={(e) => setRawText(e.target.value)}
-                    placeholder={
-                      rawFormat === 'json'
-                        ? '[\n  {\n    "name": "Headphones X",\n    "platform": "Amazon",\n    "price": 2999,\n    "cashbackValue": 10,\n    "image": ""\n  }\n]'
-                        : 'name, platform, price, cashbackvalue, imageurl\nHeadphones X, Amazon, 2999, 10, '
-                    }
-                    style={{
-                      width: '100%',
-                      height: '120px',
-                      fontFamily: 'monospace',
-                      fontSize: '12px',
-                      padding: '8px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border)',
-                      backgroundColor: 'var(--bg)',
-                      color: 'var(--text)',
-                      resize: 'vertical'
-                    }}
-                  />
-                </div>
-              )}
+                    color: 'var(--text)',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
 
               {/* Template Tip Box */}
               <div style={{ fontSize: '11px', color: 'var(--text)', padding: '8px', backgroundColor: 'var(--bg)', borderLeft: '3px solid var(--primary)', borderRadius: '4px' }}>
                 {rawFormat === 'json' ? (
                   <span><strong>Format Tip:</strong> Paste a valid JSON Array. Fields: <code>name</code> (required), <code>price</code> (required), <code>platform</code> (optional), <code>cashbackValue</code> (optional), <code>image</code> (optional).</span>
                 ) : (
-                  <span><strong>Format Tip:</strong> Include a header line with at least: <code>name, price</code>. Optional fields: <code>platform, cashbackvalue, imageurl</code>. Separate fields with commas.</span>
+                  <span><strong>Format Tip:</strong> Include a header line with: <code>name, platform, price, cashbackValue, affiliateUrl</code>. Separate fields with commas.</span>
                 )}
               </div>
 

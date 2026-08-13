@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">LIO MART</string>
     <string name="title_activity_main">LIO MART</string>
-    <string name="package_name">com.cyvanta.liommart</string>
-    <string name="custom_url_scheme">com.cyvanta.liommart</string>
+    <string name="package_name">com.cyvanta.affiliate.app</string>
+    <string name="custom_url_scheme">com.cyvanta.affiliate.app</string>
 </resources>

@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { Users, MousePointer, CheckSquare, Gift, Wallet, TrendingUp } from 'lucide-react';
+import { Users, MousePointer, CheckSquare, Gift, Wallet, TrendingUp, ShoppingBag } from 'lucide-react';
 
-export default function AdminDashboard({ users, products, orders, withdrawRequests, finance, cashbackList = [], clickLogsCount = 1245, conversionsCount = 340 }) {
+export default function AdminDashboard({ users = [], products = [], orders = [], withdrawRequests = [], finance = {}, cashbackList = [], clickLogsCount = 1245, conversionsCount = 340, setTab }) {
   const [activeReport, setActiveReport] = useState('clicks'); // 'clicks', 'cashback', 'revenue'
 
   // Calculations
-  const totalUsers = users.length;
-  const totalClicks = clickLogsCount;
-  const totalConversions = conversionsCount;
-  const totalCashbackVal = finance.totalCashbackPaid;
-  const totalWithdrawalsVal = finance.totalWithdrawPaid;
+  const totalUsers = users ? users.length : 0;
+  const totalProducts = products ? products.length : 0;
+  const activeProductsCount = products ? products.filter(p => p && (p.status === 'active' || p.isActive === true || p.status === undefined)).length : 0;
+  const totalClicks = clickLogsCount || 0;
+  const totalConversions = conversionsCount || 0;
+  const totalCashbackVal = (finance && finance.totalCashbackPaid) || 0;
+  const totalWithdrawalsVal = (finance && finance.totalWithdrawPaid) || 0;
 
   // Filter pending/recent lists
-  const recentWithdrawals = withdrawRequests.slice(-3).reverse();
-  const recentCashbacks = cashbackList.slice(-3).reverse();
+  const recentWithdrawals = withdrawRequests ? withdrawRequests.slice(-3).reverse() : [];
+  const recentCashbacks = cashbackList ? cashbackList.slice(-3).reverse() : [];
 
   // SVG Chart points definitions for the reports
   const clicksPointsLine = "M 20 160 L 100 110 L 180 130 L 260 70 L 340 100 L 420 50 L 480 20";
@@ -76,15 +78,39 @@ export default function AdminDashboard({ users, products, orders, withdrawReques
         </div>
       </div>
 
-      {/* 5 KPI Cards Grid */}
+      {/* 6 KPI Cards Grid */}
       <div className="admin-kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+        {/* Total Products */}
+        <div 
+          className="admin-kpi-card" 
+          onClick={() => setTab && setTab('products')} 
+          style={{ cursor: setTab ? 'pointer' : 'default' }}
+          title="Click to view and manage products"
+        >
+          <div className="admin-kpi-info">
+            <h3>Total Products</h3>
+            <div className="admin-kpi-value">{totalProducts}</div>
+            <span className="admin-kpi-trend positive">
+              <TrendingUp size={12} style={{ marginRight: '2px' }} /> {activeProductsCount} Active
+            </span>
+          </div>
+          <div className="admin-kpi-icon" style={{ color: '#10b981' }}>
+            <ShoppingBag size={20} />
+          </div>
+        </div>
+
         {/* Total Users */}
-        <div className="admin-kpi-card">
+        <div 
+          className="admin-kpi-card"
+          onClick={() => setTab && setTab('users')}
+          style={{ cursor: setTab ? 'pointer' : 'default' }}
+          title="Click to view users"
+        >
           <div className="admin-kpi-info">
             <h3>Total Users</h3>
             <div className="admin-kpi-value">{totalUsers}</div>
             <span className="admin-kpi-trend positive">
-              <TrendingUp size={12} style={{ marginRight: '2px' }} /> +14.2%
+              <TrendingUp size={12} style={{ marginRight: '2px' }} /> Registered
             </span>
           </div>
           <div className="admin-kpi-icon" style={{ color: '#3b82f6' }}>
@@ -93,12 +119,17 @@ export default function AdminDashboard({ users, products, orders, withdrawReques
         </div>
 
         {/* Total Clicks */}
-        <div className="admin-kpi-card">
+        <div 
+          className="admin-kpi-card"
+          onClick={() => setTab && setTab('click-logs')}
+          style={{ cursor: setTab ? 'pointer' : 'default' }}
+          title="Click to view click logs"
+        >
           <div className="admin-kpi-info">
             <h3>Total Clicks</h3>
             <div className="admin-kpi-value">{totalClicks.toLocaleString()}</div>
             <span className="admin-kpi-trend positive">
-              <TrendingUp size={12} style={{ marginRight: '2px' }} /> +18.7%
+              <TrendingUp size={12} style={{ marginRight: '2px' }} /> Tracking
             </span>
           </div>
           <div className="admin-kpi-icon" style={{ color: '#8b5cf6' }}>
@@ -107,12 +138,17 @@ export default function AdminDashboard({ users, products, orders, withdrawReques
         </div>
 
         {/* Total Conversions */}
-        <div className="admin-kpi-card">
+        <div 
+          className="admin-kpi-card"
+          onClick={() => setTab && setTab('conversions')}
+          style={{ cursor: setTab ? 'pointer' : 'default' }}
+          title="Click to view conversions"
+        >
           <div className="admin-kpi-info">
             <h3>Conversions</h3>
             <div className="admin-kpi-value">{totalConversions}</div>
             <span className="admin-kpi-trend positive">
-              <TrendingUp size={12} style={{ marginRight: '2px' }} /> +21.4%
+              <TrendingUp size={12} style={{ marginRight: '2px' }} /> Verified
             </span>
           </div>
           <div className="admin-kpi-icon" style={{ color: '#ec4899' }}>
@@ -121,12 +157,17 @@ export default function AdminDashboard({ users, products, orders, withdrawReques
         </div>
 
         {/* Total Cashback Paid */}
-        <div className="admin-kpi-card">
+        <div 
+          className="admin-kpi-card"
+          onClick={() => setTab && setTab('finance')}
+          style={{ cursor: setTab ? 'pointer' : 'default' }}
+          title="Click to view finance"
+        >
           <div className="admin-kpi-info">
             <h3>Total Cashback</h3>
             <div className="admin-kpi-value">₹{totalCashbackVal.toFixed(2)}</div>
             <span className="admin-kpi-trend positive">
-              <TrendingUp size={12} style={{ marginRight: '2px' }} /> +12.5%
+              <TrendingUp size={12} style={{ marginRight: '2px' }} /> Disbursed
             </span>
           </div>
           <div className="admin-kpi-icon" style={{ color: 'var(--secondary)' }}>
@@ -135,12 +176,17 @@ export default function AdminDashboard({ users, products, orders, withdrawReques
         </div>
 
         {/* Total Withdrawals Paid */}
-        <div className="admin-kpi-card">
+        <div 
+          className="admin-kpi-card"
+          onClick={() => setTab && setTab('withdrawals')}
+          style={{ cursor: setTab ? 'pointer' : 'default' }}
+          title="Click to view withdrawals"
+        >
           <div className="admin-kpi-info">
             <h3>Total Withdrawals</h3>
             <div className="admin-kpi-value">₹{totalWithdrawalsVal.toFixed(2)}</div>
             <span className="admin-kpi-trend positive">
-              <TrendingUp size={12} style={{ marginRight: '2px' }} /> +9.3%
+              <TrendingUp size={12} style={{ marginRight: '2px' }} /> Processed
             </span>
           </div>
           <div className="admin-kpi-icon" style={{ color: 'var(--primary)' }}>

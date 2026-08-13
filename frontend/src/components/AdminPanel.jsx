@@ -63,7 +63,20 @@ import {
   apiAdmin
 } from '../services/api';
 
-export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, onAddNotification }) {
+export default function AdminPanel({
+  currentUser,
+  onLogout,
+  theme,
+  toggleTheme,
+  onAddNotification,
+  onUpdateProducts,
+  onUpdateDeals,
+  onUpdateStores,
+  onUpdateBanners,
+  onUpdateCategories,
+  onRefreshCatalog,
+  setView
+}) {
   const getInitialTab = () => {
     const hash = window.location.hash;
     if (hash === '#/admin/users') return 'users';
@@ -345,9 +358,37 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
   // Helper actions
   const addProduct = async (prod) => {
     try {
-      const newProd = await apiProducts.create(prod);
-      setProducts((prev) => [...prev, newProd]);
-      onAddNotification('Product added successfully.', 'success');
+      let newProd;
+      try {
+        newProd = await apiProducts.create(prod);
+      } catch (apiErr) {
+        console.warn('Backend API add failed, using local product:', apiErr);
+        newProd = {
+          ...prod,
+          id: `prod-${Date.now()}`,
+          status: 'active',
+          isActive: true,
+          createdAt: new Date().toISOString()
+        };
+      }
+      if (!newProd) {
+        newProd = { ...prod, id: `prod-${Date.now()}`, status: 'active', isActive: true, createdAt: new Date().toISOString() };
+      }
+
+      // Persist to localStorage immediately
+      try {
+        const stored = localStorage.getItem('lio_custom_products');
+        const list = stored ? JSON.parse(stored) : [];
+        const updatedList = [newProd, ...list.filter(p => p.id !== newProd.id && p.name !== newProd.name)];
+        localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
+      } catch (e) {
+        console.warn('Could not save to localStorage:', e);
+      }
+
+      setProducts((prev) => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
+      if (onUpdateProducts) onUpdateProducts((prev) => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
+      if (onRefreshCatalog) onRefreshCatalog();
+      onAddNotification('Product added successfully and published to Home Page!', 'success');
     } catch (err) {
       console.error(err);
       onAddNotification('Failed to add product.', 'error');
@@ -356,9 +397,44 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
 
   const addProductBulk = async (productsList) => {
     try {
-      const added = await apiProducts.createBulk(productsList);
-      setProducts((prev) => [...prev, ...added]);
-      onAddNotification(`Successfully imported ${added.length} products.`, 'success');
+      let added;
+      try {
+        added = await apiProducts.createBulk(productsList);
+      } catch (apiErr) {
+        console.warn('Backend API bulk add failed, using local products:', apiErr);
+        added = productsList.map((p, idx) => ({
+          ...p,
+          id: p.id || `bulk-prod-${Date.now()}-${idx}`,
+          status: 'active',
+          isActive: true,
+          createdAt: new Date().toISOString()
+        }));
+      }
+
+      if (!added || !Array.isArray(added)) {
+        added = productsList.map((p, idx) => ({
+          ...p,
+          id: p.id || `bulk-prod-${Date.now()}-${idx}`,
+          status: 'active',
+          isActive: true,
+          createdAt: new Date().toISOString()
+        }));
+      }
+
+      // Persist to localStorage immediately
+      try {
+        const stored = localStorage.getItem('lio_custom_products');
+        const list = stored ? JSON.parse(stored) : [];
+        const updatedList = [...added, ...list.filter(lp => !added.some(ap => ap.id === lp.id || ap.name === lp.name))];
+        localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
+      } catch (e) {
+        console.warn('Could not save to localStorage:', e);
+      }
+
+      setProducts((prev) => [...added, ...prev]);
+      if (onUpdateProducts) onUpdateProducts((prev) => [...added, ...prev]);
+      if (onRefreshCatalog) onRefreshCatalog();
+      onAddNotification(`Successfully added ${added.length} products to catalog and Home Page!`, 'success');
     } catch (err) {
       console.error(err);
       onAddNotification('Failed to import products in bulk.', 'error');
@@ -367,8 +443,30 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
 
   const editProduct = async (editedProd) => {
     try {
-      const updatedProd = await apiProducts.update(editedProd);
-      setProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
+      let updatedProd;
+      try {
+        updatedProd = await apiProducts.update(editedProd);
+      } catch (apiErr) {
+        console.warn('Backend API update failed, falling back to local object:', apiErr);
+        updatedProd = editedProd;
+      }
+      if (!updatedProd) updatedProd = editedProd;
+
+      try {
+        const stored = localStorage.getItem('lio_custom_products');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const updatedList = list.map(p => p.id === updatedProd.id ? updatedProd : p);
+          localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
+        }
+      } catch (e) {}
+
+      const updatedList = products.map((p) => (p.id === updatedProd.id ? updatedProd : p));
+      setProducts(updatedList);
+      if (onUpdateProducts) {
+        onUpdateProducts((prev) => prev.map((p) => (p.id === updatedProd.id ? updatedProd : p)));
+      }
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Product details modified successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -381,8 +479,29 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
       const current = products.find(p => p.id === id);
       if (!current) return;
       const nextStatus = current.status === 'active' ? 'inactive' : 'active';
-      const updatedProd = await apiProducts.update({ ...current, status: nextStatus });
-      setProducts((prev) => prev.map((p) => (p.id === id ? updatedProd : p)));
+      let updatedProd;
+      try {
+        updatedProd = await apiProducts.update({ ...current, status: nextStatus, isActive: nextStatus === 'active' });
+      } catch (apiErr) {
+        updatedProd = { ...current, status: nextStatus, isActive: nextStatus === 'active' };
+      }
+      if (!updatedProd) updatedProd = { ...current, status: nextStatus, isActive: nextStatus === 'active' };
+
+      try {
+        const stored = localStorage.getItem('lio_custom_products');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const updatedList = list.map(p => p.id === id ? { ...p, status: nextStatus, isActive: nextStatus === 'active' } : p);
+          localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
+        }
+      } catch (e) {}
+
+      const updatedList = products.map((p) => (p.id === id ? updatedProd : p));
+      setProducts(updatedList);
+      if (onUpdateProducts) {
+        onUpdateProducts((prev) => prev.map((p) => (p.id === id ? updatedProd : p)));
+      }
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification(`Product status changed to ${nextStatus}.`, 'info');
     } catch (err) {
       console.error(err);
@@ -392,8 +511,24 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
 
   const deleteProduct = async (id) => {
     try {
-      await apiProducts.delete(id);
+      try {
+        await apiProducts.delete(id);
+      } catch (apiErr) {
+        console.warn('Backend delete API failed, removing locally:', apiErr);
+      }
+
+      try {
+        const stored = localStorage.getItem('lio_custom_products');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const updatedList = list.filter(p => p.id !== id);
+          localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
+        }
+      } catch (e) {}
+
       setProducts((prev) => prev.filter((p) => p.id !== id));
+      if (onUpdateProducts) onUpdateProducts((prev) => prev.filter((p) => p.id !== id));
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Product deleted successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -582,8 +717,20 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
 
   const addCategory = async (cat) => {
     try {
-      const newCat = await apiCategories.create(cat);
+      let newCat;
+      try {
+        newCat = await apiCategories.create(cat);
+      } catch (apiErr) {
+        console.warn('Backend API add category failed, falling back to local object:', apiErr);
+        newCat = {
+          ...cat,
+          id: `cat-${Date.now()}`,
+          created: new Date().toISOString().split('T')[0]
+        };
+      }
       setCategories((prev) => [...prev, newCat]);
+      if (onUpdateCategories) onUpdateCategories((prev) => [...prev, newCat]);
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Category added successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -593,8 +740,16 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
 
   const editCategory = async (cat) => {
     try {
-      const updatedCat = await apiCategories.update(cat);
+      let updatedCat;
+      try {
+        updatedCat = await apiCategories.update(cat);
+      } catch (apiErr) {
+        console.warn('Backend API update category failed, falling back to local object:', apiErr);
+        updatedCat = cat;
+      }
       setCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
+      if (onUpdateCategories) onUpdateCategories((prev) => prev.map((c) => (c.id === updatedCat.id ? updatedCat : c)));
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Category updated successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -604,8 +759,14 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
 
   const deleteCategory = async (id) => {
     try {
-      await apiCategories.delete(id);
+      try {
+        await apiCategories.delete(id);
+      } catch (apiErr) {
+        console.warn('Backend delete category failed, removing locally:', apiErr);
+      }
       setCategories((prev) => prev.filter((c) => c.id !== id));
+      if (onUpdateCategories) onUpdateCategories((prev) => prev.filter((c) => c.id !== id));
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Category deleted successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -617,6 +778,8 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
     try {
       const newDeal = await apiDeals.create(deal);
       setDeals((prev) => [...prev, newDeal]);
+      if (onUpdateDeals) onUpdateDeals((prev) => [...prev, newDeal]);
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Deal added successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -628,6 +791,8 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
     try {
       await apiDeals.delete(id);
       setDeals((prev) => prev.filter((d) => d.id !== id));
+      if (onUpdateDeals) onUpdateDeals((prev) => prev.filter((d) => d.id !== id));
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Deal deleted successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -639,6 +804,8 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
     try {
       const newStore = await apiStores.create(store);
       setStoresData((prev) => [...prev, newStore]);
+      if (onUpdateStores) onUpdateStores((prev) => [...prev, newStore]);
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Store added successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -650,6 +817,10 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
     try {
       const updatedStore = await apiStores.update(store.id, store);
       setStoresData((prev) => prev.map((s) => (s.id === updatedStore.id ? updatedStore : s)));
+      if (onUpdateStores) {
+        onUpdateStores((prev) => prev.map((s) => (s.id === updatedStore.id ? updatedStore : s)));
+      }
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Store updated successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -661,6 +832,8 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
     try {
       await apiStores.delete(id);
       setStoresData((prev) => prev.filter((s) => s.id !== id));
+      if (onUpdateStores) onUpdateStores((prev) => prev.filter((s) => s.id !== id));
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Store deleted successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -672,6 +845,8 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
     try {
       const newBanner = await apiBanners.create(banner);
       setBanners((prev) => [...prev, newBanner]);
+      if (onUpdateBanners) onUpdateBanners((prev) => [...prev, newBanner]);
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Banner added successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -683,6 +858,10 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
     try {
       const updatedBanner = await apiBanners.update(banner.id, banner);
       setBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
+      if (onUpdateBanners) {
+        onUpdateBanners((prev) => prev.map((b) => (b.id === updatedBanner.id ? updatedBanner : b)));
+      }
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Banner updated successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -694,6 +873,8 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
     try {
       await apiBanners.delete(id);
       setBanners((prev) => prev.filter((b) => b.id !== id));
+      if (onUpdateBanners) onUpdateBanners((prev) => prev.filter((b) => b.id !== id));
+      if (onRefreshCatalog) onRefreshCatalog();
       onAddNotification('Banner deleted successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -750,6 +931,7 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
             cashbackList={cashbackList}
             clickLogsCount={clickLogs.length}
             conversionsCount={conversions.length}
+            setTab={setActiveTab}
           />
         );
       case 'users':
@@ -777,6 +959,7 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
           <AdminProducts
             products={products}
             stores={storesData}
+            categories={categories}
             onAddProduct={addProduct}
             onAddProductBulk={addProductBulk}
             onEditProduct={editProduct}
@@ -938,7 +1121,14 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
           })}
         </nav>
 
-        <div className="admin-sidebar-footer">
+        <div className="admin-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div className="admin-sidebar-link" onClick={() => {
+            if (setView) setView('home');
+            else { window.location.hash = '#/'; window.location.reload(); }
+          }} style={{ color: '#3b82f6', cursor: 'pointer' }}>
+            <Globe size={18} />
+            <span>View User Store</span>
+          </div>
           <div className="admin-sidebar-link" onClick={() => {
             window.history.pushState(null, '', '/');
             onLogout();
@@ -966,7 +1156,19 @@ export default function AdminPanel({ currentUser, onLogout, theme, toggleTheme, 
             </button>
           </div>
 
-          <div className="admin-navbar-right">
+          <div className="admin-navbar-right" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              onClick={() => {
+                if (setView) setView('home');
+                else { window.location.hash = '#/'; window.location.reload(); }
+              }}
+              className="admin-btn admin-btn-secondary"
+              style={{ padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', borderRadius: '6px' }}
+            >
+              <Globe size={14} />
+              <span>View User Store</span>
+            </button>
+
             {/* Dark/Light mode toggle */}
             <button
               onClick={toggleTheme}

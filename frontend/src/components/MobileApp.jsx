@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
+import { apiAffiliate } from '../services/api';
+import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from '../utils/openUrl';
 
 const STORES_INFO = [
   { platform: 'Amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg', cashbackPercent: 10.0 },
@@ -45,10 +47,32 @@ const STORES_INFO = [
 const generatePriceComparisons = (deal) => {
   if (!deal) return [];
   
+  if (deal.comparisons && deal.comparisons.length > 0) {
+    return deal.comparisons.map(comp => {
+      const platformName = comp.platform || 'Amazon';
+      const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
+      const dealPrice = comp.listedPrice || comp.dealPrice || deal.dealPrice || 0;
+      const cashbackPercent = comp.cashbackPercent || store.cashbackPercent || 10;
+      const cashbackEarned = parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
+      const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
+      const link = comp.link || getProductPlatformUrl(deal, platformName);
+      return {
+        platform: platformName,
+        logo: comp.logo || store.logo,
+        dealPrice,
+        cashbackPercent,
+        cashbackEarned,
+        effectivePrice,
+        link,
+        isOriginal: platformName.toLowerCase() === (deal.platform || '').toLowerCase()
+      };
+    }).sort((a, b) => a.effectivePrice - b.effectivePrice);
+  }
+
   let platforms = ['Amazon', 'Flipkart'];
   if (deal.category === 'fashion') {
     platforms = ['Myntra', 'Ajio', 'Flipkart', 'Amazon'];
-  } else if (deal.category === 'health') {
+  } else if (deal.category === 'health' || deal.category === 'beauty') {
     platforms = ['Nykaa Beauty', 'Amazon', 'Flipkart'];
   } else if (deal.category === 'travel') {
     platforms = ['MakeMyTrip', 'Amazon'];
@@ -57,18 +81,20 @@ const generatePriceComparisons = (deal) => {
   }
 
   return platforms.map(platformName => {
-    const store = STORES_INFO.find(s => s.platform === platformName) || STORES_INFO[0];
+    const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
     
-    let dealPrice = deal.dealPrice;
-    if (platformName !== deal.platform) {
+    let dealPrice = deal.dealPrice || 0;
+    const isOriginal = (deal.platform && platformName.toLowerCase() === deal.platform.toLowerCase());
+    if (!isOriginal) {
       const hash = platformName.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
       const percentDiff = ((hash % 21) - 10) / 100; // -10% to +10%
-      dealPrice = parseFloat((deal.dealPrice * (1 + percentDiff)).toFixed(2));
+      dealPrice = parseFloat((dealPrice * (1 + percentDiff)).toFixed(2));
     }
     
     const cashbackValue = store.cashbackPercent;
     const cashbackEarned = parseFloat(((dealPrice * cashbackValue) / 100).toFixed(2));
     const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
+    const link = getProductPlatformUrl(deal, platformName);
     
     return {
       platform: platformName,
@@ -77,7 +103,8 @@ const generatePriceComparisons = (deal) => {
       cashbackPercent: cashbackValue,
       cashbackEarned,
       effectivePrice,
-      isOriginal: platformName === deal.platform
+      link,
+      isOriginal
     };
   }).sort((a, b) => a.effectivePrice - b.effectivePrice);
 };
@@ -208,27 +235,34 @@ export default function MobileApp({
   };
 
   const executeSimulatorGrabDeal = (dealItem, storeItem) => {
+    if (isGuest) {
+      setComparisonDeal(null);
+      onAddNotification('Please Login / Sign Up first to grab deals & earn cashback!', 'info');
+      openAuthModal();
+      return;
+    }
+
     setComparisonDeal(null);
-    onAddNotification(`Redirecting to ${storeItem.platform}...`, 'success');
+    onAddNotification(`Opening ${storeItem?.platform || 'Store'}... Tracking active!`, 'success');
     
-    // Trigger dummy affiliate click
-    if (onGrabDeal) {
-      onGrabDeal(dealItem);
+    // Background tracking without blocking UI
+    if (currentUser) {
+      const shareId = localStorage.getItem('shareId');
+      const buyerId = currentUser.id;
+      apiAffiliate.createClick(buyerId, shareId, dealItem.id).catch(e => console.warn('Affiliate click log failed', e));
     }
     
-    const link = storeItem?.link || dealItem?.affiliateUrl || dealItem?.link;
-    if (link) {
-      window.open(link, '_blank');
-    } else {
-      window.open('https://google.com', '_blank');
-    }
+    const link = storeItem?.link || dealItem?.affiliateUrl || dealItem?.link || getProductPlatformUrl(dealItem, storeItem?.platform);
+    openExternalUrl(link);
   };
 
   const handleStoreClick = (store) => {
     if (onStoreSelect) {
       onStoreSelect(store.id);
     } else {
-      onAddNotification(`Redirecting to ${store.name}... Tracking ID is active!`, 'success');
+      onAddNotification(`Opening ${store.name}... Tracking active!`, 'success');
+      const storeUrl = store.affiliateUrl || store.link || getStoreUrl(store.name);
+      openExternalUrl(storeUrl);
     }
   };
 
@@ -832,8 +866,17 @@ export default function MobileApp({
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
                         {dealsData
-                          .filter(d => selectedCategory === 'all' || d.category === selectedCategory)
-                          .slice(0, 8)
+                          .filter(d => {
+                            if (!selectedCategory || selectedCategory === 'all') return true;
+                            const normSelected = selectedCategory.toLowerCase();
+                            const normCat = (d.category || '').toLowerCase();
+                            return normCat === normSelected ||
+                                   (normSelected === 'fashion' && (normCat === 'clothing' || normCat === 'shoes' || normCat === 'fashion')) ||
+                                   (normSelected === 'health' && (normCat === 'beauty' || normCat === 'health')) ||
+                                   normCat.includes(normSelected) ||
+                                   normSelected.includes(normCat);
+                          })
+                          .slice(0, 60)
                           .map(deal => (
                             <div 
                               key={deal.id} 
@@ -873,9 +916,51 @@ export default function MobileApp({
                                 }}>
                                   {deal.title}
                                 </h4>
-                                <div className="app-deal-prices" style={{ display: 'flex', flexDirection: 'column', marginTop: '2px' }}>
-                                  <span className="deal-price-val" style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-bold)' }}>₹{deal.dealPrice.toFixed(2)}</span>
-                                  <span className="deal-price-cb" style={{ fontSize: '9px', color: '#10b981', fontWeight: '700' }}>+₹{deal.cashbackEarned.toFixed(2)} CB</span>
+                                <div className="app-deal-prices" style={{ display: 'flex', flexDirection: 'column', marginTop: '2px', gap: '4px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span className="deal-price-val" style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-bold)' }}>₹{deal.dealPrice.toFixed(2)}</span>
+                                    <span className="deal-price-cb" style={{ fontSize: '9px', color: '#10b981', fontWeight: '700' }}>+₹{deal.cashbackEarned.toFixed(2)} CB</span>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '4px', marginTop: '2px' }}>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const targetStore = { platform: deal.platform || 'Amazon', link: deal.affiliateUrl || deal.link };
+                                        executeSimulatorGrabDeal(deal, targetStore);
+                                      }}
+                                      style={{
+                                        flex: 1,
+                                        backgroundColor: '#ff4f2f',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '4px 0',
+                                        fontSize: '9px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      ⚡ Buy
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleGrabDeal(deal);
+                                      }}
+                                      style={{
+                                        backgroundColor: 'var(--bg)',
+                                        color: 'var(--text)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '4px',
+                                        padding: '4px 6px',
+                                        fontSize: '8px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      Compare
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>

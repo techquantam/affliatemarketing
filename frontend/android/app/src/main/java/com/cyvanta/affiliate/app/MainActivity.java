@@ -1,4 +1,4 @@
-package com.cyvanta.liommart;
+package com.cyvanta.affiliate.app;
 
 import com.getcapacitor.BridgeActivity;
 

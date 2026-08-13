@@ -74,8 +74,57 @@ const mapProductsToDeals = (productsList, dbDealsList, storesData) => {
   const storesLogoMap = storesData?.reduce((acc, store) => { acc[store.name] = store.logo; return acc; }, {}) || {};
   const fallbackLogo = 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg';
 
+  // 1. Process custom / newly added products FIRST
+  if (productsList && productsList.length > 0) {
+    const activeProducts = productsList.filter(p => p && (p.status === 'active' || p.status === 'ACTIVE' || p.isActive === true || p.status === undefined || p.status === null));
+    const productDeals = activeProducts.map(p => {
+      const platform = p.platform || p.sourcePlatform || 'Amazon';
+      const storeLogo = storesLogoMap[platform] || fallbackLogo;
+      
+      let category = (p.category || '').toLowerCase();
+      const prodName = p.name || p.title || 'Product';
+      const lowerName = prodName.toLowerCase();
+      const lowerPlatform = platform.toLowerCase();
+      
+      if (!category) {
+        if (lowerPlatform === 'myntra' || lowerPlatform === 'ajio' || lowerName.includes('shoes') || lowerName.includes('clothing') || lowerName.includes('boots') || lowerName.includes('wear')) {
+          category = 'fashion';
+        } else if (lowerPlatform === 'nykaa beauty' || lowerName.includes('cleanser') || lowerName.includes('cream') || lowerName.includes('facial') || lowerName.includes('beauty')) {
+          category = 'health';
+        } else if (lowerPlatform === 'makemytrip' || lowerName.includes('flight') || lowerName.includes('hotel') || lowerName.includes('trip')) {
+          category = 'travel';
+        } else if (lowerName.includes('headphones') || lowerName.includes('laptop') || lowerName.includes('phone') || lowerName.includes('tv') || lowerName.includes('speaker')) {
+          category = 'electronics';
+        } else {
+          category = 'electronics';
+        }
+      }
+      
+      const dealPrice = typeof p.price === 'number' ? p.price : (parseFloat(p.price || p.dealPrice || '999') || 999);
+      const retailPrice = parseFloat((dealPrice * 1.5).toFixed(2));
+      const cashbackVal = p.cashbackValue || p.commissionPercentage || 10;
+      const cashbackEarned = parseFloat(((dealPrice * cashbackVal) / 100).toFixed(2));
+      
+      return {
+        id: p.id,
+        title: prodName,
+        name: prodName,
+        platform: platform,
+        retailPrice,
+        dealPrice,
+        cashbackEarned,
+        cashbackValue: cashbackVal,
+        category,
+        storeLogo,
+        image: p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300'
+      };
+    });
+    combinedDeals = [...combinedDeals, ...productDeals];
+  }
+
+  // 2. Process explicit deals
   if (dbDealsList && dbDealsList.length > 0) {
-    const explicitDeals = dbDealsList.filter(d => d.status === 'active').map(d => {
+    const explicitDeals = dbDealsList.filter(d => d.status === 'active' || d.status === 'ACTIVE' || d.isActive === true).map(d => {
       let lowestListedPrice = 0;
       let highestCashbackPercent = 0;
       if (d.comparisons && d.comparisons.length > 0) {
@@ -87,9 +136,9 @@ const mapProductsToDeals = (productsList, dbDealsList, storesData) => {
       const cashbackEarned = dealPrice > 0 ? parseFloat(((dealPrice * highestCashbackPercent) / 100).toFixed(2)) : 0;
       return {
         ...d,
-        title: d.name,
+        title: d.name || d.title,
         platform: d.platform || (d.comparisons && d.comparisons.length > 0 ? d.comparisons[0].platform : 'Amazon'),
-        category: 'electronics',
+        category: (d.category || 'electronics').toLowerCase(),
         storeLogo: storesLogoMap['Amazon'] || fallbackLogo,
         retailPrice,
         dealPrice,
@@ -99,46 +148,6 @@ const mapProductsToDeals = (productsList, dbDealsList, storesData) => {
     combinedDeals = [...combinedDeals, ...explicitDeals];
   }
 
-  if (productsList && productsList.length > 0) {
-    const activeProducts = productsList.filter(p => p.status === 'active');
-    const productDeals = activeProducts.map(p => {
-      const platform = p.platform || 'Amazon';
-      const storeLogo = storesLogoMap[platform] || fallbackLogo;
-      
-      let category = 'electronics';
-      const lowerName = p.name.toLowerCase();
-      const lowerPlatform = platform.toLowerCase();
-      
-      if (lowerPlatform === 'myntra' || lowerPlatform === 'ajio' || lowerName.includes('shoes') || lowerName.includes('clothing') || lowerName.includes('boots') || lowerName.includes('wear')) {
-        category = 'fashion';
-      } else if (lowerPlatform === 'nykaa beauty' || lowerName.includes('cleanser') || lowerName.includes('cream') || lowerName.includes('facial') || lowerName.includes('beauty')) {
-        category = 'health';
-      } else if (lowerPlatform === 'makemytrip' || lowerName.includes('flight') || lowerName.includes('hotel') || lowerName.includes('trip')) {
-        category = 'travel';
-      } else if (lowerName.includes('headphones') || lowerName.includes('laptop') || lowerName.includes('phone') || lowerName.includes('tv') || lowerName.includes('speaker')) {
-        category = 'electronics';
-      } else if (lowerPlatform === 'amazon') {
-        category = 'grocery';
-      }
-      
-      const dealPrice = p.price;
-      const retailPrice = parseFloat((dealPrice * 1.5).toFixed(2));
-      const cashbackEarned = parseFloat(((dealPrice * p.cashbackValue) / 100).toFixed(2));
-      
-      return {
-        id: p.id,
-        title: p.name,
-        platform: platform,
-        retailPrice,
-        dealPrice,
-        cashbackEarned,
-        category,
-        storeLogo,
-        image: p.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300'
-      };
-    });
-    combinedDeals = [...combinedDeals, ...productDeals];
-  }
   return combinedDeals;
 };
 

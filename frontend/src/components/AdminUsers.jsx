@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Edit2, Wallet } from 'lucide-react';
-import { AdminTable, AdminModal, AdminFormInput, AdminFormSelect } from './AdminComponents';
+import { AdminTable, AdminModal, AdminFormInput, AdminFormSelect, ExportDataButton } from './AdminComponents';
 import AdminWalletModal from './AdminWalletModal';
 
 export default function AdminUsers({ users, setUsers, onEditUser, onAddNotification, currentUser }) {
@@ -99,6 +99,17 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
     return matchesSearch && matchesStatus;
   });
 
+  const exportColumns = [
+    { header: 'ID', dataKey: 'id' },
+    { header: 'Name', dataKey: 'name' },
+    { header: 'Email', dataKey: 'email' },
+    { header: 'Phone', dataKey: 'phone' },
+    { header: 'Role', dataKey: 'role' },
+    { header: 'Status', dataKey: 'status' },
+    { header: 'Wallet Balance (₹)', dataKey: 'walletBalance' },
+    { header: 'Referral Code', dataKey: 'referralCode' }
+  ];
+
   const headers = ['User Name', 'Email', 'Mobile', 'Referral Code', 'Join Date', 'Status', 'Actions'];
 
   const renderRow = (item, idx) => (
@@ -158,6 +169,9 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
         <div className="admin-page-title">
           <h2>User Management</h2>
           <p>Search, view logs, edit profiles, and block/unblock members</p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <ExportDataButton data={users} columns={exportColumns} filename="Users_Report" />
         </div>
       </div>
 

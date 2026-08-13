@@ -17,7 +17,8 @@ import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
 import MobileApp from './components/MobileApp';
 import SearchBar from './components/SearchBar';
-import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate } from './services/api';
+import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories } from './services/api';
+import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from './utils/openUrl';
 import './index.css';
 import './App.css';
 
@@ -82,6 +83,97 @@ const DEFAULT_STORES = [
     isPopular: false,
     link: 'https://www.makemytrip.com',
   },
+];
+
+const DEFAULT_PRODUCTS = [
+  {
+    id: 'default-p1',
+    name: 'Apple iPhone 15 (128 GB)',
+    price: 69999,
+    cashbackValue: 10,
+    category: 'electronics',
+    platform: 'Amazon',
+    status: 'active',
+    image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400',
+    affiliateUrl: 'https://www.amazon.in/s?k=Apple+iPhone+15'
+  },
+  {
+    id: 'default-p2',
+    name: 'Sony WH-1000XM5 Wireless Headphones',
+    price: 26990,
+    cashbackValue: 12,
+    category: 'electronics',
+    platform: 'Amazon',
+    status: 'active',
+    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400',
+    affiliateUrl: 'https://www.amazon.in/s?k=Sony+WH-1000XM5'
+  },
+  {
+    id: 'default-p3',
+    name: 'Nike Air Max 270 Sneakers',
+    price: 11495,
+    cashbackValue: 15,
+    category: 'fashion',
+    platform: 'Myntra',
+    status: 'active',
+    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400',
+    affiliateUrl: 'https://www.myntra.com/nike-air-max-270'
+  },
+  {
+    id: 'default-p4',
+    name: 'Samsung Galaxy S24 Ultra 5G',
+    price: 119999,
+    cashbackValue: 8.5,
+    category: 'electronics',
+    platform: 'Flipkart',
+    status: 'active',
+    image: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400',
+    affiliateUrl: 'https://www.flipkart.com/search?q=Samsung+Galaxy+S24+Ultra'
+  },
+  {
+    id: 'default-p5',
+    name: 'Levi\'s Men\'s Slim Fit Jeans',
+    price: 2499,
+    cashbackValue: 15,
+    category: 'fashion',
+    platform: 'Ajio',
+    status: 'active',
+    image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400',
+    affiliateUrl: 'https://www.ajio.com/search/?text=Levis+Slim+Fit+Jeans'
+  },
+  {
+    id: 'default-p6',
+    name: 'Maybelline New York Superstay Lipstick',
+    price: 549,
+    cashbackValue: 10,
+    category: 'health',
+    platform: 'Nykaa Beauty',
+    status: 'active',
+    image: 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=400',
+    affiliateUrl: 'https://www.nykaa.com/search/result/?q=Maybelline+Superstay'
+  },
+  {
+    id: 'default-p7',
+    name: 'Dell XPS 13 Core Ultra Laptop',
+    price: 139990,
+    cashbackValue: 8,
+    category: 'electronics',
+    platform: 'Amazon',
+    status: 'active',
+    image: 'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=400',
+    affiliateUrl: 'https://www.amazon.in/s?k=Dell+XPS+13'
+  },
+  {
+    id: 'default-p8',
+    name: 'Puma Men Running Shoes',
+    price: 3299,
+    cashbackValue: 12,
+    category: 'fashion',
+    platform: 'Myntra',
+    status: 'active',
+    image: 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=400',
+    affiliateUrl: 'https://www.myntra.com/puma-running-shoes'
+  }
 ];
 
 const ShareLanding = ({ products, currentUser, openAuthModal }) => {
@@ -173,11 +265,11 @@ const ShareLanding = ({ products, currentUser, openAuthModal }) => {
             apiAffiliate.createClick(buyerId, shareId, productId).catch(e => console.error("Failed to log affiliate click", e));
 
             if (landingData && landingData.productUrl) {
-              window.open(landingData.productUrl, '_blank');
+              openExternalUrl(landingData.productUrl);
             } else if (storeMock && storeMock.link) {
-              window.open(storeMock.link, '_blank');
+              openExternalUrl(storeMock.link);
             } else {
-              window.open('https://google.com', '_blank');
+              openExternalUrl(getStoreUrl(landingData?.store));
             }
           }}
         >
@@ -266,10 +358,30 @@ export default function App() {
   const [isSimulatorMode, setIsSimulatorMode] = useState(false); // Kept for dev but hidden
   const [trackedOrders, setTrackedOrders] = useState([]);
   const [withdrawRequests, setWithdrawRequests] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(() => {
+    try {
+      const stored = localStorage.getItem('lio_custom_products');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...parsed];
+          DEFAULT_PRODUCTS.forEach(dp => {
+            if (!merged.some(p => p.id === dp.id || (p.name && dp.name && p.name.toLowerCase() === dp.name.toLowerCase()))) {
+              merged.push(dp);
+            }
+          });
+          return merged;
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading lio_custom_products:', e);
+    }
+    return DEFAULT_PRODUCTS;
+  });
   const [dealsData, setDealsData] = useState([]);
-  const [storesData, setStoresData] = useState([]);
+  const [storesData, setStoresData] = useState(DEFAULT_STORES);
   const [bannersData, setBannersData] = useState([]);
+  const [categoriesData, setCategoriesData] = useState([]);
   const [activeComparisonDeal, setActiveComparisonDeal] = useState(null);
   const [sharingDealId, setSharingDealId] = useState(null);
   
@@ -287,26 +399,79 @@ export default function App() {
   const [shareModalUrl, setShareModalUrl] = useState(null);
   const [shareModalTitle, setShareModalTitle] = useState(null);
 
-  // 1. Fetch static catalog data once on mount or when simulator mode changes
-  useEffect(() => {
-    const loadCatalogData = async () => {
+  // 1. Fetch static catalog data function
+  const loadCatalogData = React.useCallback(async () => {
+    try {
+      let localCustomProducts = [];
       try {
-        const [productsData, dbDeals, storesRes, activeBanners] = await Promise.all([
-          apiProducts.getAll().catch(e => { console.warn('Products failed:', e); return []; }),
-          apiDeals.getAll().catch(e => { console.warn('Deals failed:', e); return []; }),
-          apiStores.getAll().catch(e => { console.warn('Stores failed:', e); return []; }),
-          apiBanners.getActive().catch(e => { console.warn('Banners failed:', e); return []; })
-        ]);
-        setProducts(productsData || []);
-        setDealsData(dbDeals || []);
-        setStoresData((storesRes && storesRes.length > 0) ? storesRes : DEFAULT_STORES);
-        setBannersData(activeBanners || []);
-      } catch (err) {
-        console.error('Failed to load catalog data:', err);
+        const stored = localStorage.getItem('lio_custom_products');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) localCustomProducts = parsed;
+        }
+      } catch (e) {}
+
+      const [productsData, dbDeals, storesRes, activeBanners, categoriesRes] = await Promise.all([
+        apiProducts.getAll().catch(e => { console.warn('Products failed:', e); return null; }),
+        apiDeals.getAll().catch(e => { console.warn('Deals failed:', e); return null; }),
+        apiStores.getAll().catch(e => { console.warn('Stores failed:', e); return null; }),
+        apiBanners.getActive().catch(e => { console.warn('Banners failed:', e); return null; }),
+        apiCategories.getAll().catch(e => { console.warn('Categories failed:', e); return null; })
+      ]);
+
+      const remoteProds = (productsData && Array.isArray(productsData)) ? [...productsData].reverse() : [];
+      
+      // Merge order: 1. Local Custom Products (Top priority) -> 2. Remote Backend Products -> 3. Default Products
+      const allMerged = [...localCustomProducts];
+
+      remoteProds.forEach(rp => {
+        if (!allMerged.some(p => (p.id && p.id === rp.id) || (p.name && rp.name && p.name.toLowerCase() === rp.name.toLowerCase()))) {
+          allMerged.push(rp);
+        }
+      });
+
+      DEFAULT_PRODUCTS.forEach(dp => {
+        if (!allMerged.some(p => (p.id && p.id === dp.id) || (p.name && dp.name && p.name.toLowerCase() === dp.name.toLowerCase()))) {
+          allMerged.push(dp);
+        }
+      });
+
+      setProducts(allMerged);
+
+      if (dbDeals && Array.isArray(dbDeals) && dbDeals.length > 0) {
+        setDealsData(dbDeals);
       }
-    };
+      if (storesRes && Array.isArray(storesRes) && storesRes.length > 0) {
+        setStoresData(storesRes);
+      }
+      if (activeBanners && Array.isArray(activeBanners) && activeBanners.length > 0) {
+        setBannersData(activeBanners);
+      }
+      if (categoriesRes && Array.isArray(categoriesRes) && categoriesRes.length > 0) {
+        setCategoriesData(categoriesRes);
+      }
+    } catch (err) {
+      console.error('Failed to load catalog data:', err);
+    }
+  }, []);
+
+  // Fetch catalog on mount, view changes, and window focus
+  useEffect(() => {
     loadCatalogData();
-  }, [isSimulatorMode]);
+  }, [loadCatalogData, currentView, isSimulatorMode]);
+
+  useEffect(() => {
+    const handleFocus = () => loadCatalogData();
+    window.addEventListener('focus', handleFocus);
+    // Periodic refresh every 30 seconds for live admin update sync
+    const pollInterval = setInterval(() => {
+      loadCatalogData();
+    }, 30000);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(pollInterval);
+    };
+  }, [loadCatalogData]);
 
   // 2. Fetch user-specific transactional data when user logs in/out
   useEffect(() => {
@@ -498,7 +663,7 @@ export default function App() {
     }
   };
 
-  const executeGrabDealTracked = async (dealItem, storeItem) => {
+  const executeGrabDealTracked = (dealItem, storeItem) => {
     if (!currentUser) {
       setActiveComparisonDeal(null);
       addNotification('Please login or sign up first to grab deals!', 'info');
@@ -506,22 +671,19 @@ export default function App() {
       return;
     }
     setActiveComparisonDeal(null);
+    addNotification(`Opening ${storeItem?.platform || 'Store'}... Tracking active!`, 'success');
     
+    // Background async click tracking (0ms UI latency)
     try {
       const shareId = localStorage.getItem('shareId');
       const buyerId = currentUser.id;
-      await apiAffiliate.createClick(buyerId, shareId, dealItem.id);
-      addNotification('Tracker activated! Redirecting...', 'info');
+      apiAffiliate.createClick(buyerId, shareId, dealItem.id).catch(e => console.warn('Affiliate click log skipped', e));
     } catch (e) {
-      console.error('Tracking failed, proceeding anyway.', e);
+      console.warn('Tracking skipped', e);
     }
     
-    const link = storeItem?.link || dealItem?.affiliateUrl || dealItem?.link;
-    if (link) {
-      window.open(link, '_blank');
-    } else {
-      window.open('https://google.com', '_blank');
-    }
+    const link = storeItem?.link || dealItem?.affiliateUrl || dealItem?.link || getProductPlatformUrl(dealItem, storeItem?.platform);
+    openExternalUrl(link);
   };
 
   const finalizeCheckout = (deal, store) => {
@@ -585,11 +747,107 @@ export default function App() {
     let combinedDeals = [];
     
     const storesLogoMap = storesData.reduce((acc, store) => { acc[store.name] = store.logo; return acc; }, {});
+
+    // 1. Process custom / newly added products FIRST so they are prominently featured!
+    if (products && products.length > 0) {
+      const productDeals = products
+        .filter(p => p && (
+          p.status === 'active' || 
+          p.status === 'ACTIVE' || 
+          p.isActive === true || 
+          p.status === undefined || 
+          p.status === null
+        ))
+        .map(p => {
+          const platform = p.platform || p.sourcePlatform || 'Amazon';
+          const fallbackLogo = p.storeId && storesData.find(s => s.id === p.storeId)?.logo 
+            ? storesData.find(s => s.id === p.storeId).logo 
+            : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
+            
+          const storeLogo = storesLogoMap[platform] || storesLogoMap['Amazon'] || fallbackLogo;
+          
+          let category = (p.category || '').toLowerCase();
+          const prodName = p.name || p.title || 'Product';
+          if (!category) {
+              category = 'electronics';
+              const lowerName = prodName.toLowerCase();
+              const lowerPlatform = platform ? platform.toLowerCase() : '';
+              
+              if (lowerPlatform === 'myntra' || lowerPlatform === 'ajio' || lowerName.includes('shoes') || lowerName.includes('boots') || lowerName.includes('wear') || lowerName.includes('sneakers')) {
+                category = 'fashion';
+              } else if (lowerName.includes('clothing') || lowerName.includes('shirt') || lowerName.includes('pants') || lowerName.includes('jeans')) {
+                category = 'fashion';
+              } else if (lowerPlatform === 'nykaa beauty' || lowerName.includes('cleanser') || lowerName.includes('cream') || lowerName.includes('facial') || lowerName.includes('beauty') || lowerName.includes('lipstick')) {
+                category = 'health';
+              } else if (lowerName.includes('vitamin') || lowerName.includes('supplement') || lowerName.includes('health') || lowerName.includes('medicine')) {
+                category = 'health';
+              } else if (lowerPlatform === 'makemytrip' || lowerName.includes('flight') || lowerName.includes('hotel') || lowerName.includes('trip')) {
+                category = 'travel';
+              } else if (lowerName.includes('headphones') || lowerName.includes('laptop') || lowerName.includes('phone') || lowerName.includes('tv') || lowerName.includes('speaker') || lowerName.includes('camera')) {
+                category = 'electronics';
+              } else if (lowerPlatform === 'amazon') {
+                category = 'grocery';
+              }
+          }
+          
+          const dealPrice = typeof p.price === 'number' ? p.price : (parseFloat(p.price || p.dealPrice || p.discountPrice || '999') || 999);
+          const retailPrice = p.retailPrice || parseFloat((dealPrice * 1.5).toFixed(2));
+          const cashbackVal = p.cashbackValue || p.commissionPercentage || 10;
+          const cashbackEarned = parseFloat(((dealPrice * cashbackVal) / 100).toFixed(2));
+          const productImage = p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
+          
+          const baseDeal = {
+            id: p.id || `prod-${Date.now()}-${Math.random()}`,
+            title: prodName,
+            name: prodName,
+            platform: platform,
+            retailPrice,
+            dealPrice,
+            cashbackEarned,
+            cashbackValue: cashbackVal,
+            category,
+            storeLogo,
+            affiliateUrl: p.affiliateUrl,
+            image: productImage,
+            isProduct: true
+          };
+          
+          const sameNameProducts = products.filter(other => 
+              other && (other.status === 'active' || other.status === 'ACTIVE' || other.isActive === true || other.status === undefined) && 
+              (other.name || other.title) && prodName && 
+              (other.name || other.title)?.toLowerCase() === prodName.toLowerCase()
+          );
+
+          let dbComparisons = sameNameProducts.map(other => ({
+               platform: other.platform || other.sourcePlatform || 'Amazon',
+               listedPrice: typeof other.price === 'number' ? other.price : (parseFloat(other.price || other.dealPrice || dealPrice) || dealPrice),
+               cashbackPercent: other.cashbackValue || other.commissionPercentage || 10,
+               link: other.affiliateUrl || getProductPlatformUrl(other, other.platform || other.sourcePlatform || 'Amazon')
+          }));
+
+          if (dbComparisons.length === 0) {
+             dbComparisons = [{
+               platform: platform,
+               listedPrice: dealPrice,
+               cashbackPercent: cashbackVal,
+               link: p.affiliateUrl || getProductPlatformUrl(p, platform)
+             }];
+          }
+
+          return {
+            ...baseDeal,
+            comparisons: dbComparisons
+          };
+        });
+        
+      combinedDeals = [...combinedDeals, ...productDeals];
+    }
     
+    // 2. Process explicit deals from database
     if (dealsData && dealsData.length > 0) {
       const fallbackLogo = 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg';
 
-      const explicitDeals = dealsData.filter(d => d.status === 'active').map(d => {
+      const explicitDeals = dealsData.filter(d => d.status === 'active' || d.status === 'ACTIVE' || d.isActive === true).map(d => {
         let lowestListedPrice = 0;
         let highestCashbackPercent = 0;
         
@@ -604,20 +862,21 @@ export default function App() {
         
         const baseDeal = {
           ...d,
-          title: d.name,
+          title: d.name || d.title,
           platform: d.platform || (d.comparisons && d.comparisons.length > 0 ? d.comparisons[0].platform : 'Amazon'),
-          category: 'electronics', // Default category for deals
+          category: (d.category || 'electronics').toLowerCase(),
           storeLogo: storesLogoMap['Amazon'] || fallbackLogo,
           retailPrice,
           dealPrice,
           cashbackEarned,
         };
         if (!baseDeal.comparisons || baseDeal.comparisons.length === 0) {
+            const defaultPlatform = d.platform || 'Amazon';
             baseDeal.comparisons = [{
-              platform: d.platform || 'Amazon',
+              platform: defaultPlatform,
               listedPrice: baseDeal.dealPrice,
               cashbackPercent: d.cashbackValue || 10,
-              link: d.link || d.affiliateUrl || 'https://google.com'
+              link: d.link || d.affiliateUrl || getProductPlatformUrl(d, defaultPlatform)
             }];
         }
         return baseDeal;
@@ -625,89 +884,24 @@ export default function App() {
       combinedDeals = [...combinedDeals, ...explicitDeals];
     }
 
-    if (products && products.length > 0) {
-      const productDeals = products.filter(p => p.status === 'active').map(p => {
-        const platform = p.platform || 'Amazon';
-        const fallbackLogo = p.storeId && storesData.find(s => s.id === p.storeId)?.logo 
-          ? storesData.find(s => s.id === p.storeId).logo 
-          : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
-          
-        const storeLogo = storesLogoMap[platform] || storesLogoMap['Amazon'] || fallbackLogo;
-        
-        let category = p.category;
-        if (!category) {
-            category = 'electronics';
-            const lowerName = p.name ? p.name.toLowerCase() : '';
-            const lowerPlatform = platform ? platform.toLowerCase() : '';
-            
-            if (lowerPlatform === 'myntra' || lowerPlatform === 'ajio' || lowerName.includes('shoes') || lowerName.includes('boots') || lowerName.includes('wear') || lowerName.includes('sneakers')) {
-              category = 'fashion';
-            } else if (lowerName.includes('clothing') || lowerName.includes('shirt') || lowerName.includes('pants')) {
-              category = 'clothing';
-            } else if (lowerPlatform === 'nykaa beauty' || lowerName.includes('cleanser') || lowerName.includes('cream') || lowerName.includes('facial') || lowerName.includes('beauty')) {
-              category = 'beauty';
-            } else if (lowerName.includes('vitamin') || lowerName.includes('supplement') || lowerName.includes('health') || lowerName.includes('medicine')) {
-              category = 'health';
-            } else if (lowerPlatform === 'makemytrip' || lowerName.includes('flight') || lowerName.includes('hotel') || lowerName.includes('trip')) {
-              category = 'travel';
-            } else if (lowerName.includes('headphones') || lowerName.includes('laptop') || lowerName.includes('phone') || lowerName.includes('tv') || lowerName.includes('speaker')) {
-              category = 'electronics';
-            } else if (lowerPlatform === 'amazon') {
-              category = 'grocery';
-            }
-        }
-        
-        const dealPrice = p.price;
-        const retailPrice = parseFloat((dealPrice * 1.5).toFixed(2));
-        const cashbackEarned = parseFloat(((dealPrice * p.cashbackValue) / 100).toFixed(2));
-        
-        const baseDeal = {
-          id: p.id,
-          title: p.name,
-          name: p.name,
-          platform: platform,
-          retailPrice,
-          dealPrice,
-          cashbackEarned,
-          cashbackValue: p.cashbackValue,
-          category,
-          storeLogo,
-          affiliateUrl: p.affiliateUrl,
-          image: p.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300',
-        };
-        
-        const sameNameProducts = products.filter(other => 
-            other.status === 'active' && 
-            other.name && p.name && 
-            other.name?.toLowerCase() === p.name?.toLowerCase()
-        );
-
-        let dbComparisons = sameNameProducts.map(other => ({
-             platform: other.platform || 'Amazon',
-             listedPrice: other.price,
-             cashbackPercent: other.cashbackValue || 10,
-             link: other.affiliateUrl || 'https://google.com'
-        }));
-
-        if (dbComparisons.length === 0) {
-           dbComparisons = [{
-             platform: platform,
-             listedPrice: dealPrice,
-             cashbackPercent: p.cashbackValue || 10,
-             link: p.affiliateUrl || 'https://google.com'
-           }];
-        }
-
-        return {
-          ...baseDeal,
-          comparisons: dbComparisons
-        };
-      });
-      combinedDeals = [...combinedDeals, ...productDeals];
-    }
-
     return combinedDeals;
   }, [dealsData, products, storesData]);
+
+  // Filter deals and products by active category
+  const filteredDeals = React.useMemo(() => {
+    if (!activeCategory || activeCategory === 'all') {
+      return dynamicDeals;
+    }
+    const normActive = activeCategory.toLowerCase();
+    return dynamicDeals.filter((deal) => {
+      const normCat = (deal.category || '').toLowerCase();
+      return normCat === normActive || 
+             (normActive === 'fashion' && (normCat === 'clothing' || normCat === 'shoes' || normCat === 'fashion')) ||
+             (normActive === 'health' && (normCat === 'beauty' || normCat === 'health')) ||
+             normCat.includes(normActive) || 
+             normActive.includes(normCat);
+    });
+  }, [dynamicDeals, activeCategory]);
 
   const CATEGORIES_LIST = React.useMemo(() => [
     { id: 'fashion', name: 'Fashion', icon: Shirt },
@@ -797,6 +991,13 @@ export default function App() {
           theme={theme}
           toggleTheme={toggleTheme}
           onAddNotification={addNotification}
+          onUpdateProducts={setProducts}
+          onUpdateDeals={setDealsData}
+          onUpdateStores={setStoresData}
+          onUpdateBanners={setBannersData}
+          onUpdateCategories={setCategoriesData}
+          onRefreshCatalog={loadCatalogData}
+          setView={setView}
         />
       </div>
     );
@@ -967,7 +1168,7 @@ export default function App() {
                       price: dealPrice,
                       cashbackPercent: comp.cashbackPercent || 0,
                       cashbackEarned,
-                      link: comp.link
+                      link: comp.link || getProductPlatformUrl(activeComparisonDeal, comp.platform)
                     };
                   })
                   .sort((a, b) => a.price - b.price)
@@ -1252,6 +1453,7 @@ export default function App() {
                 <CategoryGrid
                   activeCategory={activeCategory}
                   onCategoryChange={setActiveCategory}
+                  categories={categoriesData}
                 />
 
                 {/* Main Retailers Card Grid */}
@@ -1262,9 +1464,10 @@ export default function App() {
 
                 {/* Deals Grid */}
                 <TopDeals
-                  deals={dynamicDeals.slice(0, 8)}
+                  deals={filteredDeals}
                   onGrabDeal={handleGrabProductDeal}
                   onShareDeal={handleShareDeal}
+                  activeCategory={activeCategory}
                 />
 
                 {/* Business Model Explanation */}
@@ -1595,17 +1798,17 @@ export default function App() {
               <p style={{ marginTop: 0 }}>{shareModalTitle}</p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginBottom: '12px' }}>
                 {/* WhatsApp */}
-                <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(shareModalTitle + ' ' + shareModalUrl)}`, '_blank')} style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} aria-label="Share on WhatsApp">
+                <button onClick={() => openExternalUrl(`https://wa.me/?text=${encodeURIComponent(shareModalTitle + ' ' + shareModalUrl)}`)} style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} aria-label="Share on WhatsApp">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                 </button>
 
                 {/* Facebook */}
-                <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModalUrl)}`, '_blank')} style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#1877F2', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} aria-label="Share on Facebook">
+                <button onClick={() => openExternalUrl(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareModalUrl)}`)} style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: '#1877F2', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} aria-label="Share on Facebook">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
                 </button>
 
                 {/* Instagram (copy then open Instagram) */}
-                <button onClick={() => { navigator.clipboard.writeText(shareModalUrl); window.open('https://instagram.com', '_blank'); addNotification('Link copied! Paste it in your Instagram story.', 'info'); }} style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} aria-label="Share on Instagram">
+                <button onClick={() => { navigator.clipboard.writeText(shareModalUrl); openExternalUrl('https://instagram.com'); addNotification('Link copied! Paste it in your Instagram story.', 'info'); }} style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.15s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.08)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} aria-label="Share on Instagram">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
                 </button>
 
@@ -1825,19 +2028,19 @@ export default function App() {
                 <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', color: 'var(--text-bold)', textAlign: 'center' }}>Share directly via</h4>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
                   {/* WhatsApp */}
-                  <button onClick={() => window.open(`https://wa.me/?text=Check out this deal: ${generatedShareData.shortUrl}`, '_blank')} style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
+                  <button onClick={() => openExternalUrl(`https://wa.me/?text=Check out this deal: ${generatedShareData.shortUrl}`)} style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                   </button>
                   {/* Facebook */}
-                  <button onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${generatedShareData.shortUrl}`, '_blank')} style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#1877F2', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
+                  <button onClick={() => openExternalUrl(`https://www.facebook.com/sharer/sharer.php?u=${generatedShareData.shortUrl}`)} style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#1877F2', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
                   </button>
                   {/* Instagram (Copies and opens insta.com since no direct share URL exists) */}
-                  <button onClick={() => { navigator.clipboard.writeText(generatedShareData.shortUrl); window.open('https://instagram.com', '_blank'); addNotification('Link copied! Paste it in your Instagram story.', 'info'); }} style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
+                  <button onClick={() => { navigator.clipboard.writeText(generatedShareData.shortUrl); openExternalUrl('https://instagram.com'); addNotification('Link copied! Paste it in your Instagram story.', 'info'); }} style={{ width: '50px', height: '50px', borderRadius: '50%', background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
                   </button>
                   {/* Snapchat */}
-                  <button onClick={() => window.open(`https://snapchat.com/scan?attachmentUrl=${generatedShareData.shortUrl}`, '_blank')} style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#FFFC00', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
+                  <button onClick={() => openExternalUrl(`https://snapchat.com/scan?attachmentUrl=${generatedShareData.shortUrl}`)} style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#FFFC00', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 16c-1.2 0-2-.8-2-2a2 2 0 0 1 2-2h.5A6 6 0 0 1 10 5.4a6 6 0 0 1 5.5 6.6H16a2 2 0 0 1 2 2c0 1.2-.8 2-2 2h-.5c-.8 1-2.2 1.6-3.5 1.6s-2.7-.6-3.5-1.6H4z"></path></svg>
                   </button>
                 </div>

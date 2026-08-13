@@ -1,38 +1,56 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Clock, Copy, Check, Info, ShieldAlert, Sparkles, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Clock, Copy, Check, Info, ShieldAlert, Sparkles, ExternalLink, ShoppingBag } from 'lucide-react';
 import TopDeals from './TopDeals';
+import { openExternalUrl, getStoreUrl } from '../utils/openUrl';
 
 export default function StoreDetail({ store, onBack, onAddNotification, deals, onGrabDeal, onShareDeal, currentUser, openAuthModal }) {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
   const [activatingDealId, setActivatingDealId] = useState(null);
 
-  const handleCopyCode = (coupon) => {
+  const handleVisitStore = async () => {
+    if (!currentUser) {
+      onAddNotification('Please login or sign up first to earn cashback on your visit!', 'info');
+      openAuthModal();
+      return;
+    }
+    onAddNotification(`Opening ${store.name}... Cashback tracking activated!`, 'success');
+    const targetUrl = store.affiliateUrl || store.link || getStoreUrl(store.name);
+    await openExternalUrl(targetUrl);
+  };
+
+  const handleCopyCode = async (coupon) => {
     if (!currentUser) {
       onAddNotification('Please login or sign up first to use this coupon!', 'info');
       openAuthModal();
       return;
     }
     if (coupon.code) {
-      navigator.clipboard.writeText(coupon.code);
+      try {
+        await navigator.clipboard.writeText(coupon.code);
+      } catch (e) {
+        console.warn('Clipboard write failed', e);
+      }
       setCopiedCouponId(coupon.id);
-      onAddNotification(`Coupon "${coupon.code}" copied to clipboard!`, 'success');
+      onAddNotification(`Coupon "${coupon.code}" copied! Opening ${store.name}...`, 'success');
       
-      setCopiedCouponId(null);
-      onAddNotification(`Opening secure tracking link to ${store.name}...`, 'info');
+      const targetUrl = coupon.link || store.affiliateUrl || store.link || getStoreUrl(store.name);
+      openExternalUrl(targetUrl);
+      setTimeout(() => setCopiedCouponId(null), 1500);
     }
   };
 
-  const handleActivateDeal = (coupon) => {
+  const handleActivateDeal = async (coupon) => {
     if (!currentUser) {
       onAddNotification('Please login or sign up first to activate this deal!', 'info');
       openAuthModal();
       return;
     }
     setActivatingDealId(coupon.id);
-    onAddNotification(`Activating Tracker...`, 'success');
+    onAddNotification(`Opening ${store.name}... Tracking active!`, 'success');
     
-    setActivatingDealId(null);
-    onAddNotification(`Redirecting you safely to ${store.name} checkout...`, 'info');
+    const targetUrl = coupon.link || store.affiliateUrl || store.link || getStoreUrl(store.name);
+    openExternalUrl(targetUrl);
+    setTimeout(() => setActivatingDealId(null), 1500);
   };
 
   return (
@@ -54,16 +72,33 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
       </button>
 
       {/* Store Detailed Banner */}
-      <div className="store-detail-header">
+      <div className="store-detail-header" style={{ position: 'relative' }}>
         <div className="store-detail-logo-wrapper">
           <img src={store.logo} alt={store.name} className="store-detail-logo" />
         </div>
-        <div className="store-detail-info">
-          <div className="store-detail-title-row">
-            <h2 className="store-detail-name">{store.name} Coupons & Deals</h2>
-            <span className="store-detail-tag">Up to {store.cashbackRate} Commission</span>
+        <div className="store-detail-info" style={{ flex: 1 }}>
+          <div className="store-detail-title-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h2 className="store-detail-name" style={{ margin: 0 }}>{store.name} Coupons & Deals</h2>
+              <span className="store-detail-tag" style={{ display: 'inline-block', marginTop: '6px' }}>Up to {store.cashbackRate} Commission</span>
+            </div>
+            <button
+              className="btn-primary"
+              onClick={handleVisitStore}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                fontWeight: '700',
+                fontSize: '14px',
+                borderRadius: '8px'
+              }}
+            >
+              <ShoppingBag size={16} /> Shop at {store.name} <ExternalLink size={14} />
+            </button>
           </div>
-          <p className="store-detail-desc">{store.description}</p>
+          <p className="store-detail-desc" style={{ marginTop: '10px' }}>{store.description}</p>
           <div className="store-detail-meta-pills">
             <span className="store-detail-pill">
               <Clock size={14} /> Tracking: 24 - 48 Hours
@@ -128,7 +163,7 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
                       gap: '6px',
                     }}
                   >
-                    {activatingDealId === coupon.id ? 'Tracking Active...' : 'Activate Deal'}
+                    {activatingDealId === coupon.id ? 'Opening Store...' : 'Activate Deal'}
                     <ExternalLink size={14} />
                   </button>
                 )}

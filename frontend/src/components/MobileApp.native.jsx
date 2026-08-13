@@ -103,6 +103,8 @@ const TESTIMONIALS = [
   { id: 3, name: 'Vikram K.', rating: '⭐⭐⭐⭐⭐', text: 'Lio Mart tracking is flawless. Best affiliate platform right now.' },
 ];
 
+import { getProductPlatformUrl, getStoreUrl } from '../utils/openUrl';
+
 const STORES_INFO = [
   { platform: 'Amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg', cashbackPercent: 10.0 },
   { platform: 'Flipkart', logo: 'https://upload.wikimedia.org/wikipedia/commons/7/7a/Flipkart_logo.svg', cashbackPercent: 8.5 },
@@ -115,10 +117,32 @@ const STORES_INFO = [
 const generatePriceComparisons = (deal) => {
   if (!deal) return [];
   
+  if (deal.comparisons && deal.comparisons.length > 0) {
+    return deal.comparisons.map(comp => {
+      const platformName = comp.platform || 'Amazon';
+      const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
+      const dealPrice = comp.listedPrice || comp.dealPrice || deal.dealPrice || 0;
+      const cashbackPercent = comp.cashbackPercent || store.cashbackPercent || 10;
+      const cashbackEarned = parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
+      const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
+      const link = comp.link || getProductPlatformUrl(deal, platformName);
+      return {
+        platform: platformName,
+        logo: comp.logo || store.logo,
+        dealPrice,
+        cashbackPercent,
+        cashbackEarned,
+        effectivePrice,
+        link,
+        isOriginal: platformName.toLowerCase() === (deal.platform || '').toLowerCase()
+      };
+    }).sort((a, b) => a.effectivePrice - b.effectivePrice);
+  }
+
   let platforms = ['Amazon', 'Flipkart'];
   if (deal.category === 'fashion') {
     platforms = ['Myntra', 'Ajio', 'Flipkart', 'Amazon'];
-  } else if (deal.category === 'health') {
+  } else if (deal.category === 'health' || deal.category === 'beauty') {
     platforms = ['Nykaa Beauty', 'Amazon', 'Flipkart'];
   } else if (deal.category === 'travel') {
     platforms = ['MakeMyTrip', 'Amazon'];
@@ -129,16 +153,17 @@ const generatePriceComparisons = (deal) => {
   return platforms.map(platformName => {
     const store = STORES_INFO.find(s => s.platform === platformName) || STORES_INFO[0];
     
-    let dealPrice = deal.dealPrice;
+    let dealPrice = deal.dealPrice || 0;
     if (platformName !== deal.platform) {
       const hash = platformName.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
       const percentDiff = ((hash % 21) - 10) / 100; // -10% to +10%
-      dealPrice = parseFloat((deal.dealPrice * (1 + percentDiff)).toFixed(2));
+      dealPrice = parseFloat((dealPrice * (1 + percentDiff)).toFixed(2));
     }
     
     const cashbackValue = store.cashbackPercent;
     const cashbackEarned = parseFloat(((dealPrice * cashbackValue) / 100).toFixed(2));
     const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
+    const link = getProductPlatformUrl(deal, platformName);
     
     return {
       platform: platformName,
@@ -147,6 +172,7 @@ const generatePriceComparisons = (deal) => {
       cashbackPercent: cashbackValue,
       cashbackEarned,
       effectivePrice,
+      link,
       isOriginal: platformName === deal.platform
     };
   }).sort((a, b) => a.effectivePrice - b.effectivePrice);
@@ -264,31 +290,21 @@ export default function MobileApp({
 
   const executeSimulatorGrabDeal = (dealItem, storeItem) => {
     setComparisonDeal(null);
-    onAddNotification(`Activating cashback tracker on ${storeItem.platform} for ${dealItem.title || dealItem.name}...`, 'success');
+    onAddNotification(`Opening ${storeItem.platform}... Cashback tracking activated!`, 'success');
     
-    // Trigger dummy affiliate click
-    if (onGrabDeal) {
-      onGrabDeal(dealItem);
-    }
-    
-    setTimeout(() => {
-      onAddNotification(`Redirected to merchant! Shop completed.`, 'info');
-      const link = storeItem?.link || dealItem?.affiliateUrl || dealItem?.link;
-      if (link) {
-        Linking.openURL(link).catch(() => {
-          onAddNotification(`Failed to open link`, 'error');
-        });
-      } else {
-        Linking.openURL('https://google.com');
-      }
-    }, 1500);
+    const link = storeItem?.link || dealItem?.affiliateUrl || dealItem?.link || getProductPlatformUrl(dealItem, storeItem?.platform);
+    Linking.openURL(link).catch(() => {
+      Linking.openURL('https://www.amazon.in');
+    });
   };
 
   const handleStoreClick = (store) => {
     if (onStoreSelect) {
       onStoreSelect(store.id);
     } else {
-      onAddNotification(`Redirecting to ${store.name}... Tracking ID is active!`, 'success');
+      onAddNotification(`Opening ${store.name}... Tracking active!`, 'success');
+      const storeUrl = store.affiliateUrl || store.link || getStoreUrl(store.name);
+      Linking.openURL(storeUrl).catch(() => Linking.openURL('https://google.com'));
     }
   };
 

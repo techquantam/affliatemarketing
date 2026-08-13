@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share, Linking } from 'react-native';
 import { ArrowLeft, Clock, Copy, Check, ShieldAlert, Sparkles, ExternalLink } from 'lucide-react-native';
+import { getStoreUrl } from '../utils/openUrl';
 
 export default function StoreDetail({ store, onBack, onAddNotification, theme, deals = [], onGrabDeal }) {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
@@ -48,10 +49,11 @@ export default function StoreDetail({ store, onBack, onAddNotification, theme, d
         setCopiedCouponId(coupon.id);
         onAddNotification(`Coupon code "${coupon.code}" shared!`, 'success');
         
+        const targetUrl = coupon.link || store.affiliateUrl || store.link || getStoreUrl(store.name);
         setTimeout(() => {
           setCopiedCouponId(null);
-          onAddNotification(`Opening secure tracking link to ${store.name}...`, 'info');
-        }, 1500);
+          Linking.openURL(targetUrl).catch(() => Linking.openURL('https://google.com'));
+        }, 1200);
       } catch (err) {
         console.error(err);
       }
@@ -62,10 +64,11 @@ export default function StoreDetail({ store, onBack, onAddNotification, theme, d
     setActivatingDealId(coupon.id);
     onAddNotification(`Activating ${store.cashbackRate} Cashback Tracker...`, 'success');
     
+    const targetUrl = coupon.link || store.affiliateUrl || store.link || getStoreUrl(store.name);
     setTimeout(() => {
       setActivatingDealId(null);
-      onAddNotification(`Redirecting you safely to ${store.name}...`, 'info');
-    }, 2000);
+      Linking.openURL(targetUrl).catch(() => Linking.openURL('https://google.com'));
+    }, 800);
   };
 
   return (
