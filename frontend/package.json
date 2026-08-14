@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "dev": "vite",
     "build": "vite build",
-    "build:android": "npm run build && npx cap sync android",
+    "build:android": "npm run build && node clean-dist.js && npx cap sync android",
     "build:apk": "npm run build:android && cd android && gradlew.bat assembleDebug assembleRelease",
     "build:aab": "npm run build:android && cd android && gradlew.bat bundleDebug bundleRelease"
   },
