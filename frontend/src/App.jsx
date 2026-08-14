@@ -4,7 +4,7 @@ import MobileApp from './components/MobileApp';
 import AuthModal from './components/AuthModal';
 import Notification from './components/Notification';
 import StoreDetail from './components/StoreDetail';
-import { apiTracking, apiWithdrawals, apiProducts, apiUsers, apiStores, apiDeals, apiAffiliate } from './services/api';
+import { apiTracking, apiWithdrawals, apiProducts, apiUsers, apiStores, apiDeals, apiAffiliate, apiWallet } from './services/api';
 
 const DEFAULT_STORES = [
   {
@@ -208,6 +208,50 @@ export default function App() {
     };
     loadUserData();
   }, [currentUser]);
+
+  // Keep currentUser wallet updated
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    
+    const fetchUserWallet = async () => {
+      try {
+        const walletData = await apiWallet.getBalance(currentUser.id);
+        if (walletData) {
+          setCurrentUser(prev => {
+            if (!prev) return null;
+            // Only update if changed to avoid infinite loops
+            if (
+              prev.wallet &&
+              prev.wallet.confirmed === walletData.approvedBalance &&
+              prev.wallet.pending === walletData.pendingBalance
+            ) {
+              return prev;
+            }
+            const updated = {
+              ...prev,
+              wallet: {
+                ...prev.wallet,
+                confirmed: walletData.approvedBalance || 0,
+                pending: walletData.pendingBalance || 0,
+                referral: prev.wallet?.referral || 0
+              }
+            };
+            // Save updated session to localStorage so it stays fresh across reloads
+            localStorage.setItem('user_session', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to sync wallet balance:', err);
+      }
+    };
+
+    fetchUserWallet();
+    
+    // Refresh user wallet balance every 10 seconds when user is active
+    const interval = setInterval(fetchUserWallet, 10000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id, currentView]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

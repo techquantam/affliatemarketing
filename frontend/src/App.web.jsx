@@ -18,7 +18,7 @@ import AdminPanel from './components/AdminPanel';
 import MobileApp from './components/MobileApp';
 import SearchBar from './components/SearchBar';
 import CategoryIcon from './components/CategoryIcon';
-import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories } from './services/api';
+import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories, apiWallet } from './services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from './utils/openUrl';
 import './index.css';
 import './App.css';
@@ -507,6 +507,50 @@ export default function App() {
     };
     loadUserData();
   }, [currentUser]);
+
+  // Keep currentUser wallet updated
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    
+    const fetchUserWallet = async () => {
+      try {
+        const walletData = await apiWallet.getBalance(currentUser.id);
+        if (walletData) {
+          setCurrentUser(prev => {
+            if (!prev) return null;
+            // Only update if changed to avoid infinite loops
+            if (
+              prev.wallet &&
+              prev.wallet.confirmed === walletData.approvedBalance &&
+              prev.wallet.pending === walletData.pendingBalance
+            ) {
+              return prev;
+            }
+            const updated = {
+              ...prev,
+              wallet: {
+                ...prev.wallet,
+                confirmed: walletData.approvedBalance || 0,
+                pending: walletData.pendingBalance || 0,
+                referral: prev.wallet?.referral || 0
+              }
+            };
+            // Save updated session to localStorage so it stays fresh across reloads
+            localStorage.setItem('user_session', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to sync wallet balance:', err);
+      }
+    };
+
+    fetchUserWallet();
+    
+    // Refresh user wallet balance every 10 seconds when user is active
+    const interval = setInterval(fetchUserWallet, 10000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id, currentView]);
 
   // 3. Handle window resizing & environment checks
   useEffect(() => {
