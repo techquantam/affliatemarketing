@@ -367,7 +367,11 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           const merged = [...parsed];
           DEFAULT_PRODUCTS.forEach(dp => {
-            if (!merged.some(p => p.id === dp.id || (p.name && dp.name && p.name.toLowerCase() === dp.name.toLowerCase()))) {
+            if (!merged.some(p => p.id === dp.id || (
+              p.name && dp.name && 
+              p.name.toLowerCase() === dp.name.toLowerCase() &&
+              (p.platform || p.sourcePlatform || 'Amazon').trim().toLowerCase() === (dp.platform || dp.sourcePlatform || 'Amazon').trim().toLowerCase()
+            ))) {
               merged.push(dp);
             }
           });
@@ -426,13 +430,21 @@ export default function App() {
       const allMerged = [...localCustomProducts];
 
       remoteProds.forEach(rp => {
-        if (!allMerged.some(p => (p.id && p.id === rp.id) || (p.name && rp.name && p.name.toLowerCase() === rp.name.toLowerCase()))) {
+        if (!allMerged.some(p => (p.id && p.id === rp.id) || (
+          p.name && rp.name && 
+          p.name.toLowerCase() === rp.name.toLowerCase() &&
+          (p.platform || p.sourcePlatform || 'Amazon').trim().toLowerCase() === (rp.platform || rp.sourcePlatform || 'Amazon').trim().toLowerCase()
+        ))) {
           allMerged.push(rp);
         }
       });
 
       DEFAULT_PRODUCTS.forEach(dp => {
-        if (!allMerged.some(p => (p.id && p.id === dp.id) || (p.name && dp.name && p.name.toLowerCase() === dp.name.toLowerCase()))) {
+        if (!allMerged.some(p => (p.id && p.id === dp.id) || (
+          p.name && dp.name && 
+          p.name.toLowerCase() === dp.name.toLowerCase() &&
+          (p.platform || p.sourcePlatform || 'Amazon').trim().toLowerCase() === (dp.platform || dp.sourcePlatform || 'Amazon').trim().toLowerCase()
+        ))) {
           allMerged.push(dp);
         }
       });
