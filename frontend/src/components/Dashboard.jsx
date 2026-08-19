@@ -1,15 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Share2, Percent, Trash2, Play, ExternalLink, Plus, BookOpen, HelpCircle } from 'lucide-react';
-import { apiSharedLinks, apiSharedCommissions, apiSettings } from '../services/api';
+import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Share2, Percent, Trash2, Play, ExternalLink, Plus, BookOpen, HelpCircle, User, Camera, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { apiSharedLinks, apiSharedCommissions, apiSettings, apiUsers, apiUpload } from '../services/api';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
+import { buildAffiliateTrackingUrl } from '../services/affiliateNetworks';
 
 const DUMMY_CLICKS = [];
 
-export default function Dashboard({ currentUser, onAddNotification, setView }) {
-  const [activeTab, setActiveTab] = useState('overview');
+export default function Dashboard({ currentUser, onAddNotification, setView, onAddWithdrawalRequest, onUpdateUser, initialTab, setInitialTab }) {
+  const [activeTab, setActiveTabRaw] = useState(initialTab || 'overview');
+
+  const setActiveTab = (tab) => {
+    setActiveTabRaw(tab);
+    if (setInitialTab) setInitialTab(tab);
+  };
+
+  useEffect(() => {
+    if (initialTab && initialTab !== activeTab) {
+      setActiveTabRaw(initialTab);
+    }
+  }, [initialTab]);
+
   const [copiedLink, setCopiedLink] = useState(false);
   const [withdrawing, setWithdrawing] = useState(false);
+
+  // --- WITHDRAWAL STATES ---
+  const [showWithdrawForm, setShowWithdrawForm] = useState(false);
+  const [withdrawUpi, setWithdrawUpi] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+
+  // --- PROFILE STATES ---
+  const [profileName, setProfileName] = useState(currentUser?.name || '');
+  const [profileEmail, setProfileEmail] = useState(currentUser?.email || '');
+  const [profilePhone, setProfilePhone] = useState(currentUser?.phone || '');
+  const [profileDob, setProfileDob] = useState(currentUser?.dob || '');
+  const [profileGender, setProfileGender] = useState(currentUser?.gender || 'Male');
+  const [profileAddress, setProfileAddress] = useState(currentUser?.address || '');
+  const [profileCity, setProfileCity] = useState(currentUser?.city || '');
+  const [profileState, setProfileState] = useState(currentUser?.state || '');
+  const [profilePincode, setProfilePincode] = useState(currentUser?.pincode || '');
+
+  // --- KYC STATES ---
+  const [kycAadhaar, setKycAadhaar] = useState(currentUser?.aadhaarNumber || '');
+  const [kycPan, setKycPan] = useState(currentUser?.panNumber || '');
+  const [aadhaarFront, setAadhaarFront] = useState(currentUser?.aadhaarFrontUrl || '');
+  const [aadhaarBack, setAadhaarBack] = useState(currentUser?.aadhaarBackUrl || '');
+  const [panCard, setPanCard] = useState(currentUser?.panCardUrl || '');
+  const [selfie, setSelfie] = useState(currentUser?.selfieUrl || '');
+  const [uploadingField, setUploadingField] = useState(null);
+
+  // --- CONVERTER STATES ---
+  const [convertInputUrl, setConvertInputUrl] = useState('');
+  const [convertResultUrl, setConvertResultUrl] = useState('');
+  const [convertStore, setConvertStore] = useState('');
 
   // --- SHARED COMMISSION STATES ---
   const [sharedLinks, setSharedLinks] = useState([]);
@@ -67,9 +110,9 @@ export default function Dashboard({ currentUser, onAddNotification, setView }) {
         userSharePercent: 100
       });
       const defaultShortUrl = `${window.location.origin}/#/share/${newLink.id}`;
-      const savedLink = { ...newLink, shortUrl: defaultShortUrl };
+      const savedLink = { ...newLink, shortUrl: newLink.shortUrl || defaultShortUrl };
       setSharedLinks(prev => [savedLink, ...prev]);
-      setGeneratedShortUrl(correctShortUrl);
+      setGeneratedShortUrl(newLink.shortUrl || defaultShortUrl);
       setNewLinkProduct('');
       setNewLinkUrl('');
       onAddNotification('Shared link generated successfully!', 'success');
@@ -125,22 +168,202 @@ export default function Dashboard({ currentUser, onAddNotification, setView }) {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  // --- WITHDRAWAL SUBMISSION ---
   const handleWithdraw = () => {
     const userWallet = currentUser?.wallet || { confirmed: 0, pending: 0, referral: 0 };
-    if (userWallet.confirmed <= 0) {
-      onAddNotification('Insufficient confirmed commission to withdraw! Minimum is ₹10.', 'error');
+    if (currentUser?.kycStatus !== 'approved') {
+      onAddNotification('E-KYC verification is mandatory before making a withdrawal. Please go to the "My Profile & KYC" tab to submit your documents.', 'error');
       return;
     }
-    setWithdrawing(true);
-    onAddNotification(`Processing withdrawal request of ₹${userWallet.confirmed.toFixed(2)}...`, 'info');
+    if (userWallet.confirmed < 10) {
+      onAddNotification('Minimum withdrawal amount is ₹10.', 'error');
+      return;
+    }
+    setWithdrawAmount(userWallet.confirmed.toString());
+    setShowWithdrawForm(true);
+  };
 
-    setTimeout(() => {
-      onAddNotification(`Success! ₹${userWallet.confirmed.toFixed(2)} transferred to your linked Bank Account.`, 'success');
-      if (currentUser && currentUser.wallet) {
-        currentUser.wallet.confirmed = 0.0; // reset
+  const handleWithdrawalRequest = async (e) => {
+    e.preventDefault();
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount < 10) {
+      onAddNotification('Please enter a valid amount (minimum ₹10).', 'error');
+      return;
+    }
+    const userWallet = currentUser?.wallet || { confirmed: 0, pending: 0, referral: 0 };
+    if (amount > userWallet.confirmed) {
+      onAddNotification('Insufficient confirmed commission balance.', 'error');
+      return;
+    }
+    if (!withdrawUpi.trim().includes('@')) {
+      onAddNotification('Please enter a valid UPI ID (e.g. name@bank).', 'error');
+      return;
+    }
+
+    setWithdrawing(true);
+    try {
+      const newRequest = {
+        userId: currentUser.id,
+        userName: currentUser.name,
+        coins: Math.round(amount * 100),
+        amount: amount,
+        upiId: withdrawUpi,
+        date: new Date().toISOString().split('T')[0],
+      };
+
+      if (onAddWithdrawalRequest) {
+        await onAddWithdrawalRequest(newRequest);
       }
+      setShowWithdrawForm(false);
+      setWithdrawAmount('');
+      setWithdrawUpi('');
+    } catch (err) {
+      console.error(err);
+    } finally {
       setWithdrawing(false);
-    }, 2500);
+    }
+  };
+
+  // --- PROFILE SAVE ---
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!profileName.trim() || !profileDob.trim() || !profileAddress.trim() || !profileCity.trim() || !profileState.trim() || !profilePincode.trim()) {
+      onAddNotification('Please fill in all profile fields to complete your profile.', 'error');
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const updatedUser = await apiUsers.update(currentUser.id, {
+        name: profileName,
+        dob: profileDob,
+        gender: profileGender,
+        address: profileAddress,
+        city: profileCity,
+        state: profileState,
+        pincode: profilePincode,
+        isProfileComplete: true
+      });
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      onAddNotification('Profile saved and marked as COMPLETE!', 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to save profile.', 'error');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // --- KYC FILE UPLOAD ---
+  const handleUploadKycFile = async (e, field) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingField(field);
+    try {
+      const res = await apiUpload.uploadImage(file);
+      if (res && res.url) {
+        if (field === 'aadhaarFront') setAadhaarFront(res.url);
+        if (field === 'aadhaarBack') setAadhaarBack(res.url);
+        if (field === 'panCard') setPanCard(res.url);
+        if (field === 'selfie') setSelfie(res.url);
+        onAddNotification('Document uploaded successfully!', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to upload document. Please try again.', 'error');
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
+  // --- KYC SUBMIT ---
+  const handleSubmitKyc = async (e) => {
+    e.preventDefault();
+    if (!kycAadhaar.trim() || kycAadhaar.trim().length < 12) {
+      onAddNotification('Please enter a valid 12-digit Aadhaar Number.', 'error');
+      return;
+    }
+    if (!kycPan.trim() || kycPan.trim().length < 10) {
+      onAddNotification('Please enter a valid 10-digit PAN Card Number.', 'error');
+      return;
+    }
+    if (!aadhaarFront || !aadhaarBack || !panCard || !selfie) {
+      onAddNotification('Please upload all required KYC documents (Aadhaar Front & Back, PAN, Selfie).', 'error');
+      return;
+    }
+
+    setIsSubmittingKyc(true);
+    try {
+      const updatedUser = await apiUsers.update(currentUser.id, {
+        aadhaarNumber: kycAadhaar,
+        panNumber: kycPan,
+        aadhaarFrontUrl: aadhaarFront,
+        aadhaarBackUrl: aadhaarBack,
+        panCardUrl: panCard,
+        selfieUrl: selfie,
+        kycStatus: 'pending'
+      });
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      onAddNotification('E-KYC documents submitted successfully for review!', 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to submit E-KYC documents.', 'error');
+    } finally {
+      setIsSubmittingKyc(false);
+    }
+  };
+
+  // --- URL CONVERTER ---
+  const handleConvertUrl = async (e) => {
+    e.preventDefault();
+    if (!convertInputUrl.trim()) {
+      onAddNotification('Please paste a product URL.', 'error');
+      return;
+    }
+
+    const url = convertInputUrl.trim();
+    let store = 'Amazon';
+    const lowerUrl = url.toLowerCase();
+
+    if (lowerUrl.includes('flipkart') || lowerUrl.includes('fkrt')) store = 'Flipkart';
+    else if (lowerUrl.includes('myntra') || lowerUrl.includes('mynt.in')) store = 'Myntra';
+    else if (lowerUrl.includes('ajio')) store = 'Ajio';
+    else if (lowerUrl.includes('nykaa')) store = 'Nykaa Beauty';
+    else if (lowerUrl.includes('meesho')) store = 'Meesho';
+    else if (lowerUrl.includes('makemytrip')) store = 'MakeMyTrip';
+    else if (lowerUrl.includes('boat')) store = 'boAt';
+
+    setConvertStore(store);
+    try {
+      const newLink = await apiSharedLinks.create({
+        userId: currentUser?.id || 'guest',
+        userName: currentUser?.name || 'Guest',
+        productName: `Converted ${store} Product`,
+        store: store,
+        productUrl: url,
+        userSharePercent: 100
+      });
+      const defaultShortUrl = `${window.location.origin}/#/share/${newLink.id}`;
+      const finalShortUrl = newLink.shortUrl || defaultShortUrl;
+      
+      const savedLink = { ...newLink, shortUrl: finalShortUrl };
+      setSharedLinks(prev => [savedLink, ...prev]);
+      setConvertResultUrl(finalShortUrl);
+      onAddNotification(`Converted to tracked ${store} link successfully!`, 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to convert URL.', 'error');
+    }
+  };
+
+  const handleCopyConverted = () => {
+    navigator.clipboard.writeText(convertResultUrl);
+    onAddNotification('Affiliate link copied to clipboard!', 'success');
   };
 
   return (
@@ -171,6 +394,18 @@ export default function Dashboard({ currentUser, onAddNotification, setView }) {
             onClick={() => setActiveTab('ledger')}
           >
             <BookOpen size={18} /> My Ledger
+          </div>
+          <div
+            className={`dashboard-menu-item ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => setActiveTab('profile')}
+          >
+            <User size={18} /> My Profile & KYC
+          </div>
+          <div
+            className={`dashboard-menu-item ${activeTab === 'url-converter' ? 'active' : ''}`}
+            onClick={() => setActiveTab('url-converter')}
+          >
+            <Link size={18} /> URL Converter Tool
           </div>
           <div
             className={`dashboard-menu-item ${activeTab === 'support' ? 'active' : ''}`}
@@ -216,6 +451,48 @@ export default function Dashboard({ currentUser, onAddNotification, setView }) {
                 {withdrawing ? 'Processing...' : 'Transfer to Bank / PayPal'}
               </button>
             </div>
+
+            {showWithdrawForm && (
+              <form onSubmit={handleWithdrawalRequest} className="referral-card animate-fade" style={{ gridTemplateColumns: '1fr', padding: '24px', maxWidth: '500px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+                  <h3 className="referral-title" style={{ fontSize: '16px', margin: 0 }}>Request Withdrawal</h3>
+                  <button type="button" onClick={() => setShowWithdrawForm(false)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}>
+                    <ArrowLeft size={14} /> Back
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)', textTransform: 'uppercase' }}>UPI ID (e.g. name@bank)</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter UPI ID for instant payout"
+                    value={withdrawUpi}
+                    onChange={(e) => setWithdrawUpi(e.target.value)}
+                    style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontSize: '14px' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)', textTransform: 'uppercase' }}>Amount (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    min="10"
+                    max={currentUser?.wallet?.confirmed || 0}
+                    step="0.01"
+                    placeholder="Enter amount"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontSize: '14px' }}
+                  />
+                  <span style={{ fontSize: '11px', color: 'var(--text)' }}>
+                    Max withdrawable: ₹{(currentUser?.wallet?.confirmed || 0).toFixed(2)}
+                  </span>
+                </div>
+                <button type="submit" disabled={withdrawing} className="btn-primary" style={{ padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', width: '100%' }}>
+                  {withdrawing ? 'Submitting...' : 'Submit Payout Request'}
+                </button>
+              </form>
+            )}
 
             {/* Referral Info Card */}
             <div className="referral-card">
@@ -518,6 +795,240 @@ export default function Dashboard({ currentUser, onAddNotification, setView }) {
 
         {activeTab === 'support' && (
           <UserSupport currentUser={currentUser} onAddNotification={onAddNotification} />
+        )}
+
+        {activeTab === 'support' && (
+          <UserSupport currentUser={currentUser} onAddNotification={onAddNotification} />
+        )}
+
+        {activeTab === 'profile' && (
+          <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <h2 className="section-title">My Profile & E-KYC Verification</h2>
+
+            {/* Status Alert Banner */}
+            <div style={{
+              padding: '16px 20px',
+              borderRadius: '12px',
+              background: currentUser?.kycStatus === 'approved' ? 'rgba(16,185,129,0.1)' : currentUser?.kycStatus === 'pending' ? 'rgba(245,158,11,0.1)' : currentUser?.kycStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'var(--card-bg)',
+              border: `1px solid ${currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--border)'}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck size={20} style={{ color: currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--text)' }} />
+                <strong style={{ fontSize: '15px', color: 'var(--text-bold)' }}>
+                  KYC Status: {currentUser?.kycStatus ? currentUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
+                </strong>
+              </div>
+              <span style={{ fontSize: '13px', color: 'var(--text)' }}>
+                {currentUser?.kycStatus === 'approved' 
+                  ? 'Your E-KYC is approved! You can now request withdrawals.'
+                  : currentUser?.kycStatus === 'pending'
+                  ? 'Your E-KYC verification is pending admin review. Withdrawals are temporarily blocked.'
+                  : currentUser?.kycStatus === 'rejected'
+                  ? `Your E-KYC was rejected. Reason: ${currentUser?.kycRemarks || 'Invalid documents'}. Please update and re-submit.`
+                  : 'Please fill in your profile details and upload Aadhaar, PAN and Selfie to activate withdrawals.'}
+              </span>
+            </div>
+
+            {/* Profile Progress Tracker */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+              <div style={{ padding: '16px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text)' }}>Profile Completion Status</span>
+                <strong style={{ fontSize: '18px', color: currentUser?.isProfileComplete ? '#10b981' : '#f59e0b' }}>
+                  {currentUser?.isProfileComplete ? 'COMPLETE (100%)' : 'INCOMPLETE (Please fill details)'}
+                </strong>
+              </div>
+              <div style={{ padding: '16px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text)' }}>Withdrawal Eligibility</span>
+                <strong style={{ fontSize: '18px', color: currentUser?.kycStatus === 'approved' ? '#10b981' : '#ef4444' }}>
+                  {currentUser?.kycStatus === 'approved' ? 'ELIGIBLE' : 'BLOCKED (Needs Approved KYC)'}
+                </strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+              {/* Personal Information Form */}
+              <form onSubmit={handleSaveProfile} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>Personal Information</h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Full Name</label>
+                  <input type="text" required value={profileName} onChange={e => setProfileName(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Email Address</label>
+                  <input type="email" readOnly disabled value={profileEmail} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'rgba(var(--primary-rgb), 0.05)', color: 'var(--text)' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Phone Number</label>
+                  <input type="text" readOnly disabled value={profilePhone} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'rgba(var(--primary-rgb), 0.05)', color: 'var(--text)' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Date of Birth</label>
+                  <input type="date" required value={profileDob} onChange={e => setProfileDob(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Gender</label>
+                  <select value={profileGender} onChange={e => setProfileGender(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Street Address</label>
+                  <input type="text" required value={profileAddress} onChange={e => setProfileAddress(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>City</label>
+                    <input type="text" required value={profileCity} onChange={e => setProfileCity(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>State</label>
+                    <input type="text" required value={profileState} onChange={e => setProfileState(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Pincode / ZIP</label>
+                  <input type="text" required value={profilePincode} onChange={e => setProfilePincode(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                </div>
+
+                <button type="submit" disabled={isSavingProfile} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold' }}>
+                  {isSavingProfile ? 'Saving...' : 'Save & Complete Profile'}
+                </button>
+              </form>
+
+              {/* KYC Document Upload Form */}
+              <form onSubmit={handleSubmitKyc} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>E-KYC Verification</h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Aadhaar Card Number (12 Digits)</label>
+                  <input type="text" required maxLength="12" placeholder="e.g. 1234 5678 9012" value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value.replace(/\s/g, ''))} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>PAN Card Number (10 Characters)</label>
+                  <input type="text" required maxLength="10" placeholder="e.g. ABCDE1234F" value={kycPan} onChange={e => setKycPan(e.target.value.toUpperCase())} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} />
+                </div>
+
+                {/* Upload elements */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
+                  {/* Aadhaar Front */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Front Image</span>
+                    <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
+                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarFront')} style={{ display: 'none' }} />
+                      <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
+                      <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
+                        {uploadingField === 'aadhaarFront' ? 'Uploading...' : aadhaarFront ? 'Uploaded ✓' : 'Click to Upload'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Aadhaar Back */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Back Image</span>
+                    <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
+                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarBack')} style={{ display: 'none' }} />
+                      <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
+                      <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
+                        {uploadingField === 'aadhaarBack' ? 'Uploading...' : aadhaarBack ? 'Uploaded ✓' : 'Click to Upload'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* PAN Card */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>PAN Card Image</span>
+                    <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
+                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'panCard')} style={{ display: 'none' }} />
+                      <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
+                      <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
+                        {uploadingField === 'panCard' ? 'Uploading...' : panCard ? 'Uploaded ✓' : 'Click to Upload'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Selfie */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Selfie with ID Card</span>
+                    <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
+                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'selfie')} style={{ display: 'none' }} />
+                      <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
+                      <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
+                        {uploadingField === 'selfie' ? 'Uploading...' : selfie ? 'Uploaded ✓' : 'Click to Upload'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
+                  {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit KYC for Verification'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'url-converter' && (
+          <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <h2 className="section-title">Universal Affiliate Link Converter</h2>
+
+            <div className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px' }}>
+              <h3 className="referral-title" style={{ fontSize: '18px' }}>
+                Paste Normal Product URL to Convert
+              </h3>
+              <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: '1.6' }}>
+                Paste any standard link from supported retailers (Amazon, Flipkart, Myntra, Ajio, Meesho, Nykaa, MakeMyTrip, boAt).
+                Our system will auto-detect the store and generate your unique affiliate link wrapped with tracking Sub-IDs!
+              </p>
+
+              <form onSubmit={handleConvertUrl} style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+                <input
+                  type="url"
+                  required
+                  placeholder="Paste URL (e.g. https://www.amazon.in/dp/B0C...) here"
+                  value={convertInputUrl}
+                  onChange={e => setConvertInputUrl(e.target.value)}
+                  style={{ flex: 1, minWidth: '260px', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}
+                />
+                <button type="submit" className="btn-primary" style={{ padding: '12px 24px', fontWeight: 'bold' }}>
+                  Convert Link
+                </button>
+              </form>
+
+              {convertResultUrl && (
+                <div className="animate-fade" style={{ marginTop: '24px', padding: '20px', borderRadius: '10px', backgroundColor: 'rgba(var(--primary-rgb), 0.05)', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                    Detected Store: {convertStore}
+                  </span>
+                  
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      readOnly
+                      value={convertResultUrl}
+                      style={{ flex: 1, minWidth: '240px', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-bold)', fontSize: '13px', fontFamily: 'monospace' }}
+                    />
+                    <button onClick={handleCopyConverted} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                      <Copy size={14} /> Copy Link
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {activeTab === 'refer' && (

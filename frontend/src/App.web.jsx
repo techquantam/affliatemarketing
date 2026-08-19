@@ -345,6 +345,7 @@ export default function App() {
   };
 
   const [currentView, setViewRaw] = useState(getInitialView);
+  const [dashboardTab, setDashboardTab] = useState('overview');
   const [selectedStoreId, setSelectedStoreId] = useState(null);
   const [activeCategory, setActiveCategory] = useState('all');
   const [homeSearchQuery, setHomeSearchQuery] = useState('');
@@ -1174,6 +1175,7 @@ export default function App() {
             trackedOrders={trackedOrders}
             withdrawRequests={withdrawRequests}
             onAddWithdrawalRequest={handleAppWithdrawalRequest}
+            onUpdateUser={setCurrentUser}
             storesData={storesData}
             dealsData={dynamicDeals}
             categoriesData={categoriesData}
@@ -1473,6 +1475,8 @@ export default function App() {
         setHomeSearchQuery={setHomeSearchQuery}
         dealsData={dynamicDeals}
         categoriesData={categoriesData}
+        dashboardTab={dashboardTab}
+        setDashboardTab={setDashboardTab}
         onCategorySelect={(categoryId) => {
           setActiveCategory(categoryId);
           setHomeSearchQuery('');
@@ -1656,6 +1660,10 @@ export default function App() {
             currentUser={currentUser}
             onAddNotification={addNotification}
             setView={setView}
+            onAddWithdrawalRequest={handleAppWithdrawalRequest}
+            onUpdateUser={setCurrentUser}
+            initialTab={dashboardTab}
+            setInitialTab={setDashboardTab}
           />
         )}
 

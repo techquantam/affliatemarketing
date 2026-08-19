@@ -1,6 +1,5 @@
 package com.cyvanta.affiliate_app.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,7 +21,7 @@ public class Product {
     @Id
     private String id;
 
-    private String title;
+    private String name;
 
     private String description;
 
@@ -37,78 +36,70 @@ public class Product {
 
     private String brand;
 
-    private List<String> images;
+    private String image;
+
+    private List<String> images; // supporting list for compatibility
 
     private String affiliateUrl; // base affiliate network URL
 
-    private String sourcePlatform; // e.g., Amazon, Flipkart, Myntra
+    private String platform; // e.g., Amazon, Flipkart, Myntra
 
-    private Double commissionPercentage; // average commission %
+    private Double cashbackValue; // average commission %
 
     @Builder.Default
-    private Boolean isActive = true;
+    private String status = "active";
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // --- Frontend-compatible aliases ---
-    // Frontend uses "name" instead of "title"
-    @JsonProperty("name")
-    public String getName() {
-        return this.title;
+    // --- Compatibility getters and setters for legacy code ---
+    
+    public String getTitle() {
+        return this.name;
     }
 
-    @JsonProperty("name")
-    public void setName(String name) {
-        this.title = name;
+    public void setTitle(String title) {
+        this.name = title;
     }
 
-    // Frontend uses "platform" instead of "sourcePlatform"
-    @JsonProperty("platform")
-    public String getPlatform() {
-        return this.sourcePlatform;
+    public String getSourcePlatform() {
+        return this.platform;
     }
 
-    @JsonProperty("platform")
-    public void setPlatform(String platform) {
-        this.sourcePlatform = platform;
+    public void setSourcePlatform(String sourcePlatform) {
+        this.platform = sourcePlatform;
     }
 
-    // Frontend uses "cashbackValue" instead of "commissionPercentage"
-    @JsonProperty("cashbackValue")
-    public Double getCashbackValue() {
-        return this.commissionPercentage;
+    public Double getCommissionPercentage() {
+        return this.cashbackValue;
     }
 
-    @JsonProperty("cashbackValue")
-    public void setCashbackValue(Double cashbackValue) {
-        this.commissionPercentage = cashbackValue;
+    public void setCommissionPercentage(Double commissionPercentage) {
+        this.cashbackValue = commissionPercentage;
     }
 
-    // Frontend uses "image" (single string) instead of "images" (list)
-    @JsonProperty("image")
-    public String getImage() {
+    public Boolean getIsActive() {
+        return "active".equalsIgnoreCase(this.status);
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.status = Boolean.TRUE.equals(isActive) ? "active" : "inactive";
+    }
+
+    public List<String> getImages() {
         if (this.images != null && !this.images.isEmpty()) {
-            return this.images.get(0);
+            return this.images;
         }
-        return null;
-    }
-
-    @JsonProperty("image")
-    public void setImage(String image) {
-        if (image != null) {
-            this.images = List.of(image);
+        if (this.image != null) {
+            return List.of(this.image);
         }
+        return List.of();
     }
 
-    // Frontend uses "status" (string "active"/"inactive") instead of "isActive" (boolean)
-    @JsonProperty("status")
-    public String getStatus() {
-        return Boolean.TRUE.equals(this.isActive) ? "active" : "inactive";
-    }
-
-    @JsonProperty("status")
-    public void setStatus(String status) {
-        this.isActive = "active".equalsIgnoreCase(status);
+    public void setImages(List<String> images) {
+        this.images = images;
+        if (images != null && !images.isEmpty()) {
+            this.image = images.get(0);
+        }
     }
 }

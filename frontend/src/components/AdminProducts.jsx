@@ -507,14 +507,26 @@ export default function AdminProducts({ products, stores = [], categories = [], 
     </tr>
   );
 
-  const exportColumns = [
-    { header: 'ID', dataKey: 'id' },
+  const formattedExportProducts = React.useMemo(() => {
+    return products.map((p, idx) => ({
+      serialNo: idx + 1,
+      createdAtFormatted: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+      name: p.name || p.title || '—',
+      platform: p.platform || p.sourcePlatform || '—',
+      category: p.category || '—',
+      price: p.price !== undefined && p.price !== null ? `₹${p.price.toFixed(2)}` : '₹0.00',
+      affiliateUrl: p.affiliateUrl || '—'
+    }));
+  }, [products]);
+
+  const exportProductColumns = [
+    { header: 'Serial Number', dataKey: 'serialNo' },
+    { header: 'Product Add Date', dataKey: 'createdAtFormatted' },
     { header: 'Product Name', dataKey: 'name' },
-    { header: 'Platform', dataKey: 'platform' },
-    { header: 'Category', dataKey: 'category' },
-    { header: 'Price', dataKey: 'price' },
-    { header: 'Commission (%)', dataKey: 'cashbackValue' },
-    { header: 'Status', dataKey: 'status' }
+    { header: 'Product Store Name', dataKey: 'platform' },
+    { header: 'Product Category Name', dataKey: 'category' },
+    { header: 'Product Price', dataKey: 'price' },
+    { header: 'Product Affiliate Link URL', dataKey: 'affiliateUrl' }
   ];
 
   return (
@@ -525,7 +537,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
           <p>Add, edit, and delete store products and configure commission rates</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <ExportDataButton data={products} columns={exportColumns} filename="Products" />
+          <ExportDataButton data={formattedExportProducts} columns={exportProductColumns} filename="Products" />
           <button className="admin-btn admin-btn-secondary" onClick={() => { setBulkImportMode('file'); openBulkModal(); }}>
             <FileSpreadsheet size={16} />
             Import from CSV / PDF

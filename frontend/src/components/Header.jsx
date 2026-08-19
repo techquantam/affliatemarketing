@@ -24,6 +24,8 @@ export default function Header({
   categoriesData = [],
   onCategorySelect,
   onDealSelect,
+  dashboardTab,
+  setDashboardTab,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -224,9 +226,23 @@ export default function Header({
             Home
           </button>
           <button
-            className={`nav-link ${currentView === 'dashboard' ? 'active' : ''}`}
+            className={`nav-link ${currentView === 'dashboard' && dashboardTab === 'url-converter' ? 'active' : ''}`}
             onClick={() => {
               if (currentUser) {
+                if (setDashboardTab) setDashboardTab('url-converter');
+                setView('dashboard');
+              } else {
+                openAuthModal();
+              }
+            }}
+          >
+            Convert Link
+          </button>
+          <button
+            className={`nav-link ${currentView === 'dashboard' && dashboardTab !== 'url-converter' ? 'active' : ''}`}
+            onClick={() => {
+              if (currentUser) {
+                if (setDashboardTab) setDashboardTab('overview');
                 setView('dashboard');
               } else {
                 openAuthModal();

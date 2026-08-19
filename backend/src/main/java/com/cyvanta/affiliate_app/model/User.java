@@ -61,6 +61,30 @@ public class User {
     @Builder.Default
     private Boolean isVerified = false;
 
+    // --- Profile Fields ---
+    private String dob;
+    private String gender;
+    private String address;
+    private String city;
+    private String state;
+    private String pincode;
+
+    @Builder.Default
+    private Boolean isProfileComplete = false;
+
+    // --- E-KYC Fields ---
+    private String aadhaarNumber;
+    private String panNumber;
+    private String aadhaarFrontUrl;
+    private String aadhaarBackUrl;
+    private String panCardUrl;
+    private String selfieUrl;
+
+    @Builder.Default
+    private String kycStatus = "not_submitted"; // "not_submitted", "pending", "approved", "rejected"
+
+    private String kycRemarks;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 

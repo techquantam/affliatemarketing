@@ -310,6 +310,11 @@ export default function MobileApp({
       return;
     }
     
+    if (user?.kycStatus !== 'approved') {
+      onAddNotification('E-KYC verification is mandatory before making a withdrawal. Please complete your profile & E-KYC first.', 'error');
+      return;
+    }
+
     const amount = parseFloat(withdrawAmount);
     if (isNaN(amount) || amount <= 0) {
       onAddNotification('Please enter a valid withdrawal amount.', 'error');

@@ -137,7 +137,8 @@ export const apiUsers = {
   verifyOtp: (identifier, otp) => request('/users/verify-otp', { method: 'POST', body: JSON.stringify({ identifier, otp }) }),
   resendOtp: (identifier) => request('/users/resend-otp', { method: 'POST', body: JSON.stringify({ identifier }) }),
   updateStatus: (id, status) => request(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
-  update: (id, userData) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(userData) })
+  update: (id, userData) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(userData) }),
+  updateKyc: (id, kycData) => request(`/users/${id}/kyc`, { method: 'PUT', body: JSON.stringify(kycData) })
 };
 
 export const apiProducts = {

@@ -28,11 +28,15 @@ import {
   Plane,
   Sparkles,
   BookOpen,
-  HelpCircle
+  HelpCircle,
+  Camera,
+  ArrowLeft,
+  ShieldAlert
 } from 'lucide-react';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
 import CategoryIcon from './CategoryIcon';
+import { apiUsers, apiUpload } from '../services/api';
 import { apiAffiliate } from '../services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from '../utils/openUrl';
 
@@ -109,6 +113,7 @@ export default function MobileApp({
   trackedOrders = [],
   withdrawRequests = [],
   onAddWithdrawalRequest,
+  onUpdateUser,
   storesData = [],
   dealsData = [],
   categoriesData = [],
@@ -128,6 +133,26 @@ export default function MobileApp({
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [upiId, setUpiId] = useState('');
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  // --- PROFILE STATES ---
+  const [profileName, setProfileName] = useState(currentUser?.name || '');
+  const [profileDob, setProfileDob] = useState(currentUser?.dob || '');
+  const [profileGender, setProfileGender] = useState(currentUser?.gender || 'Male');
+  const [profileAddress, setProfileAddress] = useState(currentUser?.address || '');
+  const [profileCity, setProfileCity] = useState(currentUser?.city || '');
+  const [profileState, setProfileState] = useState(currentUser?.state || '');
+  const [profilePincode, setProfilePincode] = useState(currentUser?.pincode || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // --- E-KYC STATES ---
+  const [kycAadhaar, setKycAadhaar] = useState(currentUser?.aadhaarNumber || '');
+  const [kycPan, setKycPan] = useState(currentUser?.panNumber || '');
+  const [aadhaarFront, setAadhaarFront] = useState(currentUser?.aadhaarFrontUrl || '');
+  const [aadhaarBack, setAadhaarBack] = useState(currentUser?.aadhaarBackUrl || '');
+  const [panCard, setPanCard] = useState(currentUser?.panCardUrl || '');
+  const [selfie, setSelfie] = useState(currentUser?.selfieUrl || '');
+  const [uploadingField, setUploadingField] = useState(null);
+  const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
 
   // Selected Order for tracking modal
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -282,7 +307,7 @@ export default function MobileApp({
     }
   };
 
-  const handleRequestWithdrawal = (e) => {
+  const handleRequestWithdrawal = async (e) => {
     e.preventDefault();
     if (isGuest) {
       onAddNotification('Please Login / Sign Up to request withdrawals.', 'error');
@@ -290,6 +315,11 @@ export default function MobileApp({
       return;
     }
     
+    if (user?.kycStatus !== 'approved') {
+      onAddNotification('E-KYC verification is mandatory before making a withdrawal. Please click your initial at the top to go to "Profile & KYC" page.', 'error');
+      return;
+    }
+
     const amount = parseFloat(withdrawAmount);
     if (isNaN(amount) || amount <= 0) {
       onAddNotification('Please enter a valid withdrawal amount.', 'error');
@@ -314,6 +344,7 @@ export default function MobileApp({
     setWithdrawLoading(true);
 
     const newRequest = {
+      userId: user.id,
       userName: user.name,
       coins: Math.round(amount * 100), // 100 coins = ₹1
       amount: amount,
@@ -321,16 +352,111 @@ export default function MobileApp({
       date: new Date().toISOString().split('T')[0],
     };
 
-    onAddWithdrawalRequest(newRequest);
+    try {
+      if (onAddWithdrawalRequest) {
+        await onAddWithdrawalRequest(newRequest);
+      }
+      setWithdrawAmount('');
+      setUpiId('');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setWithdrawLoading(false);
+    }
+  };
 
-    // Update local wallet view
-    user.wallet.confirmed = Math.max(0, user.wallet.confirmed - amount);
-    user.wallet.pending += amount; // shift to pending processing
+  // --- PROFILE SAVE (MOBILE) ---
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    if (!profileName.trim() || !profileDob.trim() || !profileAddress.trim() || !profileCity.trim() || !profileState.trim() || !profilePincode.trim()) {
+      onAddNotification('Please fill in all profile fields to complete your profile.', 'error');
+      return;
+    }
 
-    setWithdrawAmount('');
-    setUpiId('');
-    setWithdrawLoading(false);
-    onAddNotification('Withdrawal requested successfully!', 'success');
+    setIsSavingProfile(true);
+    try {
+      const updatedUser = await apiUsers.update(currentUser.id, {
+        name: profileName,
+        dob: profileDob,
+        gender: profileGender,
+        address: profileAddress,
+        city: profileCity,
+        state: profileState,
+        pincode: profilePincode,
+        isProfileComplete: true
+      });
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      onAddNotification('Profile saved and marked as COMPLETE!', 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to save profile.', 'error');
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // --- KYC FILE UPLOAD (MOBILE) ---
+  const handleUploadKycFile = async (e, field) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingField(field);
+    try {
+      const res = await apiUpload.uploadImage(file);
+      if (res && res.url) {
+        if (field === 'aadhaarFront') setAadhaarFront(res.url);
+        if (field === 'aadhaarBack') setAadhaarBack(res.url);
+        if (field === 'panCard') setPanCard(res.url);
+        if (field === 'selfie') setSelfie(res.url);
+        onAddNotification('Document uploaded successfully!', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to upload document. Please try again.', 'error');
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
+  // --- KYC SUBMIT (MOBILE) ---
+  const handleSubmitKyc = async (e) => {
+    e.preventDefault();
+    if (!kycAadhaar.trim() || kycAadhaar.trim().length < 12) {
+      onAddNotification('Please enter a valid 12-digit Aadhaar Number.', 'error');
+      return;
+    }
+    if (!kycPan.trim() || kycPan.trim().length < 10) {
+      onAddNotification('Please enter a valid 10-digit PAN Card Number.', 'error');
+      return;
+    }
+    if (!aadhaarFront || !aadhaarBack || !panCard || !selfie) {
+      onAddNotification('Please upload all required KYC documents (Aadhaar Front & Back, PAN, Selfie).', 'error');
+      return;
+    }
+
+    setIsSubmittingKyc(true);
+    try {
+      const updatedUser = await apiUsers.update(currentUser.id, {
+        aadhaarNumber: kycAadhaar,
+        panNumber: kycPan,
+        aadhaarFrontUrl: aadhaarFront,
+        aadhaarBackUrl: aadhaarBack,
+        panCardUrl: panCard,
+        selfieUrl: selfie,
+        kycStatus: 'pending'
+      });
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      onAddNotification('E-KYC documents submitted successfully for review!', 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to submit E-KYC documents.', 'error');
+    } finally {
+      setIsSubmittingKyc(false);
+    }
   };
 
   // Get return status description for user UI
@@ -388,8 +514,8 @@ export default function MobileApp({
           {isGuest ? (
             <button className="app-login-btn" onClick={openAuthModal}>Login</button>
           ) : (
-            <div className="app-user-profile">
-              <span className="app-user-initial">{user.name[0]}</span>
+            <div className="app-user-profile" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="app-user-initial" onClick={() => setActiveTab('profile')} style={{ cursor: 'pointer' }} title="My Profile & KYC">{user.name[0]}</span>
               <button className="app-logout-icon" onClick={onLogout} title="Logout App">
                 <LogOut size={14} />
               </button>
@@ -1212,6 +1338,141 @@ export default function MobileApp({
             </div>
           </div>
         )}
+        {activeTab === 'profile' && (
+          <div className="mobile-screen-tab-panel animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button onClick={() => setActiveTab('home')} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: 0, fontWeight: 'bold' }}>
+                <ArrowLeft size={16} />
+              </button>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: 'var(--text-bold)' }}>My Profile & E-KYC</h3>
+            </div>
+
+            {/* KYC Status Alert */}
+            <div style={{
+              padding: '12px 14px',
+              borderRadius: '8px',
+              background: currentUser?.kycStatus === 'approved' ? 'rgba(16,185,129,0.08)' : currentUser?.kycStatus === 'pending' ? 'rgba(245,158,11,0.08)' : currentUser?.kycStatus === 'rejected' ? 'rgba(239,68,68,0.08)' : 'var(--bg)',
+              border: `1px solid ${currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--border)'}`,
+              fontSize: '12px',
+              color: 'var(--text)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={16} style={{ color: currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--text)' }} />
+                <strong style={{ color: 'var(--text-bold)' }}>
+                  KYC Status: {currentUser?.kycStatus ? currentUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
+                </strong>
+              </div>
+              <span>
+                {currentUser?.kycStatus === 'approved' 
+                  ? 'Your E-KYC is approved! You can request payouts.'
+                  : currentUser?.kycStatus === 'pending'
+                  ? 'KYC is pending admin review.'
+                  : currentUser?.kycStatus === 'rejected'
+                  ? `Rejected: ${currentUser?.kycRemarks || 'Invalid files'}`
+                  : 'Complete profile & upload docs to request payouts.'}
+              </span>
+            </div>
+
+            {/* Personal Details Form */}
+            <form onSubmit={handleSaveProfile} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Personal Details</h4>
+              
+              <div className="app-input-group">
+                <label>Full Name</label>
+                <input type="text" required value={profileName} onChange={e => setProfileName(e.target.value)} />
+              </div>
+              <div className="app-input-group">
+                <label>Date of Birth</label>
+                <input type="date" required value={profileDob} onChange={e => setProfileDob(e.target.value)} />
+              </div>
+              <div className="app-input-group">
+                <label>Gender</label>
+                <select value={profileGender} onChange={e => setProfileGender(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="app-input-group">
+                <label>Address</label>
+                <input type="text" required value={profileAddress} onChange={e => setProfileAddress(e.target.value)} />
+              </div>
+              <div className="app-input-group">
+                <label>City</label>
+                <input type="text" required value={profileCity} onChange={e => setProfileCity(e.target.value)} />
+              </div>
+              <div className="app-input-group">
+                <label>State</label>
+                <input type="text" required value={profileState} onChange={e => setProfileState(e.target.value)} />
+              </div>
+              <div className="app-input-group">
+                <label>Pincode</label>
+                <input type="text" required value={profilePincode} onChange={e => setProfilePincode(e.target.value)} />
+              </div>
+
+              <button type="submit" disabled={isSavingProfile} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px' }}>
+                {isSavingProfile ? 'Saving...' : 'Save Details'}
+              </button>
+            </form>
+
+            {/* E-KYC Upload Form */}
+            <form onSubmit={handleSubmitKyc} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Identity Documents</h4>
+
+              <div className="app-input-group">
+                <label>Aadhaar Card Number</label>
+                <input type="text" required maxLength="12" placeholder="12-digit Aadhaar Number" value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value.replace(/\s/g, ''))} />
+              </div>
+              <div className="app-input-group">
+                <label>PAN Card Number</label>
+                <input type="text" required maxLength="10" placeholder="10-character PAN Number" value={kycPan} onChange={e => setKycPan(e.target.value.toUpperCase())} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Front</span>
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
+                    <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarFront')} style={{ display: 'none' }} />
+                    <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
+                    <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'aadhaarFront' ? 'Uploading...' : aadhaarFront ? 'Uploaded ✓' : 'Upload'}</span>
+                  </label>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Back</span>
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
+                    <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarBack')} style={{ display: 'none' }} />
+                    <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
+                    <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'aadhaarBack' ? 'Uploading...' : aadhaarBack ? 'Uploaded ✓' : 'Upload'}</span>
+                  </label>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>PAN Card</span>
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
+                    <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'panCard')} style={{ display: 'none' }} />
+                    <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
+                    <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'panCard' ? 'Uploading...' : panCard ? 'Uploaded ✓' : 'Upload'}</span>
+                  </label>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Selfie with ID</span>
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
+                    <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'selfie')} style={{ display: 'none' }} />
+                    <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
+                    <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'selfie' ? 'Uploading...' : selfie ? 'Uploaded ✓' : 'Upload'}</span>
+                  </label>
+                </div>
+              </div>
+
+              <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px', marginTop: '6px', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
+                {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit E-KYC'}
+              </button>
+            </form>
+          </div>
+        )}
+
         {activeTab === 'ledger' && (
           <div className="mobile-screen-tab-panel animate-fade">
             {isGuest ? (

@@ -19,6 +19,8 @@ import {
   FileText,
   ShieldCheck,
   HelpCircle,
+  Link,
+  Fingerprint,
 } from 'lucide-react';
 import '../Admin.css';
 
@@ -26,6 +28,7 @@ import '../Admin.css';
 import AdminDashboard from './AdminDashboard';
 import AdminUsers from './AdminUsers';
 import AdminRoles from './AdminRoles';
+import AdminKYC from './AdminKYC';
 import AdminActivityLogs from './AdminActivityLogs';
 import AdminLoginHistory from './AdminLoginHistory';
 import AdminProducts from './AdminProducts';
@@ -43,6 +46,7 @@ import AdminAffiliateNetwork from './AdminAffiliateNetwork';
 import AdminSEO from './AdminSEO';
 import AdminLedger from './AdminLedger';
 import AdminTickets from './AdminTickets';
+import { buildAffiliateTrackingUrl } from '../services/affiliateNetworks';
 
 import {
   apiUsers,
@@ -82,6 +86,7 @@ export default function AdminPanel({
     if (hash === '#/admin/users') return 'users';
     if (hash === '#/admin/roles') return 'roles';    if (hash === '#/admin/roles') return 'roles';    if (hash === '#/admin/products') return 'products';
     if (hash === '#/admin/withdrawals') return 'withdrawals';
+    if (hash === '#/admin/kyc-management' || hash === '#/admin/kyc') return 'kyc-management';
     if (hash === '#/admin/click-logs') return 'click-logs';
     if (hash === '#/admin/conversions') return 'conversions';
     if (hash === '#/admin/referrals') return 'referrals';
@@ -98,6 +103,7 @@ export default function AdminPanel({
     if (path === '/admin/roles') return 'roles';
     if (path === '/admin/products') return 'products';
     if (path === '/admin/withdrawals') return 'withdrawals';
+    if (path === '/admin/kyc-management' || hash === '#/admin/kyc-management') return 'kyc-management';
     if (path === '/admin/click-logs') return 'click-logs';
     if (path === '/admin/conversions') return 'conversions';
     if (path === '/admin/referrals') return 'referrals';
@@ -165,6 +171,51 @@ export default function AdminPanel({
   const [deals, setDeals] = useState([]);
   const [storesData, setStoresData] = useState([]);
   const [banners, setBanners] = useState([]);
+
+  // --- URL CONVERTER STATE ---
+  const [convertInputUrl, setConvertInputUrl] = useState('');
+  const [convertResultUrl, setConvertResultUrl] = useState('');
+  const [convertStore, setConvertStore] = useState('');
+
+  const handleConvertUrl = (e) => {
+    e.preventDefault();
+    if (!convertInputUrl.trim()) {
+      onAddNotification('Please paste a product URL.', 'error');
+      return;
+    }
+
+    const url = convertInputUrl.trim();
+    let store = 'Amazon';
+    const lowerUrl = url.toLowerCase();
+
+    if (lowerUrl.includes('flipkart') || lowerUrl.includes('fkrt')) store = 'Flipkart';
+    else if (lowerUrl.includes('myntra') || lowerUrl.includes('mynt.in')) store = 'Myntra';
+    else if (lowerUrl.includes('ajio')) store = 'Ajio';
+    else if (lowerUrl.includes('nykaa')) store = 'Nykaa Beauty';
+    else if (lowerUrl.includes('meesho')) store = 'Meesho';
+    else if (lowerUrl.includes('makemytrip')) store = 'MakeMyTrip';
+    else if (lowerUrl.includes('boat')) store = 'boAt';
+
+    setConvertStore(store);
+    try {
+      const result = buildAffiliateTrackingUrl({
+        targetUrl: url,
+        storeName: store,
+        userId: currentUser?.id || 'admin',
+        clickId: `admin_conv_${Date.now()}`
+      });
+      setConvertResultUrl(result);
+      onAddNotification(`Converted to ${store} affiliate link!`, 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to convert URL.', 'error');
+    }
+  };
+
+  const handleCopyConverted = () => {
+    navigator.clipboard.writeText(convertResultUrl);
+    onAddNotification('Affiliate link copied to clipboard!', 'success');
+  };
   const [finance, setFinance] = useState({
     totalRevenue: 0.00,
     totalCashbackPaid: 0.00,
@@ -316,6 +367,7 @@ export default function AdminPanel({
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'users', label: 'Users', icon: UsersIcon },
     { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck },
+    { id: 'kyc-management', label: 'KYC Management', icon: Fingerprint },
     { id: 'products', label: 'Products', icon: ShoppingBag },
     { id: 'withdrawals', label: 'Withdrawals', icon: Wallet },
     { id: 'click-logs', label: 'Click Logs', icon: MousePointer },
@@ -328,6 +380,7 @@ export default function AdminPanel({
     { id: 'deals', label: 'Deals', icon: Gift },
     { id: 'affiliate-network', label: 'Affiliate Network', icon: Globe },
     { id: 'ledger', label: 'Ledger Management', icon: Wallet },
+    { id: 'url-converter', label: 'URL Converter', icon: Link },
     { id: 'seo', label: 'SEO', icon: FileText },
     { id: 'tickets', label: 'Support Tickets', icon: HelpCircle },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
@@ -340,10 +393,10 @@ export default function AdminPanel({
   // Fallback module lists for when permissions.allowedModules is missing (old sessions)
   const ROLE_MODULE_DEFAULTS = {
     'SUPER_ADMIN': null, // null = all modules
-    'ADMIN': ['dashboard', 'users', 'products', 'withdrawals', 'click-logs', 'conversions', 'referrals', 'shared-commissions', 'categories', 'deals', 'stores', 'banners', 'affiliate-network', 'ledger', 'seo', 'settings', 'finance', 'tickets'],
+    'ADMIN': ['dashboard', 'users', 'products', 'withdrawals', 'click-logs', 'conversions', 'referrals', 'shared-commissions', 'categories', 'deals', 'stores', 'banners', 'affiliate-network', 'ledger', 'seo', 'settings', 'finance', 'tickets', 'url-converter', 'kyc-management'],
     'CONTENT_MANAGER': ['dashboard', 'products', 'categories', 'deals', 'stores', 'banners', 'seo'],
-    'AFFILIATE_MANAGER': ['dashboard', 'users', 'conversions', 'referrals', 'shared-commissions', 'click-logs', 'affiliate-network', 'ledger', 'finance'],
-    'SUPPORT_ADMIN': ['dashboard', 'users', 'withdrawals', 'conversions', 'tickets'],
+    'AFFILIATE_MANAGER': ['dashboard', 'users', 'conversions', 'referrals', 'shared-commissions', 'click-logs', 'affiliate-network', 'ledger', 'finance', 'url-converter'],
+    'SUPPORT_ADMIN': ['dashboard', 'users', 'withdrawals', 'conversions', 'tickets', 'kyc-management'],
   };
 
   const rawAllowedModules = currentUser?.permissions?.allowedModules;
@@ -944,6 +997,15 @@ export default function AdminPanel({
             currentUser={currentUser}
           />
         );
+      case 'kyc-management':
+        return (
+          <AdminKYC
+            users={users}
+            setUsers={setUsers}
+            onAddNotification={onAddNotification}
+            currentUser={currentUser}
+          />
+        );
       case 'roles':
         return (
           <AdminRoles
@@ -1000,6 +1062,53 @@ export default function AdminPanel({
         );
       case 'ledger':
         return <AdminLedger users={users} />;
+      case 'url-converter':
+        return (
+          <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="admin-page-header">
+              <div className="admin-page-title">
+                <h2>Affiliate URL Converter Tool</h2>
+                <p>Convert any standard store product link into an active tracking affiliate link</p>
+              </div>
+            </div>
+
+            <div className="admin-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <form onSubmit={handleConvertUrl} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <input
+                  type="url"
+                  required
+                  placeholder="Paste standard product link (e.g. https://www.flipkart.com/...) here"
+                  value={convertInputUrl}
+                  onChange={e => setConvertInputUrl(e.target.value)}
+                  style={{ flex: 1, minWidth: '300px', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}
+                />
+                <button type="submit" className="admin-btn admin-btn-primary" style={{ padding: '12px 24px', fontWeight: 'bold' }}>
+                  Convert Link
+                </button>
+              </form>
+
+              {convertResultUrl && (
+                <div className="animate-fade" style={{ marginTop: '20px', padding: '20px', borderRadius: '8px', backgroundColor: 'rgba(255,79,47,0.05)', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                    Detected Retailer Store: {convertStore}
+                  </span>
+                  
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="text"
+                      readOnly
+                      value={convertResultUrl}
+                      style={{ flex: 1, minWidth: '260px', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-bold)', fontSize: '13px', fontFamily: 'monospace' }}
+                    />
+                    <button onClick={handleCopyConverted} className="admin-btn admin-btn-primary" style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                      Copy Link
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
       case 'categories':
         return (
           <AdminCategories

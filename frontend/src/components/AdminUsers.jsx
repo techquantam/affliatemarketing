@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Edit2, Wallet } from 'lucide-react';
 import { AdminTable, AdminModal, AdminFormInput, AdminFormSelect, ExportDataButton } from './AdminComponents';
 import AdminWalletModal from './AdminWalletModal';
+import { apiUsers } from '../services/api';
 
 export default function AdminUsers({ users, setUsers, onEditUser, onAddNotification, currentUser }) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -15,6 +16,40 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [walletModalUser, setWalletModalUser] = useState(null);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+
+  // KYC verification states
+  const [showRejectReasonInput, setShowRejectReasonInput] = useState(false);
+  const [kycRemarks, setKycRemarks] = useState('');
+
+  const handleApproveKyc = async () => {
+    try {
+      await apiUsers.updateKyc(selectedUser.id, { status: 'approved' });
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, kycStatus: 'approved' } : u));
+      setSelectedUser(prev => ({ ...prev, kycStatus: 'approved' }));
+      onAddNotification('User E-KYC has been approved successfully!', 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to approve KYC.', 'error');
+    }
+  };
+
+  const handleRejectKyc = async () => {
+    if (!kycRemarks.trim()) {
+      onAddNotification('Please enter rejection remarks.', 'error');
+      return;
+    }
+    try {
+      await apiUsers.updateKyc(selectedUser.id, { status: 'rejected', remarks: kycRemarks });
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, kycStatus: 'rejected', kycRemarks: kycRemarks } : u));
+      setSelectedUser(prev => ({ ...prev, kycStatus: 'rejected', kycRemarks: kycRemarks }));
+      setShowRejectReasonInput(false);
+      setKycRemarks('');
+      onAddNotification('User E-KYC has been rejected.', 'info');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to reject KYC.', 'error');
+    }
+  };
 
   // Edit Form Fields
   const [editName, setEditName] = useState('');
@@ -110,7 +145,7 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
     { header: 'Referral Code', dataKey: 'referralCode' }
   ];
 
-  const headers = ['User Name', 'Email', 'Mobile', 'Referral Code', 'Join Date', 'Status', 'Actions'];
+  const headers = ['User Name', 'Email', 'Mobile', 'Referral Code', 'Join Date', 'Status', 'KYC Status', 'Actions'];
 
   const renderRow = (item, idx) => (
     <tr key={item.id} className="animate-fade">
@@ -122,6 +157,15 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       <td>
         <span className={`status-badge ${item.status === 'active' ? 'active' : 'inactive'}`}>
           {item.status}
+        </span>
+      </td>
+      <td>
+        <span className="status-badge" style={{
+          backgroundColor: item.kycStatus === 'approved' ? 'rgba(16,185,129,0.1)' : item.kycStatus === 'pending' ? 'rgba(245,158,11,0.1)' : item.kycStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
+          color: item.kycStatus === 'approved' ? '#10b981' : item.kycStatus === 'pending' ? '#f59e0b' : item.kycStatus === 'rejected' ? '#ef4444' : '#64748b',
+          fontWeight: 'bold'
+        }}>
+          {item.kycStatus ? item.kycStatus.toUpperCase().replace('_', ' ') : 'NONE'}
         </span>
       </td>
       <td>
@@ -286,7 +330,7 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
               </div>
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Referred By</span>
-                <p style={{ fontWeight: '500', color: 'var(--text-bold)', fontSize: '14px', marginTop: '2px' }}>{selectedUser.referredBy}</p>
+                <p style={{ fontWeight: '500', color: 'var(--text-bold)', fontSize: '14px', marginTop: '2px' }}>{selectedUser.referredBy || '—'}</p>
               </div>
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Join Date</span>
@@ -299,12 +343,119 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
                 </p>
               </div>
               <div>
+                <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Date of Birth</span>
+                <p style={{ fontWeight: '500', color: 'var(--text-bold)', fontSize: '14px', marginTop: '2px' }}>{selectedUser.dob || '—'}</p>
+              </div>
+              <div>
+                <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Gender</span>
+                <p style={{ fontWeight: '500', color: 'var(--text-bold)', fontSize: '14px', marginTop: '2px' }}>{selectedUser.gender || '—'}</p>
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Full Address</span>
+                <p style={{ fontWeight: '500', color: 'var(--text-bold)', fontSize: '14px', marginTop: '2px' }}>
+                  {selectedUser.address ? `${selectedUser.address}, ${selectedUser.city}, ${selectedUser.state} - ${selectedUser.pincode}` : '—'}
+                </p>
+              </div>
+              <div>
                 <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Shared Commission Rate</span>
                 <p style={{ fontWeight: '500', color: 'var(--text-bold)', fontSize: '14px', marginTop: '2px' }}>
                   {selectedUser.sharedCommissionRate !== null && selectedUser.sharedCommissionRate !== undefined ? `${selectedUser.sharedCommissionRate}%` : 'Platform Default'}
                 </p>
               </div>
+              <div>
+                <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>KYC Status</span>
+                <p style={{ marginTop: '2px' }}>
+                  <span className="status-badge" style={{
+                    backgroundColor: selectedUser.kycStatus === 'approved' ? 'rgba(16,185,129,0.1)' : selectedUser.kycStatus === 'pending' ? 'rgba(245,158,11,0.1)' : selectedUser.kycStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
+                    color: selectedUser.kycStatus === 'approved' ? '#10b981' : selectedUser.kycStatus === 'pending' ? '#f59e0b' : selectedUser.kycStatus === 'rejected' ? '#ef4444' : '#64748b',
+                    fontWeight: 'bold'
+                  }}>
+                    {selectedUser.kycStatus ? selectedUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
+                  </span>
+                </p>
+              </div>
             </div>
+
+            {/* KYC Identity Numbers & Document Images */}
+            {(selectedUser.aadhaarNumber || selectedUser.panNumber) && (
+              <div style={{ marginTop: '8px', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+                <h5 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: 'bold', color: 'var(--text-bold)' }}>E-KYC Documents</h5>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                  <div>
+                    <span style={{ fontSize: '11px', color: 'var(--text)' }}>Aadhaar Card Number</span>
+                    <p style={{ fontWeight: '700', fontSize: '13px', fontFamily: 'monospace', color: 'var(--text-bold)', marginTop: '2px' }}>{selectedUser.aadhaarNumber || '—'}</p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '11px', color: 'var(--text)' }}>PAN Card Number</span>
+                    <p style={{ fontWeight: '700', fontSize: '13px', fontFamily: 'monospace', color: 'var(--text-bold)', marginTop: '2px' }}>{selectedUser.panNumber || '—'}</p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
+                  {selectedUser.aadhaarFrontUrl && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text)', fontWeight: 600 }}>Aadhaar Front</span>
+                      <a href={selectedUser.aadhaarFrontUrl} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden' }}>
+                        <img src={selectedUser.aadhaarFrontUrl} alt="Aadhaar Front" style={{ width: '100%', height: '80px', objectFit: 'cover' }} />
+                      </a>
+                    </div>
+                  )}
+                  {selectedUser.aadhaarBackUrl && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text)', fontWeight: 600 }}>Aadhaar Back</span>
+                      <a href={selectedUser.aadhaarBackUrl} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden' }}>
+                        <img src={selectedUser.aadhaarBackUrl} alt="Aadhaar Back" style={{ width: '100%', height: '80px', objectFit: 'cover' }} />
+                      </a>
+                    </div>
+                  )}
+                  {selectedUser.panCardUrl && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text)', fontWeight: 600 }}>PAN Card</span>
+                      <a href={selectedUser.panCardUrl} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden' }}>
+                        <img src={selectedUser.panCardUrl} alt="PAN Card" style={{ width: '100%', height: '80px', objectFit: 'cover' }} />
+                      </a>
+                    </div>
+                  )}
+                  {selectedUser.selfieUrl && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text)', fontWeight: 600 }}>Selfie Photo</span>
+                      <a href={selectedUser.selfieUrl} target="_blank" rel="noreferrer" style={{ display: 'block', border: '1px solid var(--border)', borderRadius: '6px', overflow: 'hidden' }}>
+                        <img src={selectedUser.selfieUrl} alt="Selfie" style={{ width: '100%', height: '80px', objectFit: 'cover' }} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* KYC Admin Actions */}
+            {selectedUser.kycStatus === 'pending' && (
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <h5 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: 'var(--text-bold)' }}>Verify E-KYC Documents</h5>
+                
+                {showRejectReasonInput ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Enter reason for rejection (remarks)"
+                      value={kycRemarks}
+                      onChange={e => setKycRemarks(e.target.value)}
+                      style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '13px', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={handleRejectKyc} className="admin-btn admin-btn-danger" style={{ flex: 1 }}>Confirm Reject</button>
+                      <button onClick={() => setShowRejectReasonInput(false)} className="admin-btn admin-btn-secondary">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={handleApproveKyc} className="admin-btn admin-btn-primary" style={{ flex: 1, backgroundColor: '#10b981', border: 'none', color: '#fff', fontWeight: 'bold' }}>Approve KYC</button>
+                    <button onClick={() => setShowRejectReasonInput(true)} className="admin-btn admin-btn-danger" style={{ flex: 1, fontWeight: 'bold' }}>Reject KYC</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </AdminModal>
       )}

@@ -366,6 +366,7 @@ export default function App() {
           trackedOrders={trackedOrders}
           withdrawRequests={withdrawRequests}
           onAddWithdrawalRequest={handleAppWithdrawalRequest}
+          onUpdateUser={setCurrentUser}
           storesData={storesData}
           dealsData={dynamicDeals}
           onAddNotification={addNotification}

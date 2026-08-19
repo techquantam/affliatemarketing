@@ -61,7 +61,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable String id, @RequestBody User updatedUser) {
+    public ResponseEntity<?> updateUser(@PathVariable String id, @RequestBody User updatedUser) {
         return userRepository.findById(id).map(user -> {
             if (updatedUser.getName() != null) user.setName(updatedUser.getName());
             if (updatedUser.getEmail() != null) user.setEmail(updatedUser.getEmail());
@@ -76,7 +76,57 @@ public class UserController {
             }
             // Handle null explicitly if sharedCommissionRate is meant to be reset
             user.setSharedCommissionRate(updatedUser.getSharedCommissionRate());
-            return ResponseEntity.ok(userRepository.save(user));
+
+            // Profile Fields
+            if (updatedUser.getDob() != null) user.setDob(updatedUser.getDob());
+            if (updatedUser.getGender() != null) user.setGender(updatedUser.getGender());
+            if (updatedUser.getAddress() != null) user.setAddress(updatedUser.getAddress());
+            if (updatedUser.getCity() != null) user.setCity(updatedUser.getCity());
+            if (updatedUser.getState() != null) user.setState(updatedUser.getState());
+            if (updatedUser.getPincode() != null) user.setPincode(updatedUser.getPincode());
+            if (updatedUser.getIsProfileComplete() != null) user.setIsProfileComplete(updatedUser.getIsProfileComplete());
+
+            // E-KYC Fields
+            if (updatedUser.getAadhaarNumber() != null) user.setAadhaarNumber(updatedUser.getAadhaarNumber());
+            if (updatedUser.getPanNumber() != null) user.setPanNumber(updatedUser.getPanNumber());
+            if (updatedUser.getAadhaarFrontUrl() != null) user.setAadhaarFrontUrl(updatedUser.getAadhaarFrontUrl());
+            if (updatedUser.getAadhaarBackUrl() != null) user.setAadhaarBackUrl(updatedUser.getAadhaarBackUrl());
+            if (updatedUser.getPanCardUrl() != null) user.setPanCardUrl(updatedUser.getPanCardUrl());
+            if (updatedUser.getSelfieUrl() != null) user.setSelfieUrl(updatedUser.getSelfieUrl());
+            if (updatedUser.getKycStatus() != null) {
+                user.setKycStatus(updatedUser.getKycStatus());
+            } else {
+                // Auto-submit KYC to pending if all mandatory docs are provided
+                if (user.getAadhaarNumber() != null && !user.getAadhaarNumber().trim().isEmpty() &&
+                    user.getPanNumber() != null && !user.getPanNumber().trim().isEmpty() &&
+                    user.getAadhaarFrontUrl() != null && !user.getAadhaarFrontUrl().trim().isEmpty() &&
+                    user.getPanCardUrl() != null && !user.getPanCardUrl().trim().isEmpty() &&
+                    user.getSelfieUrl() != null && !user.getSelfieUrl().trim().isEmpty()) {
+                    user.setKycStatus("pending");
+                }
+            }
+            if (updatedUser.getKycRemarks() != null) user.setKycRemarks(updatedUser.getKycRemarks());
+
+            User saved = userRepository.save(user);
+            Wallet wallet = walletService.getOrCreateWallet(saved.getId());
+            return ResponseEntity.ok(buildUserResponse(saved, wallet));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/kyc")
+    public ResponseEntity<?> updateKycStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
+        return userRepository.findById(id).map(user -> {
+            String kycStatus = body.get("status");
+            String remarks = body.get("remarks");
+            if (kycStatus != null) {
+                user.setKycStatus(kycStatus.toLowerCase());
+            }
+            if (remarks != null) {
+                user.setKycRemarks(remarks);
+            }
+            User saved = userRepository.save(user);
+            Wallet wallet = walletService.getOrCreateWallet(saved.getId());
+            return ResponseEntity.ok(buildUserResponse(saved, wallet));
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -541,6 +591,25 @@ public class UserController {
         response.put("role", user.getRole() != null ? user.getRole().toString() : User.Role.USER.toString());
         response.put("isAdmin", user.getRole() != null && user.getRole() != User.Role.USER);
         response.put("permissions", user.getPermissions() != null ? user.getPermissions() : AdminPermissions.defaultForRole(user.getRole()));
+
+        // Profile Fields
+        response.put("dob", user.getDob());
+        response.put("gender", user.getGender());
+        response.put("address", user.getAddress());
+        response.put("city", user.getCity());
+        response.put("state", user.getState());
+        response.put("pincode", user.getPincode());
+        response.put("isProfileComplete", user.getIsProfileComplete() != null ? user.getIsProfileComplete() : false);
+
+        // KYC Fields
+        response.put("aadhaarNumber", user.getAadhaarNumber());
+        response.put("panNumber", user.getPanNumber());
+        response.put("aadhaarFrontUrl", user.getAadhaarFrontUrl());
+        response.put("aadhaarBackUrl", user.getAadhaarBackUrl());
+        response.put("panCardUrl", user.getPanCardUrl());
+        response.put("selfieUrl", user.getSelfieUrl());
+        response.put("kycStatus", user.getKycStatus() != null ? user.getKycStatus() : "not_submitted");
+        response.put("kycRemarks", user.getKycRemarks());
 
         Map<String, Double> walletData = new HashMap<>();
         walletData.put("confirmed", wallet.getApprovedBalance());

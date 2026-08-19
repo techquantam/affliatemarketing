@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/products")
@@ -33,32 +34,57 @@ public class ProductController {
 
     // Frontend calls POST /api/products
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
-        return ResponseEntity.ok(productService.saveProduct(product));
+    public ResponseEntity<?> createProduct(@RequestBody Product product) {
+        try {
+            productService.validateProduct(product);
+            return ResponseEntity.ok(productService.saveProduct(product));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     // Keep the old /admin endpoint as an alias for backward compatibility
     @PostMapping("/admin")
-    public ResponseEntity<Product> createProductAdmin(@RequestBody Product product) {
-        return ResponseEntity.ok(productService.saveProduct(product));
+    public ResponseEntity<?> createProductAdmin(@RequestBody Product product) {
+        try {
+            productService.validateProduct(product);
+            return ResponseEntity.ok(productService.saveProduct(product));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     // Frontend calls POST /api/products/bulk
     @PostMapping("/bulk")
-    public ResponseEntity<List<Product>> createProductBulk(@RequestBody List<Product> products) {
+    public ResponseEntity<?> createProductBulk(@RequestBody List<Product> products) {
         List<Product> savedProducts = new ArrayList<>();
-        for (Product product : products) {
-            savedProducts.add(productService.saveProduct(product));
+        List<String> errors = new ArrayList<>();
+        for (int i = 0; i < products.size(); i++) {
+            Product product = products.get(i);
+            try {
+                productService.validateProduct(product);
+                savedProducts.add(productService.saveProduct(product));
+            } catch (IllegalArgumentException e) {
+                errors.add("Product " + (i + 1) + " (" + (product.getName() != null ? product.getName() : "Unknown") + "): " + e.getMessage());
+            }
+        }
+        if (!errors.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Validation failed for some products", "errors", errors));
         }
         return ResponseEntity.ok(savedProducts);
     }
 
     // Frontend calls PUT /api/products/{id}
     @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable String id, @RequestBody Product product) {
+    public ResponseEntity<?> updateProduct(@PathVariable String id, @RequestBody Product product) {
         return productService.getProductById(id).map(existing -> {
-            product.setId(id);
-            return ResponseEntity.ok(productService.saveProduct(product));
+            try {
+                product.setId(id);
+                productService.validateProduct(product);
+                return ResponseEntity.ok(productService.saveProduct(product));
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            }
         }).orElse(ResponseEntity.notFound().build());
     }
 
