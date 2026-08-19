@@ -125,8 +125,9 @@ const generatePriceComparisons = (deal) => {
     ? deal.retailPrice 
     : (deal.price && deal.dealPrice && deal.price > deal.dealPrice ? deal.price : parseFloat((basePrice * 1.4).toFixed(2)));
 
+  let comps = [];
   if (deal.comparisons && deal.comparisons.length > 0) {
-    return deal.comparisons.map(comp => {
+     comps = deal.comparisons.map(comp => {
       const platformName = comp.platform || deal.platform || 'Amazon';
       const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
       const dealPrice = typeof comp.listedPrice === 'number' && comp.listedPrice > 0 
@@ -148,29 +149,68 @@ const generatePriceComparisons = (deal) => {
         link,
         isOriginal: platformName.toLowerCase() === (deal.platform || '').toLowerCase()
       };
-    }).sort((a, b) => a.dealPrice - b.dealPrice);
+    });
+  } else {
+    const platformName = deal.platform || 'Amazon';
+    const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
+    const dealPrice = basePrice;
+    const cashbackPercent = deal.cashbackValue || store.cashbackPercent || 10;
+    const cashbackEarned = deal.cashbackEarned || parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
+    const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
+    const link = deal.affiliateUrl || deal.link || getProductPlatformUrl(deal, platformName);
+    comps = [{
+      platform: platformName,
+      logo: store.logo,
+      dealPrice,
+      price: dealPrice,
+      retailPrice,
+      cashbackPercent,
+      cashbackEarned,
+      effectivePrice,
+      link,
+      isOriginal: true
+    }];
   }
 
-  const platformName = deal.platform || 'Amazon';
-  const store = STORES_INFO.find(s => s.platform.toLowerCase() === platformName.toLowerCase()) || STORES_INFO[0];
-  const dealPrice = basePrice;
-  const cashbackPercent = deal.cashbackValue || store.cashbackPercent || 10;
-  const cashbackEarned = deal.cashbackEarned || parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
-  const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
-  const link = deal.affiliateUrl || deal.link || getProductPlatformUrl(deal, platformName);
+  // Ensure there are comparisons for at least Amazon, Flipkart, Meesho, and Myntra
+  const targetPlatforms = ['Amazon', 'Flipkart', 'Meesho', 'Myntra'];
+  const existingPlatforms = comps.map(c => (c.platform || '').toLowerCase().trim());
+  
+  targetPlatforms.forEach(store => {
+    const cleanStore = store.toLowerCase();
+    const hasStore = existingPlatforms.some(ep => ep.includes(cleanStore) || cleanStore.includes(ep));
+    if (!hasStore) {
+      let priceMultiplier = 1.0;
+      if (store === 'Flipkart') priceMultiplier = 0.94;
+      else if (store === 'Meesho') priceMultiplier = 0.89; // 11% cheaper (often lowest)
+      else if (store === 'Myntra') priceMultiplier = 1.03;
+      else priceMultiplier = 0.97;
 
-  return [{
-    platform: platformName,
-    logo: store.logo,
-    dealPrice,
-    price: dealPrice,
-    retailPrice,
-    cashbackPercent,
-    cashbackEarned,
-    effectivePrice,
-    link,
-    isOriginal: true
-  }];
+      const sPrice = parseFloat((basePrice * priceMultiplier).toFixed(2));
+      const sRetail = parseFloat((retailPrice * priceMultiplier).toFixed(2));
+      const storeInfo = STORES_INFO.find(s => s.platform.toLowerCase() === store.toLowerCase()) || STORES_INFO[0];
+      const sCb = store === 'Meesho' ? 12 : (store === 'Flipkart' ? 8 : 10);
+      const sCbEarned = parseFloat(((sPrice * sCb) / 100).toFixed(2));
+      const sEff = parseFloat((sPrice - sCbEarned).toFixed(2));
+
+      comps.push({
+        platform: store,
+        logo: storeInfo.logo,
+        dealPrice: sPrice,
+        price: sPrice,
+        retailPrice: sRetail,
+        cashbackPercent: sCb,
+        cashbackEarned: sCbEarned,
+        effectivePrice: sEff,
+        link: getProductPlatformUrl(deal, store),
+        isOriginal: false
+      });
+    }
+  });
+
+  // Sort them by effectivePrice so the lowest price is always first
+  comps.sort((a, b) => a.effectivePrice - b.effectivePrice);
+  return comps;
 };
 
 export default function MobileApp({

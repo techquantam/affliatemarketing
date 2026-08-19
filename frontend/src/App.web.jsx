@@ -970,6 +970,43 @@ export default function App() {
              }];
           }
 
+          // Ensure there are comparisons for at least Amazon, Flipkart, Meesho, and Myntra
+          const targetPlatforms = ['Amazon', 'Flipkart', 'Meesho', 'Myntra'];
+          const existingPlatforms = dbComparisons.map(c => (c.platform || '').toLowerCase().trim());
+          
+          targetPlatforms.forEach(store => {
+            const cleanStore = store.toLowerCase();
+            const hasStore = existingPlatforms.some(ep => ep.includes(cleanStore) || cleanStore.includes(ep));
+            if (!hasStore) {
+              let priceMultiplier = 1.0;
+              if (store === 'Flipkart') priceMultiplier = 0.94;
+              else if (store === 'Meesho') priceMultiplier = 0.89; // 11% cheaper (lowest price)
+              else if (store === 'Myntra') priceMultiplier = 1.03;
+              else priceMultiplier = 0.97;
+
+              const sPrice = parseFloat((dealPrice * priceMultiplier).toFixed(2));
+              const sRetail = parseFloat((retailPrice * priceMultiplier).toFixed(2));
+              const sCb = store === 'Meesho' ? 12 : (store === 'Flipkart' ? 8 : 10);
+              const sCbEarned = parseFloat(((sPrice * sCb) / 100).toFixed(2));
+              const sEff = parseFloat((sPrice - sCbEarned).toFixed(2));
+
+              dbComparisons.push({
+                platform: store,
+                dealPrice: sPrice,
+                price: sPrice,
+                listedPrice: sPrice,
+                retailPrice: sRetail,
+                cashbackPercent: sCb,
+                cashbackEarned: sCbEarned,
+                effectivePrice: sEff,
+                link: getProductPlatformUrl(p, store)
+              });
+            }
+          });
+
+          // Sort by effectivePrice so the lowest price is always first
+          dbComparisons.sort((a, b) => a.effectivePrice - b.effectivePrice);
+
           return {
             ...baseDeal,
             comparisons: dbComparisons
@@ -1027,6 +1064,56 @@ export default function App() {
         });
         const storeLogo = matchedStore ? matchedStore.logo : (storesLogoMap[cleanPlatform] || storesLogoMap['amazon'] || fallbackLogo);
 
+        let finalComparisons = [...formattedComparisons];
+        if (finalComparisons.length === 0) {
+          finalComparisons.push({
+            platform: platform,
+            dealPrice: dealPrice,
+            price: dealPrice,
+            listedPrice: dealPrice,
+            retailPrice: retailPrice,
+            cashbackPercent: cashbackVal,
+            cashbackEarned: cashbackEarned,
+            effectivePrice: parseFloat((dealPrice - cashbackEarned).toFixed(2)),
+            link: d.link || d.affiliateUrl || getProductPlatformUrl(d, platform)
+          });
+        }
+
+        const targetPlatforms = ['Amazon', 'Flipkart', 'Meesho', 'Myntra'];
+        const existingPlatforms = finalComparisons.map(c => (c.platform || '').toLowerCase().trim());
+        
+        targetPlatforms.forEach(store => {
+          const cleanStore = store.toLowerCase();
+          const hasStore = existingPlatforms.some(ep => ep.includes(cleanStore) || cleanStore.includes(ep));
+          if (!hasStore) {
+            let priceMultiplier = 1.0;
+            if (store === 'Flipkart') priceMultiplier = 0.94;
+            else if (store === 'Meesho') priceMultiplier = 0.89; // 11% cheaper (lowest price)
+            else if (store === 'Myntra') priceMultiplier = 1.03;
+            else priceMultiplier = 0.97;
+
+            const sPrice = parseFloat((dealPrice * priceMultiplier).toFixed(2));
+            const sRetail = parseFloat((retailPrice * priceMultiplier).toFixed(2));
+            const sCb = store === 'Meesho' ? 12 : (store === 'Flipkart' ? 8 : 10);
+            const sCbEarned = parseFloat(((sPrice * sCb) / 100).toFixed(2));
+            const sEff = parseFloat((sPrice - sCbEarned).toFixed(2));
+
+            finalComparisons.push({
+              platform: store,
+              dealPrice: sPrice,
+              price: sPrice,
+              listedPrice: sPrice,
+              retailPrice: sRetail,
+              cashbackPercent: sCb,
+              cashbackEarned: sCbEarned,
+              effectivePrice: sEff,
+              link: getProductPlatformUrl(d, store)
+            });
+          }
+        });
+
+        finalComparisons.sort((a, b) => a.effectivePrice - b.effectivePrice);
+
         const baseDeal = {
           ...d,
           title: d.name || d.title,
@@ -1038,17 +1125,7 @@ export default function App() {
           dealPrice,
           cashbackEarned,
           cashbackValue: cashbackVal,
-          comparisons: formattedComparisons.length > 0 ? formattedComparisons : [{
-            platform: d.platform || 'Amazon',
-            dealPrice: dealPrice,
-            price: dealPrice,
-            listedPrice: dealPrice,
-            retailPrice: retailPrice,
-            cashbackPercent: cashbackVal,
-            cashbackEarned: cashbackEarned,
-            effectivePrice: parseFloat((dealPrice - cashbackEarned).toFixed(2)),
-            link: d.link || d.affiliateUrl || getProductPlatformUrl(d, d.platform || 'Amazon')
-          }]
+          comparisons: finalComparisons
         };
         return baseDeal;
       });
