@@ -257,3 +257,11 @@ export const apiTickets = {
   assign: (id, adminId, adminName) => request(`/tickets/${id}/assign`, { method: 'PUT', body: JSON.stringify({ adminId, adminName }) }),
   delete: (id) => request(`/tickets/${id}`, { method: 'DELETE' }),
 };
+
+export const apiNotifications = {
+  getByUser: (userId) => request(`/notifications/user/${userId}`),
+  create: (notif) => request('/notifications', { method: 'POST', body: JSON.stringify(notif) }),
+  markAsRead: (id) => request(`/notifications/${id}/read`, { method: 'PUT' }),
+  markAllAsRead: (userId) => request(`/notifications/user/${userId}/read-all`, { method: 'PUT' }),
+  delete: (id) => request(`/notifications/${id}`, { method: 'DELETE' })
+};

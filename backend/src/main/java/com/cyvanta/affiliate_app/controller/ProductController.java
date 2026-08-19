@@ -1,11 +1,14 @@
 package com.cyvanta.affiliate_app.controller;
 
 import com.cyvanta.affiliate_app.model.Product;
+import com.cyvanta.affiliate_app.model.Notification;
+import com.cyvanta.affiliate_app.repository.NotificationRepository;
 import com.cyvanta.affiliate_app.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +19,7 @@ import java.util.Map;
 public class ProductController {
 
     private final ProductService productService;
+    private final NotificationRepository notificationRepository;
 
     @GetMapping
     public ResponseEntity<List<Product>> getAllProducts(@RequestParam(required = false) String category) {
@@ -37,7 +41,9 @@ public class ProductController {
     public ResponseEntity<?> createProduct(@RequestBody Product product) {
         try {
             productService.validateProduct(product);
-            return ResponseEntity.ok(productService.saveProduct(product));
+            Product saved = productService.saveProduct(product);
+            triggerNewProductNotification(saved);
+            return ResponseEntity.ok(saved);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -48,7 +54,9 @@ public class ProductController {
     public ResponseEntity<?> createProductAdmin(@RequestBody Product product) {
         try {
             productService.validateProduct(product);
-            return ResponseEntity.ok(productService.saveProduct(product));
+            Product saved = productService.saveProduct(product);
+            triggerNewProductNotification(saved);
+            return ResponseEntity.ok(saved);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -63,7 +71,9 @@ public class ProductController {
             Product product = products.get(i);
             try {
                 productService.validateProduct(product);
-                savedProducts.add(productService.saveProduct(product));
+                Product saved = productService.saveProduct(product);
+                savedProducts.add(saved);
+                triggerNewProductNotification(saved);
             } catch (IllegalArgumentException e) {
                 errors.add("Product " + (i + 1) + " (" + (product.getName() != null ? product.getName() : "Unknown") + "): " + e.getMessage());
             }
@@ -81,7 +91,9 @@ public class ProductController {
             try {
                 product.setId(id);
                 productService.validateProduct(product);
-                return ResponseEntity.ok(productService.saveProduct(product));
+                Product saved = productService.saveProduct(product);
+                triggerPriceDropNotification(existing, saved);
+                return ResponseEntity.ok(saved);
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
             }
@@ -95,5 +107,39 @@ public class ProductController {
             productService.deleteProduct(id);
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    private void triggerNewProductNotification(Product product) {
+        try {
+            Notification notif = Notification.builder()
+                    .userId(null) // Global
+                    .title("New Product Added!")
+                    .message("Great news! " + product.getName() + " is now available on " + product.getPlatform() + " at ₹" + String.format("%.2f", product.getPrice()) + "! Grab it and earn cashback.")
+                    .type("NEW_PRODUCT")
+                    .read(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notif);
+        } catch (Exception e) {
+            // log
+        }
+    }
+
+    private void triggerPriceDropNotification(Product existing, Product updated) {
+        try {
+            if (updated.getPrice() != null && existing.getPrice() != null && updated.getPrice() < existing.getPrice()) {
+                Notification notif = Notification.builder()
+                        .userId(null) // Global
+                        .title("Price Drop Alert!")
+                        .message("Hurry! Price drop on " + updated.getName() + "! It is now available at ₹" + String.format("%.2f", updated.getPrice()) + " (was ₹" + String.format("%.2f", existing.getPrice()) + ") on " + updated.getPlatform() + ".")
+                        .type("DEAL")
+                        .read(false)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                notificationRepository.save(notif);
+            }
+        } catch (Exception e) {
+            // log
+        }
     }
 }

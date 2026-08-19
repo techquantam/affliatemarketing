@@ -18,7 +18,7 @@ import AdminPanel from './components/AdminPanel';
 import MobileApp from './components/MobileApp';
 import SearchBar from './components/SearchBar';
 import CategoryIcon from './components/CategoryIcon';
-import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories, apiWallet } from './services/api';
+import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories, apiWallet, apiNotifications } from './services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from './utils/openUrl';
 import './index.css';
 import './App.css';
@@ -353,6 +353,7 @@ export default function App() {
   const [theme, setTheme] = useState('light');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [userNotifications, setUserNotifications] = useState([]);
 
   // Simulator and state sync variables
   const isCapacitorNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
@@ -552,6 +553,46 @@ export default function App() {
     const interval = setInterval(fetchUserWallet, 10000);
     return () => clearInterval(interval);
   }, [currentUser?.id, currentView]);
+
+  // Sync notifications for logged-in user
+  const fetchUserNotifications = async () => {
+    if (!currentUser?.id) return;
+    try {
+      const res = await apiNotifications.getByUser(currentUser.id);
+      setUserNotifications(res || []);
+    } catch (e) {
+      console.warn('Failed to fetch user notifications:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setUserNotifications([]);
+      return;
+    }
+    fetchUserNotifications();
+    const interval = setInterval(fetchUserNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
+
+  const handleMarkAllNotificationsRead = async () => {
+    if (!currentUser?.id) return;
+    try {
+      await apiNotifications.markAllAsRead(currentUser.id);
+      fetchUserNotifications();
+    } catch (e) {
+      console.warn('Failed to mark all notifications read:', e);
+    }
+  };
+
+  const handleMarkNotificationRead = async (id) => {
+    try {
+      await apiNotifications.markAsRead(id);
+      fetchUserNotifications();
+    } catch (e) {
+      console.warn('Failed to mark notification read:', e);
+    }
+  };
 
   // 3. Handle window resizing & environment checks
   useEffect(() => {
@@ -804,7 +845,12 @@ export default function App() {
   const dynamicDeals = React.useMemo(() => {
     let combinedDeals = [];
     
-    const storesLogoMap = storesData.reduce((acc, store) => { acc[store.name] = store.logo; return acc; }, {});
+    const storesLogoMap = storesData.reduce((acc, store) => { 
+      if (store && store.name) {
+        acc[store.name.trim().toLowerCase()] = store.logo; 
+      }
+      return acc; 
+    }, {});
 
     // 1. Process custom / newly added products FIRST so they are prominently featured!
     if (products && products.length > 0) {
@@ -822,7 +868,13 @@ export default function App() {
             ? storesData.find(s => s.id === p.storeId).logo 
             : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
             
-          const storeLogo = storesLogoMap[platform] || storesLogoMap['Amazon'] || fallbackLogo;
+          const cleanPlatform = platform.trim().toLowerCase();
+          const matchedStore = storesData.find(s => {
+            const cleanName = (s.name || '').trim().toLowerCase();
+            return cleanPlatform.includes(cleanName) || cleanName.includes(cleanPlatform);
+          });
+          
+          const storeLogo = matchedStore ? matchedStore.logo : (storesLogoMap[cleanPlatform] || storesLogoMap['amazon'] || fallbackLogo);
           
           let category = (p.category || '').toLowerCase();
           const prodName = p.name || p.title || 'Product';
@@ -967,12 +1019,20 @@ export default function App() {
         const cashbackVal = highestCashbackPercent > 0 ? highestCashbackPercent : (parseFloat(d.cashback || d.cashbackValue || '10') || 10);
         const cashbackEarned = dealPrice > 0 ? parseFloat(((dealPrice * cashbackVal) / 100).toFixed(2)) : 0;
         
+        const platform = d.platform || (formattedComparisons.length > 0 ? formattedComparisons[0].platform : 'Amazon');
+        const cleanPlatform = platform.trim().toLowerCase();
+        const matchedStore = storesData.find(s => {
+          const cleanName = (s.name || '').trim().toLowerCase();
+          return cleanPlatform.includes(cleanName) || cleanName.includes(cleanPlatform);
+        });
+        const storeLogo = matchedStore ? matchedStore.logo : (storesLogoMap[cleanPlatform] || storesLogoMap['amazon'] || fallbackLogo);
+
         const baseDeal = {
           ...d,
           title: d.name || d.title,
-          platform: d.platform || (formattedComparisons.length > 0 ? formattedComparisons[0].platform : 'Amazon'),
+          platform: platform,
           category: (d.category || 'electronics').toLowerCase(),
-          storeLogo: storesLogoMap['Amazon'] || fallbackLogo,
+          storeLogo: storeLogo,
           price: dealPrice,
           retailPrice,
           dealPrice,
@@ -1083,6 +1143,9 @@ export default function App() {
           setHomeSearchQuery={setHomeSearchQuery}
           dealsData={dynamicDeals}
           categoriesData={categoriesData}
+          userNotifications={userNotifications}
+          onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+          onMarkNotificationRead={handleMarkNotificationRead}
           onCategorySelect={(categoryId) => {
             setActiveCategory(categoryId);
             setHomeSearchQuery('');
@@ -1477,6 +1540,9 @@ export default function App() {
         categoriesData={categoriesData}
         dashboardTab={dashboardTab}
         setDashboardTab={setDashboardTab}
+        userNotifications={userNotifications}
+        onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+        onMarkNotificationRead={handleMarkNotificationRead}
         onCategorySelect={(categoryId) => {
           setActiveCategory(categoryId);
           setHomeSearchQuery('');

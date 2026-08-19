@@ -29,6 +29,7 @@ import AdminDashboard from './AdminDashboard';
 import AdminUsers from './AdminUsers';
 import AdminRoles from './AdminRoles';
 import AdminKYC from './AdminKYC';
+import AdminNotifications from './AdminNotifications';
 import AdminActivityLogs from './AdminActivityLogs';
 import AdminLoginHistory from './AdminLoginHistory';
 import AdminProducts from './AdminProducts';
@@ -368,6 +369,7 @@ export default function AdminPanel({
     { id: 'users', label: 'Users', icon: UsersIcon },
     { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck },
     { id: 'kyc-management', label: 'KYC Management', icon: Fingerprint },
+    { id: 'notifications', label: 'Push Notifications', icon: Bell },
     { id: 'products', label: 'Products', icon: ShoppingBag },
     { id: 'withdrawals', label: 'Withdrawals', icon: Wallet },
     { id: 'click-logs', label: 'Click Logs', icon: MousePointer },
@@ -393,10 +395,10 @@ export default function AdminPanel({
   // Fallback module lists for when permissions.allowedModules is missing (old sessions)
   const ROLE_MODULE_DEFAULTS = {
     'SUPER_ADMIN': null, // null = all modules
-    'ADMIN': ['dashboard', 'users', 'products', 'withdrawals', 'click-logs', 'conversions', 'referrals', 'shared-commissions', 'categories', 'deals', 'stores', 'banners', 'affiliate-network', 'ledger', 'seo', 'settings', 'finance', 'tickets', 'url-converter', 'kyc-management'],
+    'ADMIN': ['dashboard', 'users', 'products', 'withdrawals', 'click-logs', 'conversions', 'referrals', 'shared-commissions', 'categories', 'deals', 'stores', 'banners', 'affiliate-network', 'ledger', 'seo', 'settings', 'finance', 'tickets', 'url-converter', 'kyc-management', 'notifications'],
     'CONTENT_MANAGER': ['dashboard', 'products', 'categories', 'deals', 'stores', 'banners', 'seo'],
     'AFFILIATE_MANAGER': ['dashboard', 'users', 'conversions', 'referrals', 'shared-commissions', 'click-logs', 'affiliate-network', 'ledger', 'finance', 'url-converter'],
-    'SUPPORT_ADMIN': ['dashboard', 'users', 'withdrawals', 'conversions', 'tickets', 'kyc-management'],
+    'SUPPORT_ADMIN': ['dashboard', 'users', 'withdrawals', 'conversions', 'tickets', 'kyc-management', 'notifications'],
   };
 
   const rawAllowedModules = currentUser?.permissions?.allowedModules;
@@ -1002,6 +1004,13 @@ export default function AdminPanel({
           <AdminKYC
             users={users}
             setUsers={setUsers}
+            onAddNotification={onAddNotification}
+            currentUser={currentUser}
+          />
+        );
+      case 'notifications':
+        return (
+          <AdminNotifications
             onAddNotification={onAddNotification}
             currentUser={currentUser}
           />

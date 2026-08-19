@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Sun, Moon, ShoppingBag, User, Wallet, LogOut, ChevronDown, Folder, Tag } from 'lucide-react';
+import { Search, Sun, Moon, ShoppingBag, User, Wallet, LogOut, ChevronDown, Folder, Tag, Bell, CheckSquare } from 'lucide-react';
 
 const DEFAULT_CATEGORIES = [
   { id: 'fashion', name: 'Fashion' },
@@ -26,9 +26,14 @@ export default function Header({
   onDealSelect,
   dashboardTab,
   setDashboardTab,
+  userNotifications = [],
+  onMarkAllNotificationsRead,
+  onMarkNotificationRead,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const searchRef = useRef(null);
 
   // Active categories list
@@ -268,6 +273,140 @@ export default function Header({
           <button onClick={toggleTheme} className="theme-toggle-btn" aria-label="Toggle theme">
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
+
+          {currentUser && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                className="theme-toggle-btn"
+                title="Notifications"
+                style={{ border: 'none', position: 'relative', cursor: 'pointer' }}
+              >
+                <Bell size={18} />
+                {userNotifications.filter(n => !n.read).length > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    right: '-2px',
+                    backgroundColor: '#ef4444',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    width: '14px',
+                    height: '14px',
+                    fontSize: '9px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {userNotifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+
+              {showNotifDropdown && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '10px',
+                  width: '320px',
+                  backgroundColor: 'var(--card-bg, #ffffff)',
+                  border: '1px solid var(--border, #e2e8f0)',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                  zIndex: 2000,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  maxHeight: '400px'
+                }}>
+                  {/* Header */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid var(--border)',
+                    boxSizing: 'border-box'
+                  }}>
+                    <span style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-bold)' }}>Notifications</span>
+                    {userNotifications.filter(n => !n.read).length > 0 && (
+                      <button
+                        onClick={() => {
+                          if (onMarkAllNotificationsRead) onMarkAllNotificationsRead();
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--secondary, #10b981)',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <CheckSquare size={12} /> Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* List */}
+                  <div style={{ overflowY: 'auto', flex: 1, maxHeight: '320px' }}>
+                    {userNotifications.length === 0 ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text)', opacity: 0.6, fontSize: '12px' }}>
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      userNotifications.map(notif => (
+                        <div
+                          key={notif.id}
+                          onClick={() => {
+                            if (onMarkNotificationRead) onMarkNotificationRead(notif.id);
+                          }}
+                          style={{
+                            padding: '12px 16px',
+                            borderBottom: '1px solid var(--border)',
+                            backgroundColor: notif.read ? 'transparent' : 'rgba(99, 102, 241, 0.05)',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                            textAlign: 'left',
+                            boxSizing: 'border-box'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                            <span style={{
+                              fontWeight: notif.read ? '500' : '700',
+                              fontSize: '12px',
+                              color: 'var(--text-bold)'
+                            }}>
+                              {notif.title}
+                            </span>
+                            <span style={{ fontSize: '9px', opacity: 0.5, whiteSpace: 'nowrap' }}>
+                              {notif.createdAt ? new Date(notif.createdAt).toLocaleDateString('en-IN') : ''}
+                            </span>
+                          </div>
+                          <p style={{
+                            margin: 0,
+                            fontSize: '11px',
+                            color: 'var(--text)',
+                            lineHeight: '1.4',
+                            opacity: notif.read ? 0.75 : 0.95
+                          }}>
+                            {notif.message}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {currentUser ? (
             <div className="user-profile-badge" onClick={() => setView('dashboard')}>

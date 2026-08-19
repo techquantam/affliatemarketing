@@ -66,7 +66,15 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
 
                   <div className="deal-info">
                     <div className="deal-store-row">
-                      <img src={deal.storeLogo} alt="Store Logo" className="deal-store-logo" />
+                      <img 
+                        src={deal.storeLogo || 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg'} 
+                        alt="Store Logo" 
+                        className="deal-store-logo" 
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg';
+                        }}
+                      />
                       <span className="deal-category">{deal.category}</span>
                     </div>
 
@@ -84,14 +92,41 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
                       <button
                         className="btn-card-primary"
-                        onClick={() => onGrabDeal(deal)}
-                        style={{ flex: 1 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onGrabDeal(deal);
+                        }}
+                        style={{ flex: 1, padding: '8px 10px', fontSize: '12px', fontWeight: 'bold' }}
                       >
-                        Grab Deal
+                        Buy Now
                       </button>
+
+                      {deal.comparisons && deal.comparisons.length > 1 && (
+                        <button
+                          className="btn-secondary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onGrabDeal(deal);
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '8px 10px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            color: '#6366f1',
+                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            borderRadius: '6px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Compare
+                        </button>
+                      )}
+
                       <button
                         className="btn-secondary"
                         onClick={(e) => {
@@ -100,10 +135,10 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                             onShareDeal(deal);
                           }
                         }}
-                        style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}
                         title="Share Deal"
                       >
-                        <Share2 size={16} />
+                        <Share2 size={15} />
                       </button>
                     </div>
                   </div>

@@ -5,9 +5,11 @@ import com.cyvanta.affiliate_app.model.AdminLoginHistory;
 import com.cyvanta.affiliate_app.model.AdminPermissions;
 import com.cyvanta.affiliate_app.model.User;
 import com.cyvanta.affiliate_app.model.Wallet;
+import com.cyvanta.affiliate_app.model.Notification;
 import com.cyvanta.affiliate_app.repository.AdminActivityLogRepository;
 import com.cyvanta.affiliate_app.repository.AdminLoginHistoryRepository;
 import com.cyvanta.affiliate_app.repository.UserRepository;
+import com.cyvanta.affiliate_app.repository.NotificationRepository;
 import com.cyvanta.affiliate_app.service.WalletService;
 import com.cyvanta.affiliate_app.service.EmailService;
 import com.cyvanta.affiliate_app.service.SmsService;
@@ -38,6 +40,7 @@ public class UserController {
     private final WalletService walletService;
     private final EmailService emailService;
     private final SmsService smsService;
+    private final NotificationRepository notificationRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @GetMapping
@@ -125,6 +128,28 @@ public class UserController {
                 user.setKycRemarks(remarks);
             }
             User saved = userRepository.save(user);
+
+            if (kycStatus != null) {
+                try {
+                    String title = "KYC Verification Update";
+                    String msg = "approved".equalsIgnoreCase(kycStatus) 
+                        ? "Congratulations! Your E-KYC verification has been approved. You can now request payouts." 
+                        : "Your E-KYC verification has been rejected. Reason: " + (remarks != null && !remarks.isEmpty() ? remarks : "Please re-upload clear document copies.");
+                    
+                    Notification notif = Notification.builder()
+                        .userId(user.getId())
+                        .title(title)
+                        .message(msg)
+                        .type("KYC")
+                        .read(false)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                    notificationRepository.save(notif);
+                } catch (Exception e) {
+                    log.warn("Failed to save KYC notification for user " + id, e);
+                }
+            }
+
             Wallet wallet = walletService.getOrCreateWallet(saved.getId());
             return ResponseEntity.ok(buildUserResponse(saved, wallet));
         }).orElse(ResponseEntity.notFound().build());

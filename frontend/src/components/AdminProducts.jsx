@@ -447,11 +447,15 @@ export default function AdminProducts({ products, stores = [], categories = [], 
     }
   };
 
-  const filteredProducts = products.filter((p) => {
+  const filteredProducts = (products || []).filter((p) => {
+    if (!p) return false;
     const q = searchQuery.toLowerCase();
-    const matchesSearch = p.name.toLowerCase().includes(q) || 
-                          (p.category && p.category.toLowerCase().includes(q));
-    const matchesPlatform = platformFilter === 'all' || p.platform.toLowerCase() === platformFilter.toLowerCase();
+    const nameStr = p.name || p.title || '';
+    const catStr = p.category || '';
+    const platStr = p.platform || p.sourcePlatform || '';
+    const matchesSearch = nameStr.toLowerCase().includes(q) || 
+                          catStr.toLowerCase().includes(q);
+    const matchesPlatform = platformFilter === 'all' || platStr.toLowerCase() === platformFilter.toLowerCase();
     return matchesSearch && matchesPlatform;
   });
 
@@ -462,14 +466,12 @@ export default function AdminProducts({ products, stores = [], categories = [], 
       <td>
         <img
           src={item.image}
-          alt={item.name}
+          alt=""
           style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px' }}
-          onError={(e) => {
-            e.target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
-          }}
+          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300'; }}
         />
       </td>
-      <td style={{ fontWeight: '600', color: 'var(--text-bold)', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <td style={{ fontWeight: '600', color: 'var(--text-bold)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {item.name}
       </td>
       <td>
@@ -480,7 +482,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
           {item.category || 'Electronics'}
         </span>
       </td>
-      <td style={{ fontWeight: '600', color: 'var(--text-bold)' }}>₹{item.price.toFixed(2)}</td>
+      <td style={{ fontWeight: '600', color: 'var(--text-bold)' }}>₹{Number(item.price || 0).toFixed(2)}</td>
       <td style={{ color: 'var(--secondary)', fontWeight: '600' }}>
         {item.cashbackValue}%
       </td>
@@ -496,7 +498,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
       </td>
       <td>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="admin-btn-icon edit" onClick={() => openEditModal(item)} title="Edit Product">
+          <button className="admin-btn-icon edit" onClick={() => handleEdit(item)} title="Edit Product">
             <Edit2 size={14} />
           </button>
           <button className="admin-btn-icon delete" onClick={() => onDeleteProduct(item.id)} title="Delete Product">
@@ -508,13 +510,14 @@ export default function AdminProducts({ products, stores = [], categories = [], 
   );
 
   const formattedExportProducts = React.useMemo(() => {
+    if (!products || !Array.isArray(products)) return [];
     return products.map((p, idx) => ({
       serialNo: idx + 1,
       createdAtFormatted: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
       name: p.name || p.title || '—',
       platform: p.platform || p.sourcePlatform || '—',
       category: p.category || '—',
-      price: p.price !== undefined && p.price !== null ? `₹${p.price.toFixed(2)}` : '₹0.00',
+      price: p.price !== undefined && p.price !== null ? `₹${Number(p.price).toFixed(2)}` : '₹0.00',
       affiliateUrl: p.affiliateUrl || '—'
     }));
   }, [products]);
@@ -1282,7 +1285,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
                           {p.name}
                         </td>
                         <td style={{ padding: '6px 12px' }}>{p.platform}</td>
-                        <td style={{ padding: '6px 12px', fontWeight: '600' }}>₹{p.price.toFixed(2)}</td>
+                        <td style={{ padding: '6px 12px', fontWeight: '600' }}>₹{Number(p.price || 0).toFixed(2)}</td>
                         <td style={{ padding: '6px 12px', color: 'var(--secondary)', fontWeight: '600' }}>{p.cashbackValue}%</td>
                       </tr>
                     ))}

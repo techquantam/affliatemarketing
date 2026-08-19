@@ -190,9 +190,10 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
             className="admin-btn-icon"
             onClick={() => { setWalletModalUser(item); setIsWalletModalOpen(true); }}
             title="Manage Wallet & Ledger"
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '4px 10px', height: 'auto', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '6px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
           >
-            <Wallet size={14} />
+            <Wallet size={13} />
+            <span>Wallet</span>
           </button>
           <button
             className={`admin-btn-icon ${item.status === 'active' ? 'delete' : 'edit'}`}

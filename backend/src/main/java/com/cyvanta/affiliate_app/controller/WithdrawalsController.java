@@ -3,8 +3,10 @@ package com.cyvanta.affiliate_app.controller;
 import com.cyvanta.affiliate_app.model.User;
 import com.cyvanta.affiliate_app.model.Wallet;
 import com.cyvanta.affiliate_app.model.WithdrawalRequest;
+import com.cyvanta.affiliate_app.model.Notification;
 import com.cyvanta.affiliate_app.repository.UserRepository;
 import com.cyvanta.affiliate_app.repository.WithdrawalRequestRepository;
+import com.cyvanta.affiliate_app.repository.NotificationRepository;
 import com.cyvanta.affiliate_app.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +25,7 @@ public class WithdrawalsController {
     private final WithdrawalRequestRepository withdrawalRepository;
     private final WalletService walletService;
     private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
 
     @GetMapping
     public ResponseEntity<List<WithdrawalRequest>> getAll() {
@@ -57,7 +60,24 @@ public class WithdrawalsController {
 
         request.setStatus("pending");
         request.setRequestedAt(LocalDateTime.now());
-        return ResponseEntity.ok(withdrawalRepository.save(request));
+        WithdrawalRequest saved = withdrawalRepository.save(request);
+
+        // Generate user notification
+        try {
+            Notification notif = Notification.builder()
+                    .userId(request.getUserId())
+                    .title("Withdrawal Request Pending")
+                    .message("Your withdrawal request of ₹" + String.format("%.2f", request.getAmount()) + " has been submitted and is currently pending review.")
+                    .type("WITHDRAWAL")
+                    .read(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notif);
+        } catch (Exception e) {
+            // log error but don't fail the transaction
+        }
+
+        return ResponseEntity.ok(saved);
     }
 
     @PutMapping("/{id}/approve")
@@ -85,6 +105,21 @@ public class WithdrawalsController {
                         request.getId(),
                         "APPROVED"
                 );
+
+                // Generate user notification
+                try {
+                    Notification notif = Notification.builder()
+                            .userId(request.getUserId())
+                            .title("Withdrawal Request Approved")
+                            .message("Success! Your withdrawal request of ₹" + String.format("%.2f", request.getAmount()) + " has been approved and processed.")
+                            .type("WITHDRAWAL")
+                            .read(false)
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    notificationRepository.save(notif);
+                } catch (Exception e) {
+                    // log
+                }
             }
 
             return ResponseEntity.ok(request);
@@ -106,6 +141,21 @@ public class WithdrawalsController {
                 // Subtract from pending balance and refund/add back to approvedBalance
                 walletService.processRejectedCommission(request.getUserId(), request.getAmount()); // Subtracts from pendingBalance
                 walletService.refundApprovedBalance(request.getUserId(), request.getAmount()); // Adds to approvedBalance
+
+                // Generate user notification
+                try {
+                    Notification notif = Notification.builder()
+                            .userId(request.getUserId())
+                            .title("Withdrawal Request Rejected")
+                            .message("Your withdrawal request of ₹" + String.format("%.2f", request.getAmount()) + " has been rejected. The amount has been refunded back to your confirmed cashback balance.")
+                            .type("WITHDRAWAL")
+                            .read(false)
+                            .createdAt(LocalDateTime.now())
+                            .build();
+                    notificationRepository.save(notif);
+                } catch (Exception e) {
+                    // log
+                }
             }
 
             return ResponseEntity.ok(request);
