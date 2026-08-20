@@ -20,6 +20,7 @@ import SearchBar from './components/SearchBar';
 import CategoryIcon from './components/CategoryIcon';
 import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories, apiWallet, apiNotifications } from './services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from './utils/openUrl';
+import { getCleanedUrlIdentifier } from './utils/urlMatcher';
 import './index.css';
 import './App.css';
 
@@ -606,15 +607,13 @@ export default function App() {
     try {
       const added = await apiWithdrawals.create(newReq);
       setWithdrawRequests(prev => [added, ...prev]);
-      
       // Update local wallet view for user
       if (currentUser) {
         setCurrentUser(prev => ({
           ...prev,
           wallet: {
             ...prev.wallet,
-            confirmed: Math.max(0, prev.wallet.confirmed - newReq.amount),
-            pending: prev.wallet.pending + newReq.amount
+            confirmed: Math.max(0, (prev.wallet?.confirmed || 0) - newReq.amount)
           }
         }));
       }
@@ -1180,10 +1179,32 @@ export default function App() {
 
   const searchedStores = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];
-    return storesData.filter(store => 
-      (store.name || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
-      (store.category || '').toLowerCase().includes(homeSearchQuery.toLowerCase())
-    );
+    
+    const query = homeSearchQuery.trim();
+    const queryIdentifier = getCleanedUrlIdentifier(query);
+    
+    return storesData.filter(store => {
+      if (queryIdentifier) {
+        try {
+          let normalizedUrlStr = query;
+          if (!/^https?:\/\//i.test(normalizedUrlStr)) {
+            normalizedUrlStr = 'https://' + normalizedUrlStr;
+          }
+          const url = new URL(normalizedUrlStr);
+          const host = url.hostname.toLowerCase();
+          const cleanStoreName = (store.name || '').toLowerCase().replace(/\s+/g, '');
+          if (host.includes(cleanStoreName) || cleanStoreName.includes(host.replace(/^www\./, '').split('.')[0])) {
+            return true;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      return (
+        (store.name || '').toLowerCase().includes(query.toLowerCase()) ||
+        (store.category || '').toLowerCase().includes(query.toLowerCase())
+      );
+    });
   }, [homeSearchQuery, storesData]);
 
   const searchedCategories = React.useMemo(() => {
@@ -1196,12 +1217,25 @@ export default function App() {
 
   const searchedDeals = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];
-    return dynamicDeals.filter(deal => 
-      (deal.title || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
-      (deal.name || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
-      (deal.category || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
-      (deal.platform || '').toLowerCase().includes(homeSearchQuery.toLowerCase())
-    );
+    
+    const query = homeSearchQuery.trim();
+    const queryIdentifier = getCleanedUrlIdentifier(query);
+    
+    return dynamicDeals.filter(deal => {
+      if (queryIdentifier) {
+        const dealUrlIdentifier = getCleanedUrlIdentifier(deal.affiliateUrl);
+        if (dealUrlIdentifier && dealUrlIdentifier === queryIdentifier) {
+          return true;
+        }
+      }
+      return (
+        (deal.title || '').toLowerCase().includes(query.toLowerCase()) ||
+        (deal.name || '').toLowerCase().includes(query.toLowerCase()) ||
+        (deal.category || '').toLowerCase().includes(query.toLowerCase()) ||
+        (deal.platform || '').toLowerCase().includes(query.toLowerCase()) ||
+        (deal.affiliateUrl || '').toLowerCase().includes(query.toLowerCase())
+      );
+    });
   }, [homeSearchQuery, dynamicDeals]);
 
   if (currentView === 'admin-login') {

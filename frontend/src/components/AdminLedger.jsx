@@ -92,7 +92,7 @@ export default function AdminLedger({ users }) {
       <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.reason || item.description}>
         {item.reason || item.description || '-'}
       </td>
-      <td style={{ color: '#c084fc', fontWeight: '600' }}>
+      <td style={{ color: '#a855f7', fontWeight: '600' }}>
         {item.updatedBy || item.adminName || 'System'}
       </td>
       <td>
@@ -181,21 +181,23 @@ export default function AdminLedger({ users }) {
         <div className="admin-table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <h3 className="admin-table-title" style={{ margin: 0 }}>Transaction Records</h3>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="admin-search-bar" style={{ margin: 0, width: '250px' }}>
-              <Search size={16} />
+            <div className="admin-search-input-wrapper" style={{ width: '250px' }}>
+              <Search size={16} className="admin-search-icon" />
               <input 
                 type="text" 
                 placeholder="Search user, category..." 
+                className="admin-search-input"
+                style={{ width: '100%', paddingLeft: '38px' }}
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               />
             </div>
-            <div className="admin-filter-select" style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid var(--border)', borderRadius: '6px', padding: '0 12px', backgroundColor: 'var(--bg)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Filter size={14} color="var(--text)" />
               <select 
                 value={filterType} 
                 onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
-                style={{ border: 'none', backgroundColor: 'transparent', outline: 'none', color: 'var(--text)', fontSize: '14px', padding: '8px 0' }}
+                className="admin-filter-select"
               >
                 <option value="ALL">All Types</option>
                 <option value="CREDIT">Credits Only</option>

@@ -54,7 +54,24 @@ public class ProductService {
             String lowerPlatform = platform.toLowerCase();
             
             boolean isValidStoreUrl = false;
-            if (lowerPlatform.contains("amazon")) {
+            
+            // Allow general affiliate tracking redirects and generic URL shorteners to pass validation for any store
+            boolean isTrackingOrShortUrl = lowerUrl.contains("linksredirect.com") || 
+                                           lowerUrl.contains("cuelinks.com") ||
+                                           lowerUrl.contains("bit.ly") ||
+                                           lowerUrl.contains("tinyurl.com") ||
+                                           lowerUrl.contains("earnkaro.com") ||
+                                           lowerUrl.contains("vcommission") ||
+                                           lowerUrl.contains("admitad") ||
+                                           lowerUrl.contains("commission") ||
+                                           lowerUrl.contains("msho.co") ||
+                                           lowerUrl.contains("fkrt.it") ||
+                                           lowerUrl.contains("fkrt.co") ||
+                                           lowerUrl.contains("amzn.to");
+            
+            if (isTrackingOrShortUrl) {
+                isValidStoreUrl = true;
+            } else if (lowerPlatform.contains("amazon")) {
                 isValidStoreUrl = lowerUrl.contains("amazon.") || lowerUrl.contains("amzn.");
             } else if (lowerPlatform.contains("flipkart")) {
                 isValidStoreUrl = lowerUrl.contains("flipkart.") || lowerUrl.contains("fkrt.");
@@ -65,7 +82,7 @@ public class ProductService {
             } else if (lowerPlatform.contains("nykaa")) {
                 isValidStoreUrl = lowerUrl.contains("nykaa");
             } else if (lowerPlatform.contains("meesho")) {
-                isValidStoreUrl = lowerUrl.contains("meesho");
+                isValidStoreUrl = lowerUrl.contains("meesho") || lowerUrl.contains("msho.co");
             } else if (lowerPlatform.contains("makemytrip")) {
                 isValidStoreUrl = lowerUrl.contains("makemytrip");
             } else {

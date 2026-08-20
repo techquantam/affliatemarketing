@@ -123,21 +123,21 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
     }}>
       <div className="admin-modal-content" style={{
         backgroundColor: 'var(--card-bg, #1e293b)',
-        color: 'var(--text-color, #f8fafc)',
+        color: 'var(--text, #334155)',
         borderRadius: '16px',
         width: '100%',
         maxWidth: '900px',
         maxHeight: '90vh',
         overflowY: 'auto',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        border: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column'
       }}>
         {/* Header */}
         <div style={{
           padding: '20px 24px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          borderBottom: '1px solid var(--border)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -166,7 +166,7 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
           <button 
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.1)',
+              background: 'var(--border)',
               border: 'none',
               borderRadius: '50%',
               width: '36px',
@@ -174,8 +174,9 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'inherit',
-              cursor: 'pointer'
+              color: 'var(--text-bold)',
+              cursor: 'pointer',
+              opacity: 0.8
             }}
           >
             <X size={20} />
@@ -241,8 +242,8 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
 
           {/* Action Form */}
           <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'var(--bg)',
+            border: '1px solid var(--border)',
             borderRadius: '14px',
             padding: '20px'
           }}>
@@ -282,9 +283,9 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                     style={{
                       padding: '10px',
                       borderRadius: '8px',
-                      border: actionType === 'CREDIT' ? '2px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
-                      background: actionType === 'CREDIT' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                      color: actionType === 'CREDIT' ? '#10b981' : 'inherit',
+                      border: actionType === 'CREDIT' ? '2px solid #10b981' : '1px solid var(--border)',
+                      background: actionType === 'CREDIT' ? 'rgba(16, 185, 129, 0.15)' : 'var(--card-bg)',
+                      color: actionType === 'CREDIT' ? '#10b981' : 'var(--text)',
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
@@ -302,9 +303,9 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                     style={{
                       padding: '10px',
                       borderRadius: '8px',
-                      border: actionType === 'DEBIT' ? '2px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
-                      background: actionType === 'DEBIT' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                      color: actionType === 'DEBIT' ? '#ef4444' : 'inherit',
+                      border: actionType === 'DEBIT' ? '2px solid #ef4444' : '1px solid var(--border)',
+                      background: actionType === 'DEBIT' ? 'rgba(239, 68, 68, 0.15)' : 'var(--card-bg)',
+                      color: actionType === 'DEBIT' ? '#ef4444' : 'var(--text)',
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
@@ -322,9 +323,9 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                     style={{
                       padding: '10px',
                       borderRadius: '8px',
-                      border: actionType === 'ADJUSTMENT' ? '2px solid #a855f7' : '1px solid rgba(255, 255, 255, 0.1)',
-                      background: actionType === 'ADJUSTMENT' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                      color: actionType === 'ADJUSTMENT' ? '#c084fc' : 'inherit',
+                      border: actionType === 'ADJUSTMENT' ? '2px solid #a855f7' : '1px solid var(--border)',
+                      background: actionType === 'ADJUSTMENT' ? 'rgba(168, 85, 247, 0.15)' : 'var(--card-bg)',
+                      color: actionType === 'ADJUSTMENT' ? '#a855f7' : 'var(--text)',
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
@@ -352,16 +353,7 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                      color: '#fff',
-                      fontSize: '14px',
-                      boxSizing: 'border-box'
-                    }}
+                    className="admin-form-input"
                   />
                 </div>
 
@@ -375,16 +367,7 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                      color: '#fff',
-                      fontSize: '14px',
-                      boxSizing: 'border-box'
-                    }}
+                    className="admin-form-input"
                   />
                 </div>
               </div>
@@ -432,26 +415,15 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{
-                  position: 'relative',
-                  width: '200px'
-                }}>
-                  <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
+                <div className="admin-search-input-wrapper">
+                  <Search size={14} className="admin-search-icon" style={{ opacity: 0.5 }} />
                   <input
                     type="text"
                     placeholder="Search ledger..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '6px 12px 6px 30px',
-                      borderRadius: '6px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                      color: '#fff',
-                      fontSize: '13px',
-                      boxSizing: 'border-box'
-                    }}
+                    className="admin-search-input"
+                    style={{ width: '200px', paddingLeft: '34px' }}
                   />
                 </div>
               </div>
@@ -462,14 +434,14 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                 Loading ledger records...
               </div>
             ) : filteredLedger.length === 0 ? (
-              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)', border: '1px dashed rgba(255, 255, 255, 0.1)', borderRadius: '8px' }}>
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)', border: '1px dashed var(--border)', borderRadius: '8px' }}>
                 No wallet ledger transactions recorded for this user yet.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                    <tr style={{ backgroundColor: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
                       <th style={{ padding: '10px 12px' }}>Txn ID</th>
                       <th style={{ padding: '10px 12px' }}>Date & Time</th>
                       <th style={{ padding: '10px 12px' }}>Type</th>
@@ -491,8 +463,8 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                         <tr 
                           key={item.id || idx}
                           style={{
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                            backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.015)'
+                            borderBottom: '1px solid var(--border)',
+                            backgroundColor: idx % 2 === 0 ? 'transparent' : 'var(--bg)'
                           }}
                         >
                           <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '12px', color: '#a855f7' }}>
@@ -523,7 +495,7 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                           <td style={{ padding: '10px 12px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.reason || item.description}>
                             {item.reason || item.description || '-'}
                           </td>
-                          <td style={{ padding: '10px 12px', color: '#c084fc', fontWeight: 600 }}>
+                          <td style={{ padding: '10px 12px', color: '#a855f7', fontWeight: 600 }}>
                             {item.updatedBy || item.adminName || 'System'}
                           </td>
                         </tr>

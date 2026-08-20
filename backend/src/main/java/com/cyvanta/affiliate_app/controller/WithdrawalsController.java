@@ -54,9 +54,8 @@ public class WithdrawalsController {
             return ResponseEntity.badRequest().body(Map.of("error", "Insufficient confirmed cashback balance for withdrawal."));
         }
 
-        // 3. Deduct from confirmed balance and shift to pending balance immediately
+        // 3. Deduct from confirmed balance immediately (do not add to pending balance)
         walletService.deductApprovedBalance(request.getUserId(), request.getAmount());
-        walletService.processPendingCommission(request.getUserId(), request.getAmount()); // Adds to pendingBalance
 
         request.setStatus("pending");
         request.setRequestedAt(LocalDateTime.now());
@@ -92,8 +91,7 @@ public class WithdrawalsController {
             withdrawalRepository.save(request);
 
             if (request.getUserId() != null && request.getAmount() != null) {
-                // Deduct from pending (since it's no longer pending) and add to withdrawn
-                walletService.processRejectedCommission(request.getUserId(), request.getAmount()); // Subtracts from pendingBalance
+                // Add to withdrawn amount (do not deduct from pending, as it wasn't added there)
                 walletService.addWithdrawnAmount(request.getUserId(), request.getAmount());
 
                 walletService.recordTransaction(
@@ -138,8 +136,7 @@ public class WithdrawalsController {
             withdrawalRepository.save(request);
 
             if (request.getUserId() != null && request.getAmount() != null) {
-                // Subtract from pending balance and refund/add back to approvedBalance
-                walletService.processRejectedCommission(request.getUserId(), request.getAmount()); // Subtracts from pendingBalance
+                // Refund back to approvedBalance (do not subtract from pending, as it wasn't added there)
                 walletService.refundApprovedBalance(request.getUserId(), request.getAmount()); // Adds to approvedBalance
 
                 // Generate user notification

@@ -1373,6 +1373,7 @@
     text-align: right !important;
     font-size: 13px !important;
     width: 100% !important;
+    max-width: none !important;
     box-sizing: border-box !important;
   }
   

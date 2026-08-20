@@ -901,82 +901,82 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Pincode / ZIP</label>
                   <input type="text" required value={profilePincode} onChange={e => setProfilePincode(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                  <button type="submit" disabled={isSavingProfile} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold' }}>
+                    {isSavingProfile ? 'Saving...' : 'Save & Complete Profile'}
+                  </button>
                 </div>
-
-                <button type="submit" disabled={isSavingProfile} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold' }}>
-                  {isSavingProfile ? 'Saving...' : 'Save & Complete Profile'}
-                </button>
               </form>
+               {/* KYC Document Upload Form */}
+              {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
+                <form onSubmit={handleSubmitKyc} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>E-KYC Verification</h3>
 
-              {/* KYC Document Upload Form */}
-              <form onSubmit={handleSubmitKyc} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>E-KYC Verification</h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Aadhaar Card Number (12 Digits)</label>
-                  <input type="text" required maxLength="12" placeholder="e.g. 1234 5678 9012" value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value.replace(/\s/g, ''))} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>PAN Card Number (10 Characters)</label>
-                  <input type="text" required maxLength="10" placeholder="e.g. ABCDE1234F" value={kycPan} onChange={e => setKycPan(e.target.value.toUpperCase())} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} />
-                </div>
-
-                {/* Upload elements */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
-                  {/* Aadhaar Front */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Front Image</span>
-                    <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
-                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarFront')} style={{ display: 'none' }} />
-                      <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
-                      <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
-                        {uploadingField === 'aadhaarFront' ? 'Uploading...' : aadhaarFront ? 'Uploaded ✓' : 'Click to Upload'}
-                      </span>
-                    </label>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Aadhaar Card Number (12 Digits)</label>
+                    <input type="text" required maxLength="12" placeholder="e.g. 1234 5678 9012" value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value.replace(/\s/g, ''))} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} />
                   </div>
 
-                  {/* Aadhaar Back */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Back Image</span>
-                    <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
-                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarBack')} style={{ display: 'none' }} />
-                      <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
-                      <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
-                        {uploadingField === 'aadhaarBack' ? 'Uploading...' : aadhaarBack ? 'Uploaded ✓' : 'Click to Upload'}
-                      </span>
-                    </label>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>PAN Card Number (10 Characters)</label>
+                    <input type="text" required maxLength="10" placeholder="e.g. ABCDE1234F" value={kycPan} onChange={e => setKycPan(e.target.value.toUpperCase())} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} />
                   </div>
 
-                  {/* PAN Card */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>PAN Card Image</span>
-                    <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
-                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'panCard')} style={{ display: 'none' }} />
-                      <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
-                      <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
-                        {uploadingField === 'panCard' ? 'Uploading...' : panCard ? 'Uploaded ✓' : 'Click to Upload'}
-                      </span>
-                    </label>
+                  {/* Upload elements */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
+                    {/* Aadhaar Front */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Front Image</span>
+                      <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
+                        <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarFront')} style={{ display: 'none' }} />
+                        <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
+                        <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
+                          {uploadingField === 'aadhaarFront' ? 'Uploading...' : aadhaarFront ? 'Uploaded ✓' : 'Click to Upload'}
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Aadhaar Back */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Back Image</span>
+                      <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
+                        <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarBack')} style={{ display: 'none' }} />
+                        <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
+                        <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
+                          {uploadingField === 'aadhaarBack' ? 'Uploading...' : aadhaarBack ? 'Uploaded ✓' : 'Click to Upload'}
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* PAN Card */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>PAN Card Image</span>
+                      <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
+                        <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'panCard')} style={{ display: 'none' }} />
+                        <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
+                        <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
+                          {uploadingField === 'panCard' ? 'Uploading...' : panCard ? 'Uploaded ✓' : 'Click to Upload'}
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Selfie */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Selfie with ID Card</span>
+                      <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
+                        <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'selfie')} style={{ display: 'none' }} />
+                        <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
+                        <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
+                          {uploadingField === 'selfie' ? 'Uploading...' : selfie ? 'Uploaded ✓' : 'Click to Upload'}
+                        </span>
+                      </label>
+                    </div>
                   </div>
 
-                  {/* Selfie */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>Selfie with ID Card</span>
-                    <label style={{ cursor: 'pointer', padding: '10px', borderRadius: '8px', border: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)', height: '70px', position: 'relative' }}>
-                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'selfie')} style={{ display: 'none' }} />
-                      <Camera size={18} style={{ color: 'var(--primary)', marginBottom: '4px' }} />
-                      <span style={{ fontSize: '10px', color: 'var(--text)', textAlign: 'center' }}>
-                        {uploadingField === 'selfie' ? 'Uploading...' : selfie ? 'Uploaded ✓' : 'Click to Upload'}
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
-                  {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit KYC for Verification'}
-                </button>
-              </form>
+                  <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
+                    {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit KYC for Verification'}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         )}

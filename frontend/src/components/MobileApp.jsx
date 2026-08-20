@@ -39,6 +39,7 @@ import CategoryIcon from './CategoryIcon';
 import { apiUsers, apiUpload } from '../services/api';
 import { apiAffiliate } from '../services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from '../utils/openUrl';
+import { getCleanedUrlIdentifier } from '../utils/urlMatcher';
 
 const STORES_INFO = [
   { platform: 'Amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg', cashbackPercent: 10.0 },
@@ -259,10 +260,32 @@ export default function MobileApp({
 
   const searchedStores = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];
-    return storesData.filter(store => 
-      (store.name || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
-      (store.category || '').toLowerCase().includes(homeSearchQuery.toLowerCase())
-    );
+    
+    const query = homeSearchQuery.trim();
+    const queryIdentifier = getCleanedUrlIdentifier(query);
+    
+    return storesData.filter(store => {
+      if (queryIdentifier) {
+        try {
+          let normalizedUrlStr = query;
+          if (!/^https?:\/\//i.test(normalizedUrlStr)) {
+            normalizedUrlStr = 'https://' + normalizedUrlStr;
+          }
+          const url = new URL(normalizedUrlStr);
+          const host = url.hostname.toLowerCase();
+          const cleanStoreName = (store.name || '').toLowerCase().replace(/\s+/g, '');
+          if (host.includes(cleanStoreName) || cleanStoreName.includes(host.replace(/^www\./, '').split('.')[0])) {
+            return true;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      return (
+        (store.name || '').toLowerCase().includes(query.toLowerCase()) ||
+        (store.category || '').toLowerCase().includes(query.toLowerCase())
+      );
+    });
   }, [homeSearchQuery, storesData]);
 
   const searchedCategories = React.useMemo(() => {
@@ -275,12 +298,25 @@ export default function MobileApp({
 
   const searchedDeals = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];
-    return dealsData.filter(deal => 
-      (deal.title || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
-      (deal.name || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
-      (deal.category || '').toLowerCase().includes(homeSearchQuery.toLowerCase()) ||
-      (deal.platform || '').toLowerCase().includes(homeSearchQuery.toLowerCase())
-    );
+    
+    const query = homeSearchQuery.trim();
+    const queryIdentifier = getCleanedUrlIdentifier(query);
+    
+    return dealsData.filter(deal => {
+      if (queryIdentifier) {
+        const dealUrlIdentifier = getCleanedUrlIdentifier(deal.affiliateUrl);
+        if (dealUrlIdentifier && dealUrlIdentifier === queryIdentifier) {
+          return true;
+        }
+      }
+      return (
+        (deal.title || '').toLowerCase().includes(query.toLowerCase()) ||
+        (deal.name || '').toLowerCase().includes(query.toLowerCase()) ||
+        (deal.category || '').toLowerCase().includes(query.toLowerCase()) ||
+        (deal.platform || '').toLowerCase().includes(query.toLowerCase()) ||
+        (deal.affiliateUrl || '').toLowerCase().includes(query.toLowerCase())
+      );
+    });
   }, [homeSearchQuery, dealsData]);
 
   useEffect(() => {
@@ -1459,57 +1495,59 @@ export default function MobileApp({
             </form>
 
             {/* E-KYC Upload Form */}
-            <form onSubmit={handleSubmitKyc} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Identity Documents</h4>
+            {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
+              <form onSubmit={handleSubmitKyc} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Identity Documents</h4>
 
-              <div className="app-input-group">
-                <label>Aadhaar Card Number</label>
-                <input type="text" required maxLength="12" placeholder="12-digit Aadhaar Number" value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value.replace(/\s/g, ''))} />
-              </div>
-              <div className="app-input-group">
-                <label>PAN Card Number</label>
-                <input type="text" required maxLength="10" placeholder="10-character PAN Number" value={kycPan} onChange={e => setKycPan(e.target.value.toUpperCase())} />
-              </div>
+                <div className="app-input-group">
+                  <label>Aadhaar Card Number</label>
+                  <input type="text" required maxLength="12" placeholder="12-digit Aadhaar Number" value={kycAadhaar} onChange={e => setKycAadhaar(e.target.value.replace(/\s/g, ''))} />
+                </div>
+                <div className="app-input-group">
+                  <label>PAN Card Number</label>
+                  <input type="text" required maxLength="10" placeholder="10-character PAN Number" value={kycPan} onChange={e => setKycPan(e.target.value.toUpperCase())} />
+                </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Front</span>
-                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
-                    <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarFront')} style={{ display: 'none' }} />
-                    <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
-                    <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'aadhaarFront' ? 'Uploading...' : aadhaarFront ? 'Uploaded ✓' : 'Upload'}</span>
-                  </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Front</span>
+                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
+                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarFront')} style={{ display: 'none' }} />
+                      <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
+                      <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'aadhaarFront' ? 'Uploading...' : aadhaarFront ? 'Uploaded ✓' : 'Upload'}</span>
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Back</span>
+                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
+                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarBack')} style={{ display: 'none' }} />
+                      <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
+                      <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'aadhaarBack' ? 'Uploading...' : aadhaarBack ? 'Uploaded ✓' : 'Upload'}</span>
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>PAN Card</span>
+                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
+                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'panCard')} style={{ display: 'none' }} />
+                      <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
+                      <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'panCard' ? 'Uploading...' : panCard ? 'Uploaded ✓' : 'Upload'}</span>
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Selfie with ID</span>
+                    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
+                      <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'selfie')} style={{ display: 'none' }} />
+                      <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
+                      <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'selfie' ? 'Uploading...' : selfie ? 'Uploaded ✓' : 'Upload'}</span>
+                    </label>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Aadhaar Back</span>
-                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
-                    <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'aadhaarBack')} style={{ display: 'none' }} />
-                    <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
-                    <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'aadhaarBack' ? 'Uploading...' : aadhaarBack ? 'Uploaded ✓' : 'Upload'}</span>
-                  </label>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>PAN Card</span>
-                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
-                    <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'panCard')} style={{ display: 'none' }} />
-                    <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
-                    <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'panCard' ? 'Uploading...' : panCard ? 'Uploaded ✓' : 'Upload'}</span>
-                  </label>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text)' }}>Selfie with ID</span>
-                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60px', border: '1px dashed var(--border)', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'var(--bg)' }}>
-                    <input type="file" accept="image/*" onChange={e => handleUploadKycFile(e, 'selfie')} style={{ display: 'none' }} />
-                    <Camera size={16} style={{ color: 'var(--primary)', marginBottom: '2px' }} />
-                    <span style={{ fontSize: '9px', color: 'var(--text)' }}>{uploadingField === 'selfie' ? 'Uploading...' : selfie ? 'Uploaded ✓' : 'Upload'}</span>
-                  </label>
-                </div>
-              </div>
 
-              <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px', marginTop: '6px', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
-                {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit E-KYC'}
-              </button>
-            </form>
+                <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px', marginTop: '6px', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
+                  {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit E-KYC'}
+                </button>
+              </form>
+            )}
           </div>
         )}
 

@@ -272,8 +272,7 @@ export default function App() {
           ...prev,
           wallet: {
             ...prev.wallet,
-            confirmed: Math.max(0, prev.wallet.confirmed - newReq.amount),
-            pending: prev.wallet.pending + newReq.amount
+            confirmed: Math.max(0, (prev.wallet?.confirmed || 0) - newReq.amount)
           }
         }));
       }
