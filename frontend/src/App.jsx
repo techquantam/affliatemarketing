@@ -79,7 +79,12 @@ const mapProductsToDeals = (productsList, dbDealsList, storesData) => {
     const activeProducts = productsList.filter(p => p && (p.status === 'active' || p.status === 'ACTIVE' || p.isActive === true || p.status === undefined || p.status === null));
     const productDeals = activeProducts.map(p => {
       const platform = p.platform || p.sourcePlatform || 'Amazon';
-      const storeLogo = storesLogoMap[platform] || fallbackLogo;
+      const cleanPlatform = platform.trim().toLowerCase();
+      const matchedStore = storesData?.find(s => {
+        const cleanName = (s.name || '').trim().toLowerCase();
+        return cleanPlatform.includes(cleanName) || cleanName.includes(cleanPlatform);
+      });
+      const storeLogo = matchedStore ? matchedStore.logo : (storesLogoMap[platform] || fallbackLogo);
       
       let category = (p.category || '').toLowerCase();
       const prodName = p.name || p.title || 'Product';
@@ -110,6 +115,7 @@ const mapProductsToDeals = (productsList, dbDealsList, storesData) => {
         title: prodName,
         name: prodName,
         platform: platform,
+        storeId: matchedStore ? (matchedStore.id || matchedStore._id) : null,
         retailPrice,
         dealPrice,
         cashbackEarned,

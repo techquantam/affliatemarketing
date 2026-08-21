@@ -914,6 +914,7 @@ export default function App() {
             title: prodName,
             name: prodName,
             platform: platform,
+            storeId: matchedStore ? (matchedStore.id || matchedStore._id) : null,
             price: dealPrice,
             retailPrice,
             dealPrice,
