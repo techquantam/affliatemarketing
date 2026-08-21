@@ -401,16 +401,6 @@ export default function App() {
             // 2. Fallback for storeId matching if available
             if (d.storeId && d.storeId === selectedStore.id) return true;
 
-            // 3. Match from comparisons array
-            if (d.comparisons && d.comparisons.length > 0) {
-              const hasMatchingComp = d.comparisons.some(c => {
-                if (!c.platform) return false;
-                const compPlatform = c.platform.trim().toLowerCase();
-                return compPlatform === storeName || compPlatform.includes(storeName) || storeName.includes(compPlatform);
-              });
-              if (hasMatchingComp) return true;
-            }
-
             return false;
           })}
           onGrabDeal={handleInterceptGrabDeal}
