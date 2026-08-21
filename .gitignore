@@ -46,6 +46,6 @@ frontend/android/app/build/
 frontend/android/.gradle/
 frontend/android/build/
 frontend/dist/
-build-output/
-frontend/public/download/
+# build-output/
+# frontend/public/download/
 
