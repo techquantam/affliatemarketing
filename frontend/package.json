@@ -10,8 +10,8 @@
     "dev": "vite",
     "build": "vite build",
     "build:android": "npm run build && node clean-dist.js && npx cap sync android",
-    "build:apk": "npm run build:android && cd android && gradlew.bat assembleDebug assembleRelease",
-    "build:aab": "npm run build:android && cd android && gradlew.bat bundleDebug bundleRelease"
+    "build:apk": "npm run build:android && cd android && gradlew.bat assembleDebug assembleRelease && node ../copy-binaries.js",
+    "build:aab": "npm run build:android && cd android && gradlew.bat bundleDebug bundleRelease && node ../copy-binaries.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",

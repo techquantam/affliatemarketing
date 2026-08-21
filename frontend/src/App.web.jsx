@@ -1323,17 +1323,29 @@ export default function App() {
               onBack={() => setView('home')}
               onAddNotification={addNotification}
               deals={dynamicDeals.filter(d => {
-                if (!d.platform || !selectedStore?.name) return false;
-                const dealPlatform = d.platform.trim().toLowerCase();
+                if (!selectedStore?.name) return false;
                 const storeName = selectedStore.name.trim().toLowerCase();
 
-                // Match exact name, contains, or common aliases
-                if (dealPlatform === storeName || dealPlatform.includes(storeName) || storeName.includes(dealPlatform)) {
-                  return true;
+                // 1. Match exact name, contains, or common aliases
+                if (d.platform) {
+                  const dealPlatform = d.platform.trim().toLowerCase();
+                  if (dealPlatform === storeName || dealPlatform.includes(storeName) || storeName.includes(dealPlatform)) {
+                    return true;
+                  }
                 }
 
-                // Fallback for storeId matching if available
+                // 2. Fallback for storeId matching if available
                 if (d.storeId && d.storeId === selectedStore.id) return true;
+
+                // 3. Match from comparisons array
+                if (d.comparisons && d.comparisons.length > 0) {
+                  const hasMatchingComp = d.comparisons.some(c => {
+                    if (!c.platform) return false;
+                    const compPlatform = c.platform.trim().toLowerCase();
+                    return compPlatform === storeName || compPlatform.includes(storeName) || storeName.includes(compPlatform);
+                  });
+                  if (hasMatchingComp) return true;
+                }
 
                 return false;
               })}
@@ -1821,10 +1833,31 @@ export default function App() {
             onBack={() => setView('home')}
             onAddNotification={addNotification}
             deals={dynamicDeals.filter(d => {
-              if (!d.platform || !selectedStore?.name) return false;
-              const p = d.platform.trim().toLowerCase();
-              const s = selectedStore.name.trim().toLowerCase();
-              return p === s || p.includes(s) || s.includes(p);
+              if (!selectedStore?.name) return false;
+              const storeName = selectedStore.name.trim().toLowerCase();
+
+              // 1. Match exact name, contains, or common aliases
+              if (d.platform) {
+                const dealPlatform = d.platform.trim().toLowerCase();
+                if (dealPlatform === storeName || dealPlatform.includes(storeName) || storeName.includes(dealPlatform)) {
+                  return true;
+                }
+              }
+
+              // 2. Fallback for storeId matching if available
+              if (d.storeId && d.storeId === selectedStore.id) return true;
+
+              // 3. Match from comparisons array
+              if (d.comparisons && d.comparisons.length > 0) {
+                const hasMatchingComp = d.comparisons.some(c => {
+                  if (!c.platform) return false;
+                  const compPlatform = c.platform.trim().toLowerCase();
+                  return compPlatform === storeName || compPlatform.includes(storeName) || storeName.includes(compPlatform);
+                });
+                if (hasMatchingComp) return true;
+              }
+
+              return false;
             })}
             onGrabDeal={handleGrabProductDeal}
             currentUser={currentUser}
