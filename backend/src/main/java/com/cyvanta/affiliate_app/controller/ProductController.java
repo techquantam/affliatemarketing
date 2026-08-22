@@ -92,7 +92,11 @@ public class ProductController {
                 product.setId(id);
                 productService.validateProduct(product);
                 Product saved = productService.saveProduct(product);
-                triggerPriceDropNotification(existing, saved);
+                if (saved.getPrice() != null && existing.getPrice() != null && saved.getPrice() < existing.getPrice()) {
+                    triggerPriceDropNotification(existing, saved);
+                } else {
+                    triggerProductUpdateNotification(saved);
+                }
                 return ResponseEntity.ok(saved);
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -138,6 +142,22 @@ public class ProductController {
                         .build();
                 notificationRepository.save(notif);
             }
+        } catch (Exception e) {
+            // log
+        }
+    }
+
+    private void triggerProductUpdateNotification(Product product) {
+        try {
+            Notification notif = Notification.builder()
+                    .userId(null) // Global
+                    .title("Product Offer Updated!")
+                    .message("The product '" + product.getName() + "' on " + product.getPlatform() + " has been updated with new details or cashback. Check it out now!")
+                    .type("PRODUCT_UPDATE")
+                    .read(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            notificationRepository.save(notif);
         } catch (Exception e) {
             // log
         }

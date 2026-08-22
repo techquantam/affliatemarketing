@@ -144,12 +144,12 @@ public class FinanceController {
 
         // CREDITS & DEBITS from ledger
         double totalCredits = allWalletTx.stream()
-                .filter(tx -> "CREDIT".equalsIgnoreCase(tx.getType()))
+                .filter(tx -> "CREDIT".equalsIgnoreCase(tx.getType()) && !"REJECTED".equalsIgnoreCase(tx.getStatus()))
                 .mapToDouble(tx -> tx.getAmount() != null ? tx.getAmount() : 0.0)
                 .sum();
 
         double totalDebits = allWalletTx.stream()
-                .filter(tx -> "DEBIT".equalsIgnoreCase(tx.getType()))
+                .filter(tx -> "DEBIT".equalsIgnoreCase(tx.getType()) && !"REJECTED".equalsIgnoreCase(tx.getStatus()))
                 .mapToDouble(tx -> tx.getAmount() != null ? tx.getAmount() : 0.0)
                 .sum();
 

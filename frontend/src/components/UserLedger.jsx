@@ -58,10 +58,13 @@ export default function UserLedger({ currentUser, onAddNotification }) {
     let totalCredits = 0, totalDebits = 0, pendingAmount = 0, approvedAmount = 0;
     entries.forEach(e => {
       const amt = e.amount || 0;
+      if (e.status === 'REJECTED' || e.status === 'rejected') {
+        return; // Ignore rejected transactions from all summaries
+      }
       if (e.type === 'CREDIT') {
         totalCredits += amt;
-        if (e.status === 'PENDING') pendingAmount += amt;
-        if (e.status === 'APPROVED' || e.status === 'COMPLETED' || e.status === 'PAID') approvedAmount += amt;
+        if (e.status === 'PENDING' || e.status === 'pending') pendingAmount += amt;
+        if (e.status === 'APPROVED' || e.status === 'approved' || e.status === 'COMPLETED' || e.status === 'completed' || e.status === 'PAID' || e.status === 'paid') approvedAmount += amt;
       } else {
         totalDebits += amt;
       }

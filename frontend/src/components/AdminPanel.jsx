@@ -413,32 +413,7 @@ export default function AdminPanel({
   // Helper actions
   const addProduct = async (prod) => {
     try {
-      let newProd;
-      try {
-        newProd = await apiProducts.create(prod);
-      } catch (apiErr) {
-        console.warn('Backend API add failed, using local product:', apiErr);
-        newProd = {
-          ...prod,
-          id: `prod-${Date.now()}`,
-          status: 'active',
-          isActive: true,
-          createdAt: new Date().toISOString()
-        };
-      }
-      if (!newProd) {
-        newProd = { ...prod, id: `prod-${Date.now()}`, status: 'active', isActive: true, createdAt: new Date().toISOString() };
-      }
-
-      // Persist to localStorage immediately
-      try {
-        const stored = localStorage.getItem('lio_custom_products');
-        const list = stored ? JSON.parse(stored) : [];
-        const updatedList = [newProd, ...list.filter(p => p.id !== newProd.id && p.name !== newProd.name)];
-        localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
-      } catch (e) {
-        console.warn('Could not save to localStorage:', e);
-      }
+      const newProd = await apiProducts.create(prod);
 
       setProducts((prev) => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
       if (onUpdateProducts) onUpdateProducts((prev) => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
@@ -446,45 +421,14 @@ export default function AdminPanel({
       onAddNotification('Product added successfully and published to Home Page!', 'success');
     } catch (err) {
       console.error(err);
-      onAddNotification('Failed to add product.', 'error');
+      onAddNotification(`Failed to add product: ${err.message || err}`, 'error');
+      throw err;
     }
   };
 
   const addProductBulk = async (productsList) => {
     try {
-      let added;
-      try {
-        added = await apiProducts.createBulk(productsList);
-      } catch (apiErr) {
-        console.warn('Backend API bulk add failed, using local products:', apiErr);
-        added = productsList.map((p, idx) => ({
-          ...p,
-          id: p.id || `bulk-prod-${Date.now()}-${idx}`,
-          status: 'active',
-          isActive: true,
-          createdAt: new Date().toISOString()
-        }));
-      }
-
-      if (!added || !Array.isArray(added)) {
-        added = productsList.map((p, idx) => ({
-          ...p,
-          id: p.id || `bulk-prod-${Date.now()}-${idx}`,
-          status: 'active',
-          isActive: true,
-          createdAt: new Date().toISOString()
-        }));
-      }
-
-      // Persist to localStorage immediately
-      try {
-        const stored = localStorage.getItem('lio_custom_products');
-        const list = stored ? JSON.parse(stored) : [];
-        const updatedList = [...added, ...list.filter(lp => !added.some(ap => ap.id === lp.id || ap.name === lp.name))];
-        localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
-      } catch (e) {
-        console.warn('Could not save to localStorage:', e);
-      }
+      const added = await apiProducts.createBulk(productsList);
 
       setProducts((prev) => [...added, ...prev]);
       if (onUpdateProducts) onUpdateProducts((prev) => [...added, ...prev]);
@@ -492,29 +436,14 @@ export default function AdminPanel({
       onAddNotification(`Successfully added ${added.length} products to catalog and Home Page!`, 'success');
     } catch (err) {
       console.error(err);
-      onAddNotification('Failed to import products in bulk.', 'error');
+      onAddNotification(`Failed to import products in bulk: ${err.message || err}`, 'error');
+      throw err;
     }
   };
 
   const editProduct = async (editedProd) => {
     try {
-      let updatedProd;
-      try {
-        updatedProd = await apiProducts.update(editedProd);
-      } catch (apiErr) {
-        console.warn('Backend API update failed, falling back to local object:', apiErr);
-        updatedProd = editedProd;
-      }
-      if (!updatedProd) updatedProd = editedProd;
-
-      try {
-        const stored = localStorage.getItem('lio_custom_products');
-        if (stored) {
-          const list = JSON.parse(stored);
-          const updatedList = list.map(p => p.id === updatedProd.id ? updatedProd : p);
-          localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
-        }
-      } catch (e) {}
+      const updatedProd = await apiProducts.update(editedProd);
 
       const updatedList = products.map((p) => (p.id === updatedProd.id ? updatedProd : p));
       setProducts(updatedList);
@@ -525,7 +454,8 @@ export default function AdminPanel({
       onAddNotification('Product details modified successfully.', 'success');
     } catch (err) {
       console.error(err);
-      onAddNotification('Failed to update product details.', 'error');
+      onAddNotification(`Failed to update product details: ${err.message || err}`, 'error');
+      throw err;
     }
   };
 
@@ -534,22 +464,7 @@ export default function AdminPanel({
       const current = products.find(p => p.id === id);
       if (!current) return;
       const nextStatus = current.status === 'active' ? 'inactive' : 'active';
-      let updatedProd;
-      try {
-        updatedProd = await apiProducts.update({ ...current, status: nextStatus, isActive: nextStatus === 'active' });
-      } catch (apiErr) {
-        updatedProd = { ...current, status: nextStatus, isActive: nextStatus === 'active' };
-      }
-      if (!updatedProd) updatedProd = { ...current, status: nextStatus, isActive: nextStatus === 'active' };
-
-      try {
-        const stored = localStorage.getItem('lio_custom_products');
-        if (stored) {
-          const list = JSON.parse(stored);
-          const updatedList = list.map(p => p.id === id ? { ...p, status: nextStatus, isActive: nextStatus === 'active' } : p);
-          localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
-        }
-      } catch (e) {}
+      const updatedProd = await apiProducts.update({ ...current, status: nextStatus, isActive: nextStatus === 'active' });
 
       const updatedList = products.map((p) => (p.id === id ? updatedProd : p));
       setProducts(updatedList);
@@ -560,26 +475,14 @@ export default function AdminPanel({
       onAddNotification(`Product status changed to ${nextStatus}.`, 'info');
     } catch (err) {
       console.error(err);
-      onAddNotification('Failed to update product status.', 'error');
+      onAddNotification(`Failed to update product status: ${err.message || err}`, 'error');
+      throw err;
     }
   };
 
   const deleteProduct = async (id) => {
     try {
-      try {
-        await apiProducts.delete(id);
-      } catch (apiErr) {
-        console.warn('Backend delete API failed, removing locally:', apiErr);
-      }
-
-      try {
-        const stored = localStorage.getItem('lio_custom_products');
-        if (stored) {
-          const list = JSON.parse(stored);
-          const updatedList = list.filter(p => p.id !== id);
-          localStorage.setItem('lio_custom_products', JSON.stringify(updatedList));
-        }
-      } catch (e) {}
+      await apiProducts.delete(id);
 
       setProducts((prev) => prev.filter((p) => p.id !== id));
       if (onUpdateProducts) onUpdateProducts((prev) => prev.filter((p) => p.id !== id));
@@ -587,7 +490,8 @@ export default function AdminPanel({
       onAddNotification('Product deleted successfully.', 'success');
     } catch (err) {
       console.error(err);
-      onAddNotification('Failed to delete product.', 'error');
+      onAddNotification(`Failed to delete product: ${err.message || err}`, 'error');
+      throw err;
     }
   };
 

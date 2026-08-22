@@ -127,8 +127,12 @@ export default function AdminLedger({ users }) {
   }));
 
   // Calculate stats for current view
-  const totalCredits = filteredData.filter(i => i.type === 'CREDIT').reduce((sum, i) => sum + (i.amount || 0), 0);
-  const totalDebits = filteredData.filter(i => i.type === 'DEBIT').reduce((sum, i) => sum + (i.amount || 0), 0);
+  const totalCredits = filteredData
+    .filter(i => i.type === 'CREDIT' && i.status?.toLowerCase() !== 'rejected')
+    .reduce((sum, i) => sum + (i.amount || 0), 0);
+  const totalDebits = filteredData
+    .filter(i => i.type === 'DEBIT' && i.status?.toLowerCase() !== 'rejected')
+    .reduce((sum, i) => sum + (i.amount || 0), 0);
 
   return (
     <div className="admin-ledger-tab animate-fade">

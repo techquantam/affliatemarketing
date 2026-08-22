@@ -135,9 +135,19 @@ public class WithdrawalsController {
             request.setProcessedAt(LocalDateTime.now());
             withdrawalRepository.save(request);
 
-            if (request.getUserId() != null && request.getAmount() != null) {
+             if (request.getUserId() != null && request.getAmount() != null) {
                 // Refund back to approvedBalance (do not subtract from pending, as it wasn't added there)
                 walletService.refundApprovedBalance(request.getUserId(), request.getAmount()); // Adds to approvedBalance
+
+                walletService.recordTransaction(
+                        request.getUserId(),
+                        request.getAmount(),
+                        "DEBIT",
+                        "WITHDRAWAL",
+                        "Withdrawal request rejected for user " + request.getUserName(),
+                        request.getId(),
+                        "REJECTED"
+                );
 
                 // Generate user notification
                 try {

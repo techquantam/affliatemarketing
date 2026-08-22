@@ -850,62 +850,64 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               {/* Personal Information Form */}
-              <form onSubmit={handleSaveProfile} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>Personal Information</h3>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Full Name</label>
-                  <input type="text" required value={profileName} onChange={e => setProfileName(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Email Address</label>
-                  <input type="email" readOnly disabled value={profileEmail} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'rgba(var(--primary-rgb), 0.05)', color: 'var(--text)' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Phone Number</label>
-                  <input type="text" readOnly disabled value={profilePhone} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'rgba(var(--primary-rgb), 0.05)', color: 'var(--text)' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Date of Birth</label>
-                  <input type="date" required value={profileDob} onChange={e => setProfileDob(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Gender</label>
-                  <select value={profileGender} onChange={e => setProfileGender(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Street Address</label>
-                  <input type="text" required value={profileAddress} onChange={e => setProfileAddress(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
+                <form onSubmit={handleSaveProfile} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>Personal Information</h3>
+                  
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>City</label>
-                    <input type="text" required value={profileCity} onChange={e => setProfileCity(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Full Name</label>
+                    <input type="text" required value={profileName} onChange={e => setProfileName(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>State</label>
-                    <input type="text" required value={profileState} onChange={e => setProfileState(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
-                  </div>
-                </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Pincode / ZIP</label>
-                  <input type="text" required value={profilePincode} onChange={e => setProfilePincode(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
-                  <button type="submit" disabled={isSavingProfile} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold' }}>
-                    {isSavingProfile ? 'Saving...' : 'Save & Complete Profile'}
-                  </button>
-                </div>
-              </form>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Email Address</label>
+                    <input type="email" readOnly disabled value={profileEmail} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'rgba(var(--primary-rgb), 0.05)', color: 'var(--text)' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Phone Number</label>
+                    <input type="text" readOnly disabled value={profilePhone} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'rgba(var(--primary-rgb), 0.05)', color: 'var(--text)' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Date of Birth</label>
+                    <input type="date" required value={profileDob} onChange={e => setProfileDob(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Gender</label>
+                    <select value={profileGender} onChange={e => setProfileGender(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Street Address</label>
+                    <input type="text" required value={profileAddress} onChange={e => setProfileAddress(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>City</label>
+                      <input type="text" required value={profileCity} onChange={e => setProfileCity(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>State</label>
+                      <input type="text" required value={profileState} onChange={e => setProfileState(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Pincode / ZIP</label>
+                    <input type="text" required value={profilePincode} onChange={e => setProfilePincode(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} />
+                    <button type="submit" disabled={isSavingProfile} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold' }}>
+                      {isSavingProfile ? 'Saving...' : 'Save & Complete Profile'}
+                    </button>
+                  </div>
+                </form>
+              )}
                {/* KYC Document Upload Form */}
               {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
                 <form onSubmit={handleSubmitKyc} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>

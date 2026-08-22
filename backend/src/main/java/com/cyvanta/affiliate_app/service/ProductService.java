@@ -58,6 +58,8 @@ public class ProductService {
             // Allow general affiliate tracking redirects and generic URL shorteners to pass validation for any store
             boolean isTrackingOrShortUrl = lowerUrl.contains("linksredirect.com") || 
                                            lowerUrl.contains("cuelinks.com") ||
+                                           lowerUrl.contains("clnk.in") || 
+                                           lowerUrl.contains("ern.li") || 
                                            lowerUrl.contains("bit.ly") ||
                                            lowerUrl.contains("tinyurl.com") ||
                                            lowerUrl.contains("earnkaro.com") ||

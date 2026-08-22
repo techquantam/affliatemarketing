@@ -31,12 +31,14 @@ import {
   HelpCircle,
   Camera,
   ArrowLeft,
-  ShieldAlert
+  ShieldAlert,
+  Link2,
+  Bell
 } from 'lucide-react';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
 import CategoryIcon from './CategoryIcon';
-import { apiUsers, apiUpload } from '../services/api';
+import { apiUsers, apiUpload, apiSharedLinks, apiNotifications } from '../services/api';
 import { apiAffiliate } from '../services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from '../utils/openUrl';
 import { getCleanedUrlIdentifier } from '../utils/urlMatcher';
@@ -174,6 +176,15 @@ export default function MobileApp({
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [upiId, setUpiId] = useState('');
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  // URL Converter States
+  const [convertInputUrl, setConvertInputUrl] = useState('');
+  const [convertResultUrl, setConvertResultUrl] = useState('');
+  const [convertStore, setConvertStore] = useState('');
+
+  // Notification States (Mobile)
+  const [userNotifications, setUserNotifications] = useState([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   // --- PROFILE STATES ---
   const [profileName, setProfileName] = useState(currentUser?.name || '');
@@ -328,6 +339,46 @@ export default function MobileApp({
     }
   }, [activeTab]);
 
+  // Sync notifications for logged-in user (Mobile)
+  const fetchUserNotifications = async () => {
+    if (!currentUser?.id) return;
+    try {
+      const res = await apiNotifications.getByUser(currentUser.id);
+      setUserNotifications(res || []);
+    } catch (e) {
+      console.warn('Failed to fetch user notifications:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setUserNotifications([]);
+      return;
+    }
+    fetchUserNotifications();
+    const interval = setInterval(fetchUserNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
+
+  const handleMarkAllNotificationsRead = async () => {
+    if (!currentUser?.id) return;
+    try {
+      await apiNotifications.markAllAsRead(currentUser.id);
+      fetchUserNotifications();
+    } catch (e) {
+      console.warn('Failed to mark all notifications read:', e);
+    }
+  };
+
+  const handleMarkNotificationRead = async (id) => {
+    try {
+      await apiNotifications.markAsRead(id);
+      fetchUserNotifications();
+    } catch (e) {
+      console.warn('Failed to mark notification read:', e);
+    }
+  };
+
   // Get current user's wallet info (or fallback if guest/admin)
   const isGuest = !currentUser;
   const user = currentUser ? { ...currentUser, wallet: currentUser.wallet || { confirmed: 0.00, pending: 0.00, referral: 0.00 } } : {
@@ -439,6 +490,58 @@ export default function MobileApp({
     } finally {
       setWithdrawLoading(false);
     }
+  };
+
+  // --- URL CONVERTER HANDLERS (MOBILE) ---
+  const handleConvertUrl = async (e) => {
+    e.preventDefault();
+    if (isGuest) {
+      onAddNotification('Please Login / Sign Up to convert links.', 'error');
+      openAuthModal();
+      return;
+    }
+
+    if (!convertInputUrl.trim()) {
+      onAddNotification('Please paste a product URL.', 'error');
+      return;
+    }
+
+    const url = convertInputUrl.trim();
+    let store = 'Amazon';
+    const lowerUrl = url.toLowerCase();
+
+    if (lowerUrl.includes('flipkart') || lowerUrl.includes('fkrt')) store = 'Flipkart';
+    else if (lowerUrl.includes('myntra') || lowerUrl.includes('mynt.in')) store = 'Myntra';
+    else if (lowerUrl.includes('ajio')) store = 'Ajio';
+    else if (lowerUrl.includes('nykaa')) store = 'Nykaa Beauty';
+    else if (lowerUrl.includes('meesho')) store = 'Meesho';
+    else if (lowerUrl.includes('makemytrip')) store = 'MakeMyTrip';
+    else if (lowerUrl.includes('boat')) store = 'boAt';
+
+    setConvertStore(store);
+    try {
+      const newLink = await apiSharedLinks.create({
+        userId: user.id,
+        userName: user.name,
+        productName: `Converted ${store} Product`,
+        store: store,
+        productUrl: url,
+        userSharePercent: 100
+      });
+      const defaultShortUrl = `${window.location.origin}/#/share/${newLink.id}`;
+      const finalShortUrl = newLink.shortUrl || defaultShortUrl;
+      
+      setConvertResultUrl(finalShortUrl);
+      onAddNotification(`Converted to tracked ${store} link successfully!`, 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to convert URL.', 'error');
+    }
+  };
+
+  const handleCopyConverted = () => {
+    navigator.clipboard.writeText(convertResultUrl);
+    onAddNotification('Affiliate link copied to clipboard!', 'success');
   };
 
   // --- PROFILE SAVE (MOBILE) ---
@@ -585,6 +688,141 @@ export default function MobileApp({
               <Shield size={12} />
               Admin
             </button>
+          )}
+
+          {currentUser && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  color: 'var(--text)',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '4px'
+                }}
+                title="Notifications"
+              >
+                <Bell size={16} />
+                {userNotifications.filter(n => !n.read).length > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    right: '-2px',
+                    backgroundColor: '#ef4444',
+                    color: '#fff',
+                    borderRadius: '50%',
+                    width: '12px',
+                    height: '12px',
+                    fontSize: '8px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {userNotifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+
+              {showNotifDropdown && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '10px',
+                  width: '280px',
+                  backgroundColor: 'var(--card-bg, #ffffff)',
+                  border: '1px solid var(--border, #e2e8f0)',
+                  borderRadius: '10px',
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                  zIndex: 2000,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  maxHeight: '300px'
+                }}>
+                  {/* Header */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '10px 12px',
+                    borderBottom: '1px solid var(--border)',
+                    boxSizing: 'border-box'
+                  }}>
+                    <span style={{ fontWeight: '700', fontSize: '12px', color: 'var(--text-bold)' }}>Notifications</span>
+                    {userNotifications.filter(n => !n.read).length > 0 && (
+                      <button
+                        onClick={handleMarkAllNotificationsRead}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--secondary, #10b981)',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* List */}
+                  <div style={{ overflowY: 'auto', flex: 1, maxHeight: '240px' }}>
+                    {userNotifications.length === 0 ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text)', opacity: 0.6, fontSize: '11px' }}>
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      userNotifications.map(notif => (
+                        <div
+                          key={notif.id}
+                          onClick={() => {
+                            handleMarkNotificationRead(notif.id);
+                          }}
+                          style={{
+                            padding: '10px 12px',
+                            borderBottom: '1px solid var(--border)',
+                            backgroundColor: notif.read ? 'transparent' : 'rgba(99, 102, 241, 0.05)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                            textAlign: 'left',
+                            boxSizing: 'border-box'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+                            <span style={{
+                              fontWeight: notif.read ? '500' : '700',
+                              fontSize: '11px',
+                              color: 'var(--text-bold)'
+                            }}>
+                              {notif.title}
+                            </span>
+                          </div>
+                          <p style={{
+                            margin: 0,
+                            fontSize: '10px',
+                            color: 'var(--text)',
+                            lineHeight: '1.3',
+                            opacity: notif.read ? 0.7 : 0.9
+                          }}>
+                            {notif.message}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {isGuest ? (
@@ -1453,46 +1691,48 @@ export default function MobileApp({
             </div>
 
             {/* Personal Details Form */}
-            <form onSubmit={handleSaveProfile} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Personal Details</h4>
-              
-              <div className="app-input-group">
-                <label>Full Name</label>
-                <input type="text" required value={profileName} onChange={e => setProfileName(e.target.value)} />
-              </div>
-              <div className="app-input-group">
-                <label>Date of Birth</label>
-                <input type="date" required value={profileDob} onChange={e => setProfileDob(e.target.value)} />
-              </div>
-              <div className="app-input-group">
-                <label>Gender</label>
-                <select value={profileGender} onChange={e => setProfileGender(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div className="app-input-group">
-                <label>Address</label>
-                <input type="text" required value={profileAddress} onChange={e => setProfileAddress(e.target.value)} />
-              </div>
-              <div className="app-input-group">
-                <label>City</label>
-                <input type="text" required value={profileCity} onChange={e => setProfileCity(e.target.value)} />
-              </div>
-              <div className="app-input-group">
-                <label>State</label>
-                <input type="text" required value={profileState} onChange={e => setProfileState(e.target.value)} />
-              </div>
-              <div className="app-input-group">
-                <label>Pincode</label>
-                <input type="text" required value={profilePincode} onChange={e => setProfilePincode(e.target.value)} />
-              </div>
+            {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
+              <form onSubmit={handleSaveProfile} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Personal Details</h4>
+                
+                <div className="app-input-group">
+                  <label>Full Name</label>
+                  <input type="text" required value={profileName} onChange={e => setProfileName(e.target.value)} />
+                </div>
+                <div className="app-input-group">
+                  <label>Date of Birth</label>
+                  <input type="date" required value={profileDob} onChange={e => setProfileDob(e.target.value)} />
+                </div>
+                <div className="app-input-group">
+                  <label>Gender</label>
+                  <select value={profileGender} onChange={e => setProfileGender(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }}>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div className="app-input-group">
+                  <label>Address</label>
+                  <input type="text" required value={profileAddress} onChange={e => setProfileAddress(e.target.value)} />
+                </div>
+                <div className="app-input-group">
+                  <label>City</label>
+                  <input type="text" required value={profileCity} onChange={e => setProfileCity(e.target.value)} />
+                </div>
+                <div className="app-input-group">
+                  <label>State</label>
+                  <input type="text" required value={profileState} onChange={e => setProfileState(e.target.value)} />
+                </div>
+                <div className="app-input-group">
+                  <label>Pincode</label>
+                  <input type="text" required value={profilePincode} onChange={e => setProfilePincode(e.target.value)} />
+                </div>
 
-              <button type="submit" disabled={isSavingProfile} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px' }}>
-                {isSavingProfile ? 'Saving...' : 'Save Details'}
-              </button>
-            </form>
+                <button type="submit" disabled={isSavingProfile} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px' }}>
+                  {isSavingProfile ? 'Saving...' : 'Save Details'}
+                </button>
+              </form>
+            )}
 
             {/* E-KYC Upload Form */}
             {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
@@ -1577,6 +1817,58 @@ export default function MobileApp({
             ) : (
               <UserSupport currentUser={currentUser} onAddNotification={onAddNotification} />
             )}
+          </div>
+        )}
+        {activeTab === 'converter' && (
+          <div className="mobile-screen-tab-panel animate-fade" style={{ paddingBottom: '32px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <button onClick={() => setActiveTab('home')} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: 0, fontWeight: 'bold' }}>
+                <ArrowLeft size={16} />
+              </button>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: 'var(--text-bold)' }}>Universal Link Converter</h3>
+            </div>
+
+            <div className="app-withdrawal-form-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text)', lineHeight: '1.5', margin: 0 }}>
+                Paste any standard product link from supported stores (Amazon, Flipkart, Myntra, Ajio, Meesho, Nykaa, MakeMyTrip, boAt) to generate your custom affiliate link.
+              </p>
+
+              <form onSubmit={handleConvertUrl} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                <div className="app-input-group">
+                  <label>Paste Normal Product URL</label>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://www.amazon.in/dp/..."
+                    value={convertInputUrl}
+                    onChange={e => setConvertInputUrl(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <button type="submit" className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '13px', fontWeight: 'bold' }}>
+                  Convert Link
+                </button>
+              </form>
+
+              {convertResultUrl && (
+                <div className="animate-fade" style={{ marginTop: '16px', padding: '14px', borderRadius: '8px', backgroundColor: 'rgba(25, 118, 210, 0.05)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '8px' }}>
+                    Detected Store: {convertStore}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      readOnly
+                      value={convertResultUrl}
+                      style={{ flex: 1, padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border)', backgroundColor: 'var(--card-bg)', color: 'var(--text-bold)', fontSize: '12px', fontFamily: 'monospace' }}
+                    />
+                    <button onClick={handleCopyConverted} className="btn-primary" style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Copy size={13} /> Copy
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </>
@@ -1715,6 +2007,14 @@ export default function MobileApp({
         >
           <ShoppingBag size={18} />
           <span>Stores</span>
+        </div>
+
+        <div 
+          className={`app-nav-item ${activeTab === 'converter' ? 'active' : ''}`}
+          onClick={() => setActiveTab('converter')}
+        >
+          <Link2 size={18} />
+          <span>Convert</span>
         </div>
 
         <div 

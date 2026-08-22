@@ -81,6 +81,18 @@ public class WalletService {
     }
 
     public WalletTransaction recordTransaction(String userId, Double amount, String type, String category, String description, String trackingId, String status) {
+        if (trackingId != null && !trackingId.trim().isEmpty()) {
+            java.util.Optional<WalletTransaction> existing = walletTransactionRepository.findByTrackingId(trackingId);
+            if (existing.isPresent()) {
+                WalletTransaction txn = existing.get();
+                txn.setAmount(amount);
+                txn.setType(type);
+                txn.setCategory(category);
+                txn.setStatus(status);
+                txn.setDescription(description);
+                return walletTransactionRepository.save(txn);
+            }
+        }
         WalletTransaction transaction = WalletTransaction.builder()
                 .userId(userId)
                 .trackingId(trackingId)

@@ -148,7 +148,7 @@ public class SharedCommissionController {
                 } else if ("rejected".equals(newStatus) && "pending".equals(oldStatus)) {
                     // Remove from pending wallet
                     walletService.processRejectedCommission(commission.getUserId(), userPayout);
-
+                    
                     // Create CommissionHistory record
                     CommissionHistory ch = CommissionHistory.builder()
                             .trackingId(commission.getClickId() != null ? commission.getClickId() : commission.getId())
@@ -157,6 +157,16 @@ public class SharedCommissionController {
                             .status("REJECTED")
                             .build();
                     commissionHistoryRepository.save(ch);
+
+                    walletService.recordTransaction(
+                            commission.getUserId(),
+                            userPayout,
+                            "CREDIT",
+                            "COMMISSION",
+                            "Commission Rejected: " + commission.getProductName() + " via " + commission.getStore(),
+                            commission.getClickId() != null ? commission.getClickId() : commission.getId(),
+                            "REJECTED"
+                    );
 
                     log.info("[COMMISSION] ❌ REJECTED — User {} pending ₹{} removed for product '{}'",
                             commission.getUserName(), userPayout, commission.getProductName());
