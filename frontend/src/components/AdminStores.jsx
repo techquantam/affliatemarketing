@@ -120,6 +120,10 @@ export default function AdminStores({ stores, onAddStore, onEditStore, onDeleteS
       return;
     }
 
+    if (!window.confirm(`Are you sure you want to ${editItem ? 'save changes to' : 'create'} this store?`)) {
+      return;
+    }
+
     const storeData = {
       name,
       logo,
@@ -164,7 +168,11 @@ export default function AdminStores({ stores, onAddStore, onEditStore, onDeleteS
           <button className="admin-btn-icon edit" onClick={() => openEditModal(item)} title="Edit Store & Coupons">
             <Edit2 size={14} />
           </button>
-          <button className="admin-btn-icon delete" onClick={() => onDeleteStore(item.id)} title="Delete Store">
+          <button className="admin-btn-icon delete" onClick={() => {
+            if (window.confirm("Are you sure you want to delete this store?")) {
+              onDeleteStore(item.id);
+            }
+          }} title="Delete Store">
             <Trash2 size={14} />
           </button>
         </div>

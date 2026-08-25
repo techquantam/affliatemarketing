@@ -25,5 +25,10 @@ public class Banner {
     private String logo;
     
     @Builder.Default
+    private String type = "HERO"; // HERO, AD
+    
+    private String targetUrl;
+    
+    @Builder.Default
     private Boolean isActive = true;
 }

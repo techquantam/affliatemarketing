@@ -15,6 +15,8 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
   const [storeName, setStoreName] = useState('');
   const [cashbackRate, setCashbackRate] = useState('');
   const [logo, setLogo] = useState('');
+  const [type, setType] = useState('HERO'); // HERO, AD
+  const [targetUrl, setTargetUrl] = useState('');
   const [isActive, setIsActive] = useState(true);
 
   const [formError, setFormError] = useState('');
@@ -28,6 +30,8 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
     setStoreName('');
     setCashbackRate('');
     setLogo('');
+    setType('HERO');
+    setTargetUrl('');
     setIsActive(true);
     setFormError('');
     setIsModalOpen(true);
@@ -42,6 +46,8 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
     setStoreName(item.storeName || '');
     setCashbackRate(item.cashbackRate || '');
     setLogo(item.logo || '');
+    setType(item.type || 'HERO');
+    setTargetUrl(item.targetUrl || '');
     setIsActive(item.isActive === undefined ? true : item.isActive);
     setFormError('');
     setIsModalOpen(true);
@@ -56,6 +62,10 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
       return;
     }
 
+    if (!window.confirm(`Are you sure you want to ${editItem ? 'save changes to' : 'create'} this banner?`)) {
+      return;
+    }
+
     const bannerData = {
       tag,
       title,
@@ -64,6 +74,8 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
       storeName,
       cashbackRate,
       logo,
+      type,
+      targetUrl,
       isActive,
     };
 
@@ -76,7 +88,7 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
     setIsModalOpen(false);
   };
 
-  const headers = ['Logo', 'Title & Tag', 'Store', 'Cashback Rate', 'Status', 'Actions'];
+  const headers = ['Logo', 'Title & Tag', 'Type', 'Store', 'Cashback Rate', 'Status', 'Actions'];
 
   const renderRow = (item) => (
     <tr key={item.id} className="animate-fade">
@@ -88,6 +100,18 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
           <strong style={{ color: 'var(--text-bold)', fontSize: '14px' }} dangerouslySetInnerHTML={{ __html: item.title }} />
           <span style={{ color: 'var(--text)', fontSize: '12px' }}>{item.tag}</span>
         </div>
+      </td>
+      <td>
+        <span style={{ 
+          fontSize: '11px', 
+          fontWeight: 'bold', 
+          padding: '2px 8px', 
+          borderRadius: '12px', 
+          backgroundColor: item.type === 'AD' ? 'rgba(168,85,247,0.1)' : 'rgba(59,130,246,0.1)',
+          color: item.type === 'AD' ? '#a855f7' : '#3b82f6'
+        }}>
+          {item.type === 'AD' ? 'Promo Ad' : 'Hero Slider'}
+        </span>
       </td>
       <td style={{ fontWeight: '500' }}>{item.storeName}</td>
       <td style={{ color: 'var(--secondary)', fontWeight: 'bold' }}>{item.cashbackRate}</td>
@@ -101,7 +125,11 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
           <button className="admin-btn-icon edit" onClick={() => openEditModal(item)} title="Edit Banner">
             <Edit2 size={14} />
           </button>
-          <button className="admin-btn-icon delete" onClick={() => onDeleteBanner(item.id)} title="Delete Banner">
+          <button className="admin-btn-icon delete" onClick={() => {
+            if (window.confirm("Are you sure you want to delete this banner?")) {
+              onDeleteBanner(item.id);
+            }
+          }} title="Delete Banner">
             <Trash2 size={14} />
           </button>
         </div>
@@ -111,10 +139,12 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
 
   const exportColumns = [
     { header: 'Store', dataKey: 'storeName' },
+    { header: 'Type', dataKey: 'type' },
     { header: 'Title', dataKey: 'title' },
     { header: 'Tag', dataKey: 'tag' },
     { header: 'Cashback Rate', dataKey: 'cashbackRate' },
     { header: 'CTA', dataKey: 'cta' },
+    { header: 'Target URL', dataKey: 'targetUrl' },
     { header: 'Status', dataKey: 'isActive' }
   ];
 
@@ -122,8 +152,8 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
     <div className="admin-banners-tab animate-fade">
       <div className="admin-page-header">
         <div className="admin-page-title">
-          <h2>Hero Banners</h2>
-          <p>Manage the top homepage sliding banners and promotions.</p>
+          <h2>Hero & Promo Ad Banners</h2>
+          <p>Manage the top homepage sliding banners and promo ad banner placements.</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <ExportDataButton data={banners} columns={exportColumns} filename="Banners" />
@@ -167,6 +197,26 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
                 {formError}
               </div>
             )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <AdminFormSelect
+                label="Banner Type"
+                id="banner-type"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                options={[
+                  { value: 'HERO', label: 'Hero Home Slider' },
+                  { value: 'AD', label: 'Promo Ad Placement' },
+                ]}
+              />
+              <AdminFormInput
+                label="Target Link / Click URL"
+                id="banner-targetUrl"
+                value={targetUrl}
+                onChange={(e) => setTargetUrl(e.target.value)}
+                placeholder="e.g. https://amazon.to/promo"
+              />
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <AdminFormInput
@@ -219,7 +269,7 @@ export default function AdminBanners({ banners, onAddBanner, onEditBanner, onDel
             </div>
 
             <AdminFormInput
-              label="Logo URL"
+              label="Logo / Image URL"
               id="banner-logo"
               value={logo}
               onChange={(e) => setLogo(e.target.value)}

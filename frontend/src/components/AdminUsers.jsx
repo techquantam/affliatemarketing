@@ -59,10 +59,15 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
   const [editSharedCommRate, setEditSharedCommRate] = useState('');
 
   const handleToggleUserStatus = (userId) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    const nextStatus = user.status === 'active' ? 'blocked' : 'active';
+    if (!window.confirm(`Are you sure you want to ${user.status === 'active' ? 'block' : 'unblock'} user ${user.name}?`)) {
+      return;
+    }
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
-          const nextStatus = u.status === 'active' ? 'blocked' : 'active';
           onAddNotification(`User ${u.name} status updated to ${nextStatus}.`, 'info');
           return { ...u, status: nextStatus };
         }
@@ -90,6 +95,10 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
     e.preventDefault();
     if (!editName.trim() || !editEmail.trim() || !editMobile.trim()) {
       onAddNotification('Please fill in Name, Email, and Mobile.', 'error');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to save these changes to the user profile?')) {
       return;
     }
 
@@ -124,11 +133,14 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
 
   const filteredUsers = users.filter((u) => {
     const query = searchQuery.toLowerCase();
+    const nameStr = (u.name || '').toLowerCase();
+    const phoneStr = String(u.phone || '');
+    const refCodeStr = (u.referralCode || '').toLowerCase();
     const emailStr = (u.email || '').toLowerCase();
     const matchesSearch =
-      u.name.toLowerCase().includes(query) ||
-      u.phone.includes(query) ||
-      u.referralCode.toLowerCase().includes(query) ||
+      nameStr.includes(query) ||
+      phoneStr.includes(query) ||
+      refCodeStr.includes(query) ||
       emailStr.includes(query);
     const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
     return matchesSearch && matchesStatus;

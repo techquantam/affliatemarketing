@@ -52,7 +52,11 @@ export default function AdminWithdrawals({ withdrawRequests, onApprove, onReject
             <>
               <button
                 className="admin-btn-icon edit"
-                onClick={() => onApprove(item.id, item.amount)}
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to approve this withdrawal of ₹${item.amount.toFixed(2)} for ${item.userName}?`)) {
+                    onApprove(item.id, item.amount);
+                  }
+                }}
                 title="Approve & Payout"
                 style={{ padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -60,7 +64,11 @@ export default function AdminWithdrawals({ withdrawRequests, onApprove, onReject
               </button>
               <button
                 className="admin-btn-icon delete"
-                onClick={() => onReject(item.id)}
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to reject this withdrawal of ₹${item.amount.toFixed(2)} for ${item.userName}?`)) {
+                    onReject(item.id);
+                  }
+                }}
                 title="Reject Request"
                 style={{ padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -163,8 +171,10 @@ export default function AdminWithdrawals({ withdrawRequests, onApprove, onReject
                   <button
                     className="admin-btn admin-btn-secondary"
                     onClick={() => {
-                      onReject(selectedRequest.id);
-                      setIsModalOpen(false);
+                      if (window.confirm(`Are you sure you want to reject this withdrawal of ₹${selectedRequest.amount.toFixed(2)} for ${selectedRequest.userName}?`)) {
+                        onReject(selectedRequest.id);
+                        setIsModalOpen(false);
+                      }
                     }}
                     style={{ color: '#ef4444' }}
                   >
@@ -173,8 +183,10 @@ export default function AdminWithdrawals({ withdrawRequests, onApprove, onReject
                   <button
                     className="admin-btn admin-btn-primary"
                     onClick={() => {
-                      onApprove(selectedRequest.id, selectedRequest.amount);
-                      setIsModalOpen(false);
+                      if (window.confirm(`Are you sure you want to approve this withdrawal of ₹${selectedRequest.amount.toFixed(2)} for ${selectedRequest.userName}?`)) {
+                        onApprove(selectedRequest.id, selectedRequest.amount);
+                        setIsModalOpen(false);
+                      }
                     }}
                   >
                     Approve & Disburse

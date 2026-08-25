@@ -172,42 +172,6 @@ const generatePriceComparisons = (deal) => {
     }];
   }
 
-  // Ensure there are comparisons for at least Amazon, Flipkart, Meesho, and Myntra
-  const targetPlatforms = ['Amazon', 'Flipkart', 'Meesho', 'Myntra'];
-  const existingPlatforms = comps.map(c => (c.platform || '').toLowerCase().trim());
-  
-  targetPlatforms.forEach(store => {
-    const cleanStore = store.toLowerCase();
-    const hasStore = existingPlatforms.some(ep => ep.includes(cleanStore) || cleanStore.includes(ep));
-    if (!hasStore) {
-      let priceMultiplier = 1.0;
-      if (store === 'Flipkart') priceMultiplier = 0.94;
-      else if (store === 'Meesho') priceMultiplier = 0.89; // 11% cheaper (often lowest)
-      else if (store === 'Myntra') priceMultiplier = 1.03;
-      else priceMultiplier = 0.97;
-
-      const sPrice = parseFloat((basePrice * priceMultiplier).toFixed(2));
-      const sRetail = parseFloat((retailPrice * priceMultiplier).toFixed(2));
-      const storeInfo = STORES_INFO.find(s => s.platform.toLowerCase() === store.toLowerCase()) || STORES_INFO[0];
-      const sCb = store === 'Meesho' ? 12 : (store === 'Flipkart' ? 8 : 10);
-      const sCbEarned = parseFloat(((sPrice * sCb) / 100).toFixed(2));
-      const sEff = parseFloat((sPrice - sCbEarned).toFixed(2));
-
-      comps.push({
-        platform: store,
-        logo: storeInfo.logo,
-        dealPrice: sPrice,
-        price: sPrice,
-        retailPrice: sRetail,
-        cashbackPercent: sCb,
-        cashbackEarned: sCbEarned,
-        effectivePrice: sEff,
-        link: getProductPlatformUrl(deal, store),
-        isOriginal: false
-      });
-    }
-  });
-
   // Sort them by effectivePrice so the lowest price is always first
   comps.sort((a, b) => a.effectivePrice - b.effectivePrice);
   return comps;

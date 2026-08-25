@@ -150,6 +150,10 @@ export default function AdminCategories({
       return;
     }
 
+    if (!window.confirm(`Are you sure you want to ${editItem ? 'save changes to' : 'create'} this category?`)) {
+      return;
+    }
+
     const payload = {
       ...(editItem || {}),
       name: catName.trim(),
@@ -306,7 +310,11 @@ export default function AdminCategories({
             </button>
             <button
               className="admin-btn-icon delete"
-              onClick={() => onDeleteCategory(item.id)}
+              onClick={() => {
+                if (window.confirm("Are you sure you want to delete this category?")) {
+                  onDeleteCategory(item.id);
+                }
+              }}
               title="Delete Category"
             >
               <Trash2 size={13} />

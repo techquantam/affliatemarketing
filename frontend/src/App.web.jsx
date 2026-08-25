@@ -24,6 +24,40 @@ import { getCleanedUrlIdentifier } from './utils/urlMatcher';
 import './index.css';
 import './App.css';
 
+const AdBanners = ({ banners }) => {
+  if (!banners || banners.length === 0) return null;
+  return (
+    <div className="promo-ad-banners-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', margin: '20px 0' }}>
+      {banners.map(b => (
+        <a 
+          key={b.id} 
+          href={b.targetUrl || '#'} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="promo-ad-banner-link"
+          style={{ 
+            display: 'block', 
+            borderRadius: '12px', 
+            overflow: 'hidden', 
+            border: '1px solid var(--border)', 
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'transform 0.2s',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <img 
+            src={b.logo} 
+            alt={b.title || 'Advertisement'} 
+            style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }} 
+          />
+        </a>
+      ))}
+    </div>
+  );
+};
+
 const DEFAULT_STORES = [
   {
     id: 'amazon',
@@ -970,40 +1004,6 @@ export default function App() {
              }];
           }
 
-          // Ensure there are comparisons for at least Amazon, Flipkart, Meesho, and Myntra
-          const targetPlatforms = ['Amazon', 'Flipkart', 'Meesho', 'Myntra'];
-          const existingPlatforms = dbComparisons.map(c => (c.platform || '').toLowerCase().trim());
-          
-          targetPlatforms.forEach(store => {
-            const cleanStore = store.toLowerCase();
-            const hasStore = existingPlatforms.some(ep => ep.includes(cleanStore) || cleanStore.includes(ep));
-            if (!hasStore) {
-              let priceMultiplier = 1.0;
-              if (store === 'Flipkart') priceMultiplier = 0.94;
-              else if (store === 'Meesho') priceMultiplier = 0.89; // 11% cheaper (lowest price)
-              else if (store === 'Myntra') priceMultiplier = 1.03;
-              else priceMultiplier = 0.97;
-
-              const sPrice = parseFloat((dealPrice * priceMultiplier).toFixed(2));
-              const sRetail = parseFloat((retailPrice * priceMultiplier).toFixed(2));
-              const sCb = store === 'Meesho' ? 12 : (store === 'Flipkart' ? 8 : 10);
-              const sCbEarned = parseFloat(((sPrice * sCb) / 100).toFixed(2));
-              const sEff = parseFloat((sPrice - sCbEarned).toFixed(2));
-
-              dbComparisons.push({
-                platform: store,
-                dealPrice: sPrice,
-                price: sPrice,
-                listedPrice: sPrice,
-                retailPrice: sRetail,
-                cashbackPercent: sCb,
-                cashbackEarned: sCbEarned,
-                effectivePrice: sEff,
-                link: getProductPlatformUrl(p, store)
-              });
-            }
-          });
-
           // Sort by effectivePrice so the lowest price is always first
           dbComparisons.sort((a, b) => a.effectivePrice - b.effectivePrice);
 
@@ -1078,39 +1078,6 @@ export default function App() {
             link: d.link || d.affiliateUrl || getProductPlatformUrl(d, platform)
           });
         }
-
-        const targetPlatforms = ['Amazon', 'Flipkart', 'Meesho', 'Myntra'];
-        const existingPlatforms = finalComparisons.map(c => (c.platform || '').toLowerCase().trim());
-        
-        targetPlatforms.forEach(store => {
-          const cleanStore = store.toLowerCase();
-          const hasStore = existingPlatforms.some(ep => ep.includes(cleanStore) || cleanStore.includes(ep));
-          if (!hasStore) {
-            let priceMultiplier = 1.0;
-            if (store === 'Flipkart') priceMultiplier = 0.94;
-            else if (store === 'Meesho') priceMultiplier = 0.89; // 11% cheaper (lowest price)
-            else if (store === 'Myntra') priceMultiplier = 1.03;
-            else priceMultiplier = 0.97;
-
-            const sPrice = parseFloat((dealPrice * priceMultiplier).toFixed(2));
-            const sRetail = parseFloat((retailPrice * priceMultiplier).toFixed(2));
-            const sCb = store === 'Meesho' ? 12 : (store === 'Flipkart' ? 8 : 10);
-            const sCbEarned = parseFloat(((sPrice * sCb) / 100).toFixed(2));
-            const sEff = parseFloat((sPrice - sCbEarned).toFixed(2));
-
-            finalComparisons.push({
-              platform: store,
-              dealPrice: sPrice,
-              price: sPrice,
-              listedPrice: sPrice,
-              retailPrice: sRetail,
-              cashbackPercent: sCb,
-              cashbackEarned: sCbEarned,
-              effectivePrice: sEff,
-              link: getProductPlatformUrl(d, store)
-            });
-          }
-        });
 
         finalComparisons.sort((a, b) => a.effectivePrice - b.effectivePrice);
 
@@ -1672,7 +1639,7 @@ export default function App() {
           <>
             {/* Banner Slider */}
             <Hero
-              banners={bannersData}
+              banners={bannersData ? bannersData.filter(b => b.type !== 'AD' && b.isActive) : []}
               onCtaClick={handleCtaRedirect}
               setView={setView}
               currentUser={currentUser}
@@ -1793,6 +1760,9 @@ export default function App() {
                   onCategoryChange={setActiveCategory}
                   categories={categoriesData}
                 />
+
+                {/* Promo Ad Banners Placement */}
+                <AdBanners banners={bannersData ? bannersData.filter(b => b.type === 'AD' && b.isActive) : []} />
 
                 {/* Main Retailers Card Grid */}
                 <StoreGrid

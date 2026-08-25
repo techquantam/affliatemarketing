@@ -151,7 +151,8 @@ public class WalletController {
                     request.getAmount(),
                     request.getReason(),
                     request.getAdminId(),
-                    request.getAdminName()
+                    request.getAdminName(),
+                    request.getTargetWallet()
             );
             return ResponseEntity.ok(txn);
         } catch (IllegalArgumentException e) {
@@ -169,5 +170,6 @@ public class WalletController {
         private String reason;
         private String adminId;
         private String adminName;
+        private String targetWallet; // APPROVED, PENDING
     }
 }

@@ -47,6 +47,10 @@ export default function AdminSharedCommissions({
       return;
     }
 
+    if (!window.confirm("Are you sure you want to adjust this commission payout split?")) {
+      return;
+    }
+
     onAdjustCommission(selectedComm.id, userVal, totalVal, selectedComm.status);
     setIsAdjustModalOpen(false);
   };
@@ -99,7 +103,12 @@ export default function AdminSharedCommissions({
             <>
               <button
                 className="admin-btn-icon edit"
-                onClick={() => onApproveCommission(item.id, item.commissionAmount)}
+                onClick={() => {
+                  const amt = item.userCommissionAmount !== undefined ? item.userCommissionAmount : item.commissionAmount;
+                  if (window.confirm(`Are you sure you want to approve this payout of ₹${amt.toFixed(2)} for ${item.userName}?`)) {
+                    onApproveCommission(item.id, item.commissionAmount);
+                  }
+                }}
                 title="Approve Payout"
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -107,7 +116,12 @@ export default function AdminSharedCommissions({
               </button>
               <button
                 className="admin-btn-icon delete"
-                onClick={() => onRejectCommission(item.id)}
+                onClick={() => {
+                  const amt = item.userCommissionAmount !== undefined ? item.userCommissionAmount : item.commissionAmount;
+                  if (window.confirm(`Are you sure you want to reject this payout of ₹${amt.toFixed(2)} for ${item.userName}?`)) {
+                    onRejectCommission(item.id);
+                  }
+                }}
                 title="Reject Payout"
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >

@@ -109,6 +109,14 @@ public class UserController {
                 }
             }
             if (updatedUser.getKycRemarks() != null) user.setKycRemarks(updatedUser.getKycRemarks());
+            
+            if (updatedUser.getUpiId() != null) user.setUpiId(updatedUser.getUpiId());
+            if (updatedUser.getBankAccountName() != null) user.setBankAccountName(updatedUser.getBankAccountName());
+            if (updatedUser.getBankAccountNumber() != null) user.setBankAccountNumber(updatedUser.getBankAccountNumber());
+            if (updatedUser.getBankIfsc() != null) user.setBankIfsc(updatedUser.getBankIfsc());
+            if (updatedUser.getBankName() != null) user.setBankName(updatedUser.getBankName());
+            if (updatedUser.getPaymentDetailsStatus() != null) user.setPaymentDetailsStatus(updatedUser.getPaymentDetailsStatus());
+            if (updatedUser.getPaymentDetailsRemarks() != null) user.setPaymentDetailsRemarks(updatedUser.getPaymentDetailsRemarks());
 
             User saved = userRepository.save(user);
             Wallet wallet = walletService.getOrCreateWallet(saved.getId());
@@ -636,6 +644,15 @@ public class UserController {
         response.put("kycStatus", user.getKycStatus() != null ? user.getKycStatus() : "not_submitted");
         response.put("kycRemarks", user.getKycRemarks());
 
+        // Payment details
+        response.put("upiId", user.getUpiId());
+        response.put("bankAccountName", user.getBankAccountName());
+        response.put("bankAccountNumber", user.getBankAccountNumber());
+        response.put("bankIfsc", user.getBankIfsc());
+        response.put("bankName", user.getBankName());
+        response.put("paymentDetailsStatus", user.getPaymentDetailsStatus() != null ? user.getPaymentDetailsStatus() : "not_submitted");
+        response.put("paymentDetailsRemarks", user.getPaymentDetailsRemarks());
+
         Map<String, Double> walletData = new HashMap<>();
         walletData.put("confirmed", wallet.getApprovedBalance());
         walletData.put("pending", wallet.getPendingBalance());
@@ -727,5 +744,143 @@ public class UserController {
                 : "USR";
         String suffix = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
         return prefix + suffix;
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String rawIdentifier = body.get("identifier");
+        String identifier = normalizeIdentifier(rawIdentifier);
+        if (identifier == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email or Phone is required"));
+        }
+        Optional<User> userOpt = identifier.contains("@") ? userRepository.findByEmail(identifier) : findUserByPhone(identifier);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No account registered with this email or phone"));
+        }
+        User user = userOpt.get();
+        String otp = String.format("%06d", new Random().nextInt(999999));
+        user.setOtp(otp);
+        user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        userRepository.save(user);
+
+        try {
+            if (user.getEmail() != null) {
+                emailService.sendPasswordResetEmail(user.getEmail(), otp);
+            } else if (user.getPhone() != null) {
+                if (smsService.isMessageCentralActive()) {
+                    String verificationId = smsService.sendOtpSms(user.getPhone(), otp);
+                    user.setMcVerificationId(verificationId);
+                    userRepository.save(user);
+                } else {
+                    user.setMcVerificationId(null);
+                    userRepository.save(user);
+                }
+            }
+            return ResponseEntity.ok(Map.of("message", "OTP sent successfully", "identifier", identifier));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String identifier = normalizeIdentifier(body.get("identifier"));
+        String otp = normalize(body.get("otp"));
+        String newPassword = normalize(body.get("password"));
+
+        if (identifier == null || otp == null || newPassword == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Identifier, OTP, and new password are required"));
+        }
+
+        Optional<User> userOpt = identifier.contains("@") ? userRepository.findByEmail(identifier) : findUserByPhone(identifier);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
+        }
+
+        User user = userOpt.get();
+        boolean otpValid = false;
+
+        if (user.getPhone() != null && smsService.isMessageCentralActive() && user.getMcVerificationId() != null) {
+            String verificationId = user.getMcVerificationId();
+            otpValid = smsService.verifyMessageCentralOtp(verificationId, otp);
+            if (!otpValid) {
+                otpValid = user.getOtp() != null && user.getOtp().equals(otp)
+                        && user.getOtpExpiry() != null && user.getOtpExpiry().isAfter(LocalDateTime.now());
+            }
+        } else {
+            if (user.getOtp() != null && user.getOtp().equals(otp)) {
+                if (user.getOtpExpiry() != null && user.getOtpExpiry().isAfter(LocalDateTime.now())) {
+                    otpValid = true;
+                }
+            }
+        }
+
+        if (!otpValid) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid or expired OTP code"));
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setOtp(null);
+        user.setOtpExpiry(null);
+        user.setMcVerificationId(null);
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in."));
+    }
+
+    @PutMapping("/{id}/payment-details")
+    public ResponseEntity<?> updatePaymentDetails(@PathVariable String id, @RequestBody Map<String, String> body) {
+        return userRepository.findById(id).map(user -> {
+            user.setUpiId(body.get("upiId"));
+            user.setBankAccountName(body.get("bankAccountName"));
+            user.setBankAccountNumber(body.get("bankAccountNumber"));
+            user.setBankIfsc(body.get("bankIfsc"));
+            user.setBankName(body.get("bankName"));
+            user.setPaymentDetailsStatus("pending");
+            user.setPaymentDetailsRemarks(null);
+            
+            User saved = userRepository.save(user);
+            Wallet wallet = walletService.getOrCreateWallet(saved.getId());
+            return ResponseEntity.ok(buildUserResponse(saved, wallet));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/payment-details/status")
+    public ResponseEntity<?> updatePaymentDetailsStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
+        return userRepository.findById(id).map(user -> {
+            String status = body.get("status");
+            String remarks = body.get("remarks");
+            if (status != null) {
+                user.setPaymentDetailsStatus(status.toLowerCase());
+            }
+            if (remarks != null) {
+                user.setPaymentDetailsRemarks(remarks);
+            }
+            User saved = userRepository.save(user);
+            
+            if (status != null) {
+                try {
+                    String title = "Payment Details Verification Update";
+                    String msg = "approved".equalsIgnoreCase(status)
+                        ? "Your bank / UPI details have been verified and approved. You can now request payouts."
+                        : "Your bank / UPI details have been rejected. Reason: " + (remarks != null && !remarks.isEmpty() ? remarks : "Please correct any typos.");
+                    
+                    Notification notif = Notification.builder()
+                        .userId(user.getId())
+                        .title(title)
+                        .message(msg)
+                        .type("PAYMENT_DETAILS")
+                        .read(false)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                    notificationRepository.save(notif);
+                } catch (Exception e) {
+                    log.warn("Failed to save notification for user " + id, e);
+                }
+            }
+            
+            Wallet wallet = walletService.getOrCreateWallet(saved.getId());
+            return ResponseEntity.ok(buildUserResponse(saved, wallet));
+        }).orElse(ResponseEntity.notFound().build());
     }
 }

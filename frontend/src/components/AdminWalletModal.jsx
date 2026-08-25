@@ -9,6 +9,7 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
 
   // Action Form State
   const [actionType, setActionType] = useState('CREDIT'); // CREDIT, DEBIT, ADJUSTMENT
+  const [targetWallet, setTargetWallet] = useState('APPROVED'); // APPROVED, PENDING
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -56,8 +57,9 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
       return;
     }
 
-    if (actionType === 'DEBIT' && wallet && (wallet.approvedBalance || 0) < parsedAmount) {
-      setFormError(`Insufficient balance for debit. Available approved balance is ₹${(wallet.approvedBalance || 0).toFixed(2)}.`);
+    const availableBalance = targetWallet === 'PENDING' ? (wallet?.pendingBalance || 0) : (wallet?.approvedBalance || 0);
+    if (actionType === 'DEBIT' && wallet && availableBalance < parsedAmount) {
+      setFormError(`Insufficient balance for debit. Available ${targetWallet.toLowerCase()} balance is ₹${availableBalance.toFixed(2)}.`);
       return;
     }
 
@@ -72,7 +74,8 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
         amount: parsedAmount,
         reason: reason.trim(),
         adminId: adminId,
-        adminName: adminName
+        adminName: adminName,
+        targetWallet: targetWallet
       });
 
       if (onAddNotification) {
@@ -339,6 +342,37 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                 </div>
               </div>
 
+              {/* Target Wallet Selection */}
+              <div>
+                <label style={{ fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                  Target Wallet
+                </label>
+                <div style={{ display: 'flex', gap: '20px', marginBottom: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: 'var(--text-bold)' }}>
+                    <input 
+                      type="radio" 
+                      name="targetWallet" 
+                      value="APPROVED" 
+                      checked={targetWallet === 'APPROVED'} 
+                      onChange={() => setTargetWallet('APPROVED')} 
+                      style={{ accentColor: 'var(--primary)' }}
+                    />
+                    Confirmed Wallet (Approved Balance)
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: 'var(--text-bold)' }}>
+                    <input 
+                      type="radio" 
+                      name="targetWallet" 
+                      value="PENDING" 
+                      checked={targetWallet === 'PENDING'} 
+                      onChange={() => setTargetWallet('PENDING')} 
+                      style={{ accentColor: 'var(--primary)' }}
+                    />
+                    Pending Wallet (Pending Balance)
+                  </label>
+                </div>
+              </div>
+
               {/* Amount Input */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
                 <div>
@@ -472,16 +506,21 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                           </td>
                           <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>{formattedDate}</td>
                           <td style={{ padding: '10px 12px' }}>
-                            <span style={{
-                              color: isCredit ? '#10b981' : '#ef4444',
-                              fontWeight: 700,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}>
-                              {isCredit ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
-                              {item.category === 'ADMIN_ADJUSTMENT' ? 'ADJUSTMENT' : item.type}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{
+                                color: isCredit ? '#10b981' : '#ef4444',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                {isCredit ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
+                                {item.category === 'ADMIN_ADJUSTMENT' ? 'ADJUSTMENT' : item.type}
+                              </span>
+                              <span style={{ fontSize: '10px', color: 'var(--text)', opacity: 0.6 }}>
+                                ({item.targetWallet || 'APPROVED'})
+                              </span>
+                            </div>
                           </td>
                           <td style={{ padding: '10px 12px', fontWeight: 700, color: isCredit ? '#10b981' : '#ef4444' }}>
                             {isCredit ? '+' : '-'}₹{(item.amount || 0).toFixed(2)}

@@ -59,4 +59,42 @@ public class EmailService {
             // The OTP is saved in DB and logged to console.
         }
     }
+
+    public void sendPasswordResetEmail(String to, String otp) {
+        String subject = "Reset your password - Cyvanta Cashback";
+        String text = "Welcome to Cyvanta!\n\nYour password reset OTP code is: " + otp + "\n\nThis code will expire in 10 minutes.\n\nIf you did not request this, please ignore this email.";
+
+        log.info("[EMAIL] Attempting to send reset OTP to {} (fromEmail={})", to, fromEmail);
+
+        if (fromEmail == null || fromEmail.isEmpty() || fromEmail.contains("your-email")) {
+            log.warn("[EMAIL] SMTP not configured properly. Printing reset OTP to console for testing.");
+            log.info("===========================================");
+            log.info("Reset OTP for {}: {}", to, otp);
+            log.info("===========================================");
+            return;
+        }
+
+        if (mailSender == null) {
+            log.error("[EMAIL] JavaMailSender is not available! Check spring.mail.* configuration.");
+            log.info("===========================================");
+            log.info("Reset OTP for {}: {}", to, otp);
+            log.info("===========================================");
+            return;
+        }
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(to);
+            message.setSubject(subject);
+            message.setText(text);
+            mailSender.send(message);
+            log.info("[EMAIL] ✅ Reset OTP email sent successfully to {}", to);
+        } catch (Exception e) {
+            log.error("[EMAIL] ❌ Failed to send Reset OTP email to {} — Error: {}", to, e.getMessage());
+            log.info("===========================================");
+            log.info("FALLBACK Reset OTP for {}: {}", to, otp);
+            log.info("===========================================");
+        }
+    }
 }

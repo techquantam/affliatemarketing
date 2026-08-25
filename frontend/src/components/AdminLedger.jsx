@@ -1,13 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Search, Filter, User, ArrowLeft, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Wallet, Search, Filter, User, ArrowLeft, ArrowUpRight, ArrowDownRight, Clock, CheckCircle, HelpCircle } from 'lucide-react';
 import { AdminTable, ExportDataButton } from './AdminComponents';
 import { apiFinance } from '../services/api';
 
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'All Categories' },
+  { value: 'COMMISSION', label: 'Commission' },
+  { value: 'SHARED_COMMISSION', label: 'Shared Commission' },
+  { value: 'WITHDRAWAL', label: 'Withdrawal' },
+  { value: 'ADJUSTMENT', label: 'Adjustment' },
+  { value: 'REFUND', label: 'Refund' },
+  { value: 'OTHER', label: 'Other' },
+];
+
 export default function AdminLedger({ users }) {
   const [ledgerData, setLedgerData] = useState([]);
+  const [financeData, setFinanceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('ALL');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -18,8 +33,12 @@ export default function AdminLedger({ users }) {
   const fetchLedger = async () => {
     try {
       setLoading(true);
-      const data = await apiFinance.getLedger();
-      setLedgerData(data || []);
+      const [ledger, finance] = await Promise.all([
+        apiFinance.getLedger(),
+        apiFinance.getData()
+      ]);
+      setLedgerData(ledger || []);
+      setFinanceData(finance || null);
     } catch (err) {
       console.error('Failed to fetch ledger:', err);
     } finally {
@@ -42,13 +61,25 @@ export default function AdminLedger({ users }) {
   let filteredData = ledgerData.filter(item => {
     if (selectedUser && item.userId !== selectedUser.id) return false;
     if (filterType !== 'ALL' && item.type !== filterType) return false;
+    if (categoryFilter && item.category !== categoryFilter) return false;
+    if (statusFilter && item.status !== statusFilter) return false;
     
+    if (dateFrom) {
+      const entryDate = item.date ? item.date.substring(0, 10) : '';
+      if (entryDate < dateFrom) return false;
+    }
+    if (dateTo) {
+      const entryDate = item.date ? item.date.substring(0, 10) : '';
+      if (entryDate > dateTo) return false;
+    }
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const userName = getUserName(item.userId).toLowerCase();
       const desc = (item.description || '').toLowerCase();
-      const category = (item.category || '').toLowerCase();
-      return userName.includes(query) || desc.includes(query) || category.includes(query);
+      const cat = (item.category || '').toLowerCase();
+      const transactionId = (item.transactionId || item.id || '').toLowerCase();
+      return userName.includes(query) || desc.includes(query) || cat.includes(query) || transactionId.includes(query);
     }
     return true;
   });
@@ -126,14 +157,6 @@ export default function AdminLedger({ users }) {
     userName: getUserName(item.userId)
   }));
 
-  // Calculate stats for current view
-  const totalCredits = filteredData
-    .filter(i => i.type === 'CREDIT' && i.status?.toLowerCase() !== 'rejected')
-    .reduce((sum, i) => sum + (i.amount || 0), 0);
-  const totalDebits = filteredData
-    .filter(i => i.type === 'DEBIT' && i.status?.toLowerCase() !== 'rejected')
-    .reduce((sum, i) => sum + (i.amount || 0), 0);
-
   return (
     <div className="admin-ledger-tab animate-fade">
       <div className="admin-page-header">
@@ -158,25 +181,30 @@ export default function AdminLedger({ users }) {
       <div className="admin-kpi-grid" style={{ marginBottom: '24px' }}>
         <div className="admin-kpi-card">
           <div className="admin-kpi-info">
-            <h3>Total Credits (Approved)</h3>
-            <div className="admin-kpi-value" style={{ color: '#10b981' }}>₹{totalCredits.toFixed(2)}</div>
-            <span style={{ fontSize: '12px', color: 'var(--text)' }}>Earnings added to wallets</span>
+            <h3>Approved Balance</h3>
+            <div className="admin-kpi-value" style={{ color: '#10b981' }}>₹{financeData?.totalApprovedBalance?.toFixed(2) || '0.00'}</div>
+            <span style={{ fontSize: '12px', color: 'var(--text)' }}>Total approved across all users</span>
           </div>
         </div>
         <div className="admin-kpi-card">
           <div className="admin-kpi-info">
-            <h3>Total Debits (Payouts/Adjustments)</h3>
-            <div className="admin-kpi-value" style={{ color: '#ef4444' }}>₹{totalDebits.toFixed(2)}</div>
-            <span style={{ fontSize: '12px', color: 'var(--text)' }}>Funds withdrawn or removed</span>
+            <h3>Pending Balance</h3>
+            <div className="admin-kpi-value" style={{ color: '#f59e0b' }}>₹{financeData?.totalPendingBalance?.toFixed(2) || '0.00'}</div>
+            <span style={{ fontSize: '12px', color: 'var(--text)' }}>Awaiting merchant verification</span>
           </div>
         </div>
         <div className="admin-kpi-card">
           <div className="admin-kpi-info">
-            <h3>Net Balance (Current View)</h3>
-            <div className="admin-kpi-value" style={{ color: totalCredits - totalDebits >= 0 ? '#10b981' : '#ef4444' }}>
-              ₹{(totalCredits - totalDebits).toFixed(2)}
-            </div>
-            <span style={{ fontSize: '12px', color: 'var(--text)' }}>Credits minus Debits</span>
+            <h3>Withdrawal</h3>
+            <div className="admin-kpi-value" style={{ color: '#ef4444' }}>₹{financeData?.totalWithdrawnAmount?.toFixed(2) || '0.00'}</div>
+            <span style={{ fontSize: '12px', color: 'var(--text)' }}>Total payouts settled to users</span>
+          </div>
+        </div>
+        <div className="admin-kpi-card">
+          <div className="admin-kpi-info">
+            <h3>Total Balance</h3>
+            <div className="admin-kpi-value" style={{ color: '#3b82f6' }}>₹{financeData?.totalWalletBalance?.toFixed(2) || '0.00'}</div>
+            <span style={{ fontSize: '12px', color: 'var(--text)' }}>Approved + Pending wallet funds</span>
           </div>
         </div>
       </div>
@@ -184,8 +212,8 @@ export default function AdminLedger({ users }) {
       <div className="admin-table-card">
         <div className="admin-table-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <h3 className="admin-table-title" style={{ margin: 0 }}>Transaction Records</h3>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <div className="admin-search-input-wrapper" style={{ width: '250px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="admin-search-input-wrapper" style={{ width: '220px' }}>
               <Search size={16} className="admin-search-icon" />
               <input 
                 type="text" 
@@ -196,18 +224,55 @@ export default function AdminLedger({ users }) {
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Filter size={14} color="var(--text)" />
-              <select 
-                value={filterType} 
-                onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
-                className="admin-filter-select"
-              >
-                <option value="ALL">All Types</option>
-                <option value="CREDIT">Credits Only</option>
-                <option value="DEBIT">Debits Only</option>
-              </select>
-            </div>
+            
+            <select 
+              value={filterType} 
+              onChange={(e) => { setFilterType(e.target.value); setCurrentPage(1); }}
+              className="admin-filter-select"
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', backgroundColor: 'var(--card-bg)', color: 'var(--text)' }}
+            >
+              <option value="ALL">All Types</option>
+              <option value="CREDIT">Credits Only</option>
+              <option value="DEBIT">Debits Only</option>
+            </select>
+
+            <select 
+              value={categoryFilter} 
+              onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1); }}
+              className="admin-filter-select"
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', backgroundColor: 'var(--card-bg)', color: 'var(--text)' }}
+            >
+              {CATEGORY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+
+            <select 
+              value={statusFilter} 
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+              className="admin-filter-select"
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', backgroundColor: 'var(--card-bg)', color: 'var(--text)' }}
+            >
+              <option value="">All Statuses</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="COMPLETED">Paid/Completed</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+
+            <input 
+              type="date" 
+              value={dateFrom} 
+              onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }} 
+              title="From date" 
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', backgroundColor: 'var(--card-bg)', color: 'var(--text)' }} 
+            />
+            <span style={{ fontSize: '13px', color: 'var(--text)' }}>to</span>
+            <input 
+              type="date" 
+              value={dateTo} 
+              onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }} 
+              title="To date" 
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '13px', backgroundColor: 'var(--card-bg)', color: 'var(--text)' }} 
+            />
           </div>
         </div>
 

@@ -110,6 +110,10 @@ public class WalletService {
     }
 
     public WalletTransaction adminAdjustWallet(String userId, String actionType, Double amount, String reason, String adminId, String adminName) {
+        return adminAdjustWallet(userId, actionType, amount, reason, adminId, adminName, "APPROVED");
+    }
+
+    public WalletTransaction adminAdjustWallet(String userId, String actionType, Double amount, String reason, String adminId, String adminName, String targetWallet) {
         if (amount == null || amount <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero");
         }
@@ -118,7 +122,14 @@ public class WalletService {
         }
 
         Wallet wallet = getOrCreateWallet(userId);
-        Double previousBalance = wallet.getApprovedBalance() != null ? wallet.getApprovedBalance() : 0.0;
+        String normalizedTarget = (targetWallet != null) ? targetWallet.toUpperCase() : "APPROVED";
+        if (!"APPROVED".equals(normalizedTarget) && !"PENDING".equals(normalizedTarget)) {
+            throw new IllegalArgumentException("Invalid target wallet: " + targetWallet);
+        }
+
+        Double previousBalance = "PENDING".equals(normalizedTarget)
+                ? (wallet.getPendingBalance() != null ? wallet.getPendingBalance() : 0.0)
+                : (wallet.getApprovedBalance() != null ? wallet.getApprovedBalance() : 0.0);
         Double newBalance;
 
         String normalizedAction = actionType != null ? actionType.toUpperCase() : "CREDIT";
@@ -128,23 +139,27 @@ public class WalletService {
         if ("CREDIT".equals(normalizedAction)) {
             newBalance = previousBalance + amount;
             type = "CREDIT";
-            category = "ADMIN_CREDIT";
+            category = "PENDING".equals(normalizedTarget) ? "ADMIN_PENDING_CREDIT" : "ADMIN_CREDIT";
         } else if ("DEBIT".equals(normalizedAction)) {
             if (previousBalance < amount) {
-                throw new IllegalArgumentException("Insufficient balance for debit. Current approved balance: ₹" + String.format("%.2f", previousBalance));
+                throw new IllegalArgumentException("Insufficient balance for debit. Current " + normalizedTarget.toLowerCase() + " balance: ₹" + String.format("%.2f", previousBalance));
             }
             newBalance = previousBalance - amount;
             type = "DEBIT";
-            category = "ADMIN_DEBIT";
+            category = "PENDING".equals(normalizedTarget) ? "ADMIN_PENDING_DEBIT" : "ADMIN_DEBIT";
         } else if ("ADJUSTMENT".equals(normalizedAction)) {
             newBalance = previousBalance + amount;
             type = "CREDIT";
-            category = "ADMIN_ADJUSTMENT";
+            category = "PENDING".equals(normalizedTarget) ? "ADMIN_PENDING_ADJUSTMENT" : "ADMIN_ADJUSTMENT";
         } else {
             throw new IllegalArgumentException("Invalid action type: " + actionType);
         }
 
-        wallet.setApprovedBalance(newBalance);
+        if ("PENDING".equals(normalizedTarget)) {
+            wallet.setPendingBalance(newBalance);
+        } else {
+            wallet.setApprovedBalance(newBalance);
+        }
         wallet.setUpdatedAt(LocalDateTime.now());
         walletRepository.save(wallet);
 
@@ -157,13 +172,14 @@ public class WalletService {
                 .type(type)
                 .category(category)
                 .status("COMPLETED")
-                .description(reason.trim())
+                .description(reason.trim() + " (" + normalizedTarget + " Wallet)")
                 .reason(reason.trim())
                 .previousBalance(previousBalance)
                 .newBalance(newBalance)
                 .adminId(adminId)
                 .adminName(adminStr)
                 .updatedBy(adminStr)
+                .targetWallet(normalizedTarget)
                 .createdAt(LocalDateTime.now())
                 .build();
 

@@ -40,6 +40,8 @@ public class BannerController {
             banner.setStoreName(bannerDetails.getStoreName());
             banner.setCashbackRate(bannerDetails.getCashbackRate());
             banner.setLogo(bannerDetails.getLogo());
+            banner.setType(bannerDetails.getType());
+            banner.setTargetUrl(bannerDetails.getTargetUrl());
             banner.setIsActive(bannerDetails.getIsActive());
             return ResponseEntity.ok(bannerRepository.save(banner));
         }).orElse(ResponseEntity.notFound().build());

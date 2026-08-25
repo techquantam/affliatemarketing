@@ -138,7 +138,11 @@ export const apiUsers = {
   resendOtp: (identifier) => request('/users/resend-otp', { method: 'POST', body: JSON.stringify({ identifier }) }),
   updateStatus: (id, status) => request(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   update: (id, userData) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(userData) }),
-  updateKyc: (id, kycData) => request(`/users/${id}/kyc`, { method: 'PUT', body: JSON.stringify(kycData) })
+  updateKyc: (id, kycData) => request(`/users/${id}/kyc`, { method: 'PUT', body: JSON.stringify(kycData) }),
+  forgotPassword: (identifier) => request('/users/forgot-password', { method: 'POST', body: JSON.stringify({ identifier }) }),
+  resetPassword: (identifier, otp, password) => request('/users/reset-password', { method: 'POST', body: JSON.stringify({ identifier, otp, password }) }),
+  updatePaymentDetails: (id, details) => request(`/users/${id}/payment-details`, { method: 'PUT', body: JSON.stringify(details) }),
+  updatePaymentDetailsStatus: (id, payload) => request(`/users/${id}/payment-details/status`, { method: 'PUT', body: JSON.stringify(payload) })
 };
 
 export const apiProducts = {

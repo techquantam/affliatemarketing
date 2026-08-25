@@ -4,7 +4,7 @@ import { apiUsers } from '../services/api';
 
 export default function AuthModal({ isOpen, onClose, onLogin }) {
   const [activeTab, setActiveTab] = useState('login');
-  const [authStep, setAuthStep] = useState('details'); // 'details' or 'otp'
+  const [authStep, setAuthStep] = useState('details'); // 'details', 'otp', 'forgot-request', 'forgot-reset'
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -17,7 +17,11 @@ export default function AuthModal({ isOpen, onClose, onLogin }) {
 
   const resetState = (tab) => {
     setActiveTab(tab);
-    setAuthStep('details');
+    if (tab === 'forgot') {
+      setAuthStep('forgot-request');
+    } else {
+      setAuthStep('details');
+    }
     setError('');
     setSuccessMessage('');
     setOtp('');
@@ -143,6 +147,49 @@ export default function AuthModal({ isOpen, onClose, onLogin }) {
       .catch((err) => setError(err.message || 'Failed to resend OTP.'));
   };
 
+  const handleForgotRequestSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    if (!identifier) {
+      setError('Please enter your email or mobile number');
+      return;
+    }
+    setLoading(true);
+    apiUsers.forgotPassword(identifier)
+      .then((res) => {
+        setAuthStep('forgot-reset');
+        setSuccessMessage(res.message || 'Verification OTP sent successfully.');
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message || 'Failed to send recovery OTP. Check your input.');
+        setLoading(false);
+      });
+  };
+
+  const handleForgotResetSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    if (!otp || otp.length < 4 || !password) {
+      setError('Please fill in both OTP and new password.');
+      return;
+    }
+    setLoading(true);
+    apiUsers.resetPassword(identifier, otp, password)
+      .then((res) => {
+        setSuccessMessage(res.message || 'Password reset successfully. Redirecting to login...');
+        setTimeout(() => {
+          resetState('login');
+        }, 1500);
+      })
+      .catch((err) => {
+        setError(err.message || 'Reset failed. Invalid/expired OTP code.');
+        setLoading(false);
+      });
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content animate-scale" onClick={(e) => e.stopPropagation()}>
@@ -202,7 +249,7 @@ export default function AuthModal({ isOpen, onClose, onLogin }) {
           </div>
         )}
 
-        {authStep === 'details' ? (
+        {authStep === 'details' && (
           <form onSubmit={handleDetailsSubmit} className="auth-form">
             {activeTab === 'signup' && (
               <div className="form-group animate-fade">
@@ -282,6 +329,17 @@ export default function AuthModal({ isOpen, onClose, onLogin }) {
                   required
                 />
               </div>
+              {activeTab === 'login' && (
+                <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => resetState('forgot')}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '12px', cursor: 'pointer', fontWeight: '500' }}
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+              )}
             </div>
 
             <button type="submit" className="btn-auth-submit" disabled={loading}>
@@ -298,7 +356,9 @@ export default function AuthModal({ isOpen, onClose, onLogin }) {
               By continuing, you agree to our Terms of Service & Privacy Policy.
             </p>
           </form>
-        ) : (
+        )}
+
+        {authStep === 'otp' && (
           <form onSubmit={handleOtpSubmit} className="auth-form animate-fade">
             <div className="form-group">
               <label>6-Digit OTP</label>
@@ -352,6 +412,132 @@ export default function AuthModal({ isOpen, onClose, onLogin }) {
                 style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: '13px', cursor: 'pointer' }}
               >
                 &larr; Back to {activeTab === 'login' ? 'Log In' : 'Sign Up'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {authStep === 'forgot-request' && (
+          <form onSubmit={handleForgotRequestSubmit} className="auth-form animate-fade">
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '5px' }}>Recover Password</h2>
+              <p style={{ fontSize: '13px', color: 'var(--text)' }}>Enter your registered email or mobile number to receive a verification OTP code.</p>
+            </div>
+            
+            <div className="form-group">
+              <label>Email or Mobile Number</label>
+              <div style={{ position: 'relative' }}>
+                <Mail
+                  size={16}
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    opacity: 0.5,
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Enter email or mobile number"
+                  className="form-input"
+                  style={{ paddingLeft: '36px', width: '100%' }}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="btn-auth-submit" disabled={loading}>
+              {loading ? 'Sending OTP...' : 'Send Recovery OTP'}
+            </button>
+
+            <div style={{ textAlign: 'center', marginTop: '12px' }}>
+              <button 
+                type="button" 
+                onClick={() => resetState('login')}
+                style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: '13px', cursor: 'pointer' }}
+              >
+                &larr; Back to Login
+              </button>
+            </div>
+          </form>
+        )}
+
+        {authStep === 'forgot-reset' && (
+          <form onSubmit={handleForgotResetSubmit} className="auth-form animate-fade">
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '5px' }}>Reset Password</h2>
+              <p style={{ fontSize: '13px', color: 'var(--text)' }}>OTP sent to <strong>{identifier}</strong></p>
+            </div>
+
+            <div className="form-group">
+              <label>6-Digit OTP</label>
+              <div style={{ position: 'relative' }}>
+                <ShieldCheck
+                  size={16}
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    opacity: 0.5,
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Enter OTP code"
+                  className="form-input"
+                  style={{ paddingLeft: '36px', width: '100%', letterSpacing: '4px', textAlign: 'center', fontSize: '20px', fontWeight: 'bold' }}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  disabled={loading}
+                  required
+                  maxLength={6}
+                  inputMode="numeric"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>New Password</label>
+              <div style={{ position: 'relative' }}>
+                <Lock
+                  size={16}
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    opacity: 0.5,
+                  }}
+                />
+                <input
+                  type="password"
+                  placeholder="Enter new secure password"
+                  className="form-input"
+                  style={{ paddingLeft: '36px', width: '100%' }}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+              </div>
+            </div>
+
+            <button type="submit" className="btn-auth-submit" disabled={loading || otp.length < 4}>
+              {loading ? 'Resetting Password...' : 'Reset Password'}
+            </button>
+
+            <div style={{ textAlign: 'center', marginTop: '12px' }}>
+              <button 
+                type="button" 
+                onClick={() => resetState('login')}
+                style={{ background: 'none', border: 'none', color: 'var(--text)', fontSize: '13px', cursor: 'pointer' }}
+              >
+                Cancel and Back to Login
               </button>
             </div>
           </form>

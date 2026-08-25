@@ -422,6 +422,10 @@ export default function AdminProducts({ products, stores = [], categories = [], 
       };
 
       if (editItem) {
+        if (!window.confirm("Are you sure you want to save changes to this product?")) {
+          setIsUploading(false);
+          return;
+        }
         await onEditProduct({ ...editItem, ...payload });
       } else {
         await onAddProduct(payload);
@@ -491,17 +495,25 @@ export default function AdminProducts({ products, stores = [], categories = [], 
           <input
             type="checkbox"
             checked={item.status === 'active'}
-            onChange={() => onToggleStatus(item.id)}
+            onChange={() => {
+              if (window.confirm(`Are you sure you want to ${item.status === 'active' ? 'deactivate' : 'activate'} this product?`)) {
+                onToggleStatus(item.id);
+              }
+            }}
           />
           <span className="admin-slider"></span>
         </label>
       </td>
       <td>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="admin-btn-icon edit" onClick={() => handleEdit(item)} title="Edit Product">
+          <button className="admin-btn-icon edit" onClick={() => openEditModal(item)} title="Edit Product">
             <Edit2 size={14} />
           </button>
-          <button className="admin-btn-icon delete" onClick={() => onDeleteProduct(item.id)} title="Delete Product">
+          <button className="admin-btn-icon delete" onClick={() => {
+            if (window.confirm("Are you sure you want to delete this product?")) {
+              onDeleteProduct(item.id);
+            }
+          }} title="Delete Product">
             <Trash2 size={14} />
           </button>
         </div>

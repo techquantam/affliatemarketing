@@ -38,6 +38,8 @@ public class WalletTransaction {
 
     private String reason;
 
+    private String targetWallet; // APPROVED, PENDING
+
     private String adminId;
 
     private String adminName;

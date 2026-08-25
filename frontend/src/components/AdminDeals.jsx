@@ -49,6 +49,10 @@ export default function AdminDeals({ deals, onAddDeal, onDeleteDeal }) {
       return;
     }
 
+    if (!window.confirm("Are you sure you want to save this featured deal?")) {
+      return;
+    }
+
     onAddDeal({
       name: dealName,
       image: dealImg || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300',
@@ -86,7 +90,11 @@ export default function AdminDeals({ deals, onAddDeal, onDeleteDeal }) {
         <span className={`status-badge ${item.status}`}>{item.status}</span>
       </td>
       <td>
-        <button className="admin-btn-icon delete" onClick={() => onDeleteDeal(item.id)} title="Delete Banner Deal">
+        <button className="admin-btn-icon delete" onClick={() => {
+          if (window.confirm("Are you sure you want to delete this featured deal?")) {
+            onDeleteDeal(item.id);
+          }
+        }} title="Delete Banner Deal">
           <Trash2 size={14} />
         </button>
       </td>

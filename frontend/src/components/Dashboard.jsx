@@ -40,6 +40,18 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   const [profileState, setProfileState] = useState(currentUser?.state || '');
   const [profilePincode, setProfilePincode] = useState(currentUser?.pincode || '');
 
+  // --- PAYMENT DETAILS STATES ---
+  const [upiId, setUpiId] = useState(currentUser?.upiId || '');
+  const [bankAccountName, setBankAccountName] = useState(currentUser?.bankAccountName || '');
+  const [bankAccountNumber, setBankAccountNumber] = useState(currentUser?.bankAccountNumber || '');
+  const [bankIfsc, setBankIfsc] = useState(currentUser?.bankIfsc || '');
+  const [bankName, setBankName] = useState(currentUser?.bankName || '');
+  const [isEditingPayment, setIsEditingPayment] = useState(
+    currentUser?.paymentDetailsStatus === 'not_submitted' || 
+    currentUser?.paymentDetailsStatus === 'rejected'
+  );
+  const [isSavingPayment, setIsSavingPayment] = useState(false);
+
   // --- KYC STATES ---
   const [kycAadhaar, setKycAadhaar] = useState(currentUser?.aadhaarNumber || '');
   const [kycPan, setKycPan] = useState(currentUser?.panNumber || '');
@@ -123,6 +135,9 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   };
 
   const handleDeleteLink = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this shared link? All click data for this link will be lost.")) {
+      return;
+    }
     try {
       await apiSharedLinks.delete(id);
       setSharedLinks(prev => prev.filter(l => l.id !== id));
@@ -175,11 +190,25 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
       onAddNotification('E-KYC verification is mandatory before making a withdrawal. Please go to the "My Profile & KYC" tab to submit your documents.', 'error');
       return;
     }
+    if (currentUser?.paymentDetailsStatus !== 'approved') {
+      onAddNotification('Bank Account / UPI details verification is mandatory before making a withdrawal. Please submit them in the "My Profile & KYC" tab.', 'error');
+      return;
+    }
     if (userWallet.confirmed < 10) {
       onAddNotification('Minimum withdrawal amount is ₹10.', 'error');
       return;
     }
     setWithdrawAmount(userWallet.confirmed.toString());
+    
+    // Prefill destination
+    if (currentUser?.upiId && currentUser.upiId.trim()) {
+      setWithdrawUpi(currentUser.upiId.trim());
+    } else if (currentUser?.bankAccountNumber) {
+      setWithdrawUpi(`A/C: ${currentUser.bankAccountNumber.slice(-4)} (${currentUser.bankName || 'Bank'})`);
+    } else {
+      setWithdrawUpi('No verified payment method found');
+    }
+    
     setShowWithdrawForm(true);
   };
 
@@ -195,8 +224,8 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
       onAddNotification('Insufficient confirmed commission balance.', 'error');
       return;
     }
-    if (!withdrawUpi.trim().includes('@')) {
-      onAddNotification('Please enter a valid UPI ID (e.g. name@bank).', 'error');
+    if (!withdrawUpi || !withdrawUpi.trim()) {
+      onAddNotification('No payout destination configured.', 'error');
       return;
     }
 
@@ -253,6 +282,39 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
       onAddNotification('Failed to save profile.', 'error');
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  const handleSavePaymentDetails = async (e) => {
+    e.preventDefault();
+    if (!upiId.trim() && (!bankAccountNumber.trim() || !bankIfsc.trim() || !bankName.trim())) {
+      onAddNotification('Please fill in either a UPI ID or complete Bank Account Details.', 'error');
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to submit these payout details? They will require Admin verification. Your withdrawals will be locked until approved.")) {
+      return;
+    }
+
+    setIsSavingPayment(true);
+    try {
+      const updatedUser = await apiUsers.updatePaymentDetails(currentUser.id, {
+        upiId: upiId.trim(),
+        bankAccountName: bankAccountName.trim(),
+        bankAccountNumber: bankAccountNumber.trim(),
+        bankIfsc: bankIfsc.trim(),
+        bankName: bankName.trim(),
+      });
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      setIsEditingPayment(false);
+      onAddNotification('Payout details saved and submitted for verification!', 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification(err.message || 'Failed to save payout details.', 'error');
+    } finally {
+      setIsSavingPayment(false);
     }
   };
 
@@ -461,14 +523,12 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
                   </button>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)', textTransform: 'uppercase' }}>UPI ID (e.g. name@bank)</label>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)', textTransform: 'uppercase' }}>Payout Destination (Verified)</label>
                   <input
                     type="text"
-                    required
-                    placeholder="Enter UPI ID for instant payout"
+                    disabled
                     value={withdrawUpi}
-                    onChange={(e) => setWithdrawUpi(e.target.value)}
-                    style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontSize: '14px' }}
+                    style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card-bg)', color: 'var(--text)', fontSize: '14px', cursor: 'not-allowed' }}
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -977,6 +1037,145 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
                   <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
                     {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit KYC for Verification'}
                   </button>
+                </form>
+              )}
+            </div>
+
+            {/* Bank Account & UPI Details Card */}
+            <div className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+                <h3 className="referral-title" style={{ fontSize: '16px', margin: 0 }}>Payout Method (Bank Account / UPI)</h3>
+                <span className={`status-badge ${currentUser?.paymentDetailsStatus || 'not_submitted'}`} style={{ fontSize: '11px', textTransform: 'uppercase' }}>
+                  {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
+                </span>
+              </div>
+
+              {currentUser?.paymentDetailsRemarks && currentUser?.paymentDetailsStatus === 'rejected' && (
+                <div style={{ padding: '10px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '6px', fontSize: '13px' }}>
+                  <strong>Rejection Reason:</strong> {currentUser.paymentDetailsRemarks}
+                </div>
+              )}
+
+              {!isEditingPayment ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div>
+                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>UPI Address</span>
+                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0' }}>{currentUser?.upiId || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>Account Holder Name</span>
+                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0' }}>{currentUser?.bankAccountName || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>Bank Name</span>
+                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0' }}>{currentUser?.bankName || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>Account Number</span>
+                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0' }}>
+                        {currentUser?.bankAccountNumber ? `XXXXXX${currentUser.bankAccountNumber.slice(-4)}` : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>Bank IFSC Code</span>
+                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0', fontFamily: 'monospace' }}>{currentUser?.bankIfsc || 'N/A'}</p>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to update your payout details? Your status will return to PENDING and you won't be able to withdraw until the Admin re-verifies them.")) {
+                        setIsEditingPayment(true);
+                      }
+                    }} 
+                    className="btn-primary" 
+                    style={{ alignSelf: 'flex-start', padding: '8px 16px', fontSize: '13px', marginTop: '10px' }}
+                  >
+                    Edit / Correct Details
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSavePaymentDetails} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text)', margin: 0 }}>
+                    Please fill out either a UPI ID or Bank account details. Leave the other empty if you do not want to use it.
+                  </p>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>UPI Address (e.g. name@bank)</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. rahul@ybl" 
+                      value={upiId} 
+                      onChange={e => setUpiId(e.target.value)} 
+                      style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Account Holder Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="Name as in bank records" 
+                        value={bankAccountName} 
+                        onChange={e => setBankAccountName(e.target.value)} 
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Bank Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. State Bank of India" 
+                        value={bankName} 
+                        onChange={e => setBankName(e.target.value)} 
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Bank Account Number</label>
+                      <input 
+                        type="text" 
+                        placeholder="Enter full account number" 
+                        value={bankAccountNumber} 
+                        onChange={e => setBankAccountNumber(e.target.value)} 
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>IFSC Code</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. SBIN0001234" 
+                        value={bankIfsc} 
+                        onChange={e => setBankIfsc(e.target.value.toUpperCase())} 
+                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} 
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                    <button 
+                      type="submit" 
+                      disabled={isSavingPayment} 
+                      className="btn-primary" 
+                      style={{ padding: '8px 16px', fontWeight: 'bold' }}
+                    >
+                      {isSavingPayment ? 'Saving...' : 'Save & Submit details'}
+                    </button>
+                    {currentUser?.paymentDetailsStatus !== 'not_submitted' && (
+                      <button 
+                        type="button" 
+                        onClick={() => setIsEditingPayment(false)} 
+                        className="btn-secondary" 
+                        style={{ padding: '8px 16px' }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </form>
               )}
             </div>

@@ -85,6 +85,18 @@ public class User {
 
     private String kycRemarks;
 
+    // --- Payment Details Fields ---
+    private String upiId;
+    private String bankAccountName;
+    private String bankAccountNumber;
+    private String bankIfsc;
+    private String bankName;
+
+    @Builder.Default
+    private String paymentDetailsStatus = "not_submitted"; // "not_submitted", "pending", "approved", "rejected"
+
+    private String paymentDetailsRemarks;
+
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
