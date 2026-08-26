@@ -7,6 +7,8 @@ const config: CapacitorConfig = {
   server: {
     // Allow the Capacitor WebView to make requests to external APIs
     allowNavigation: [
+      'walrus-app-memsh.ondigitalocean.app',
+      '*.ondigitalocean.app',
       'affliatemarketing.onrender.com',
       '*.onrender.com',
       'cyvantacashback-3.onrender.com',

@@ -1,0 +1,38 @@
+name: cyvanta-app
+services:
+  - name: cyvanta-backend
+    github:
+      repo: techquantam/affliatemarketing
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: backend/Dockerfile
+    source_dir: backend
+    envs:
+      - key: MONGODB_URI
+        scope: RUN_AND_BUILD_TIME
+        value: "mongodb+srv://your_user:your_password@cluster.mongodb.net/affiliate-app"
+      - key: MONGODB_DATABASE
+        scope: RUN_AND_BUILD_TIME
+        value: "affiliate-app"
+      - key: JWT_SECRET
+        scope: RUN_AND_BUILD_TIME
+        value: "cyvanta_super_secret_jwt_key_2026_production_32char"
+      - key: JWT_EXPIRATION
+        scope: RUN_AND_BUILD_TIME
+        value: "86400000"
+      - key: APP_CORS_ORIGINS
+        scope: RUN_AND_BUILD_TIME
+        value: "*"
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+
+static_sites:
+  - name: cyvanta-frontend
+    github:
+      repo: techquantam/affliatemarketing
+      branch: main
+      deploy_on_push: true
+    source_dir: frontend
+    build_command: npm run build
+    output_dir: dist

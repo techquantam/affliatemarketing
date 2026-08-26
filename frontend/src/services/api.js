@@ -7,8 +7,8 @@ const localHostnames = ['localhost', '127.0.0.1', '::1'];
 const isLocalhost = typeof window !== 'undefined' && localHostnames.includes(window.location.hostname);
 
 export const BASE_URL = import.meta.env.VITE_API_URL ||
-  (isCapacitorNative ? 'https://affliatemarketing.onrender.com/api' :
-   (isLocalhost ? 'http://localhost:8080/api' : 'https://affliatemarketing.onrender.com/api'));
+  (isCapacitorNative ? 'https://walrus-app-memsh.ondigitalocean.app/api' :
+   (isLocalhost ? 'http://localhost:8080/api' : 'https://walrus-app-memsh.ondigitalocean.app/api'));
 
 console.log(`[API Service] Running in BACKEND (${BASE_URL}) mode. Native: ${isCapacitorNative}`);
 
