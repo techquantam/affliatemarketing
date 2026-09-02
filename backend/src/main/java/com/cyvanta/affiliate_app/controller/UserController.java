@@ -366,25 +366,6 @@ public class UserController {
         Optional<User> userOpt = identifier.contains("@") ? userRepository.findByEmail(identifier) : findUserByPhone(identifier);
 
         return userOpt.map(user -> {
-            if (Boolean.FALSE.equals(user.getIsVerified()) || "pending".equals(user.getStatus())) {
-                String otp = String.format("%06d", new Random().nextInt(999999));
-                user.setOtp(otp);
-                user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
-                userRepository.save(user);
-                log.info("[LOGIN] Unverified user {} attempted login, sending fresh OTP", identifier);
-                try {
-                    sendOtp(user, otp);
-                    return ResponseEntity.status(403).body((Object) Map.of(
-                        "error", "Please verify your account to log in.",
-                        "requireOtp", true,
-                        "message", "A verification code has been sent to " + identifier,
-                        "identifier", identifier
-                    ));
-                } catch (Exception e) {
-                    return ResponseEntity.status(500).body((Object) Map.of("error", e.getMessage()));
-                }
-            }
-
             String stored = user.getPasswordHash();
             boolean ok;
             if (stored != null && (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$"))) {
@@ -399,6 +380,14 @@ public class UserController {
 
             if ("blocked".equals(user.getStatus())) {
                 return ResponseEntity.status(403).body((Object) Map.of("error", "Account is blocked"));
+            }
+
+            if (Boolean.FALSE.equals(user.getIsVerified()) || "pending".equals(user.getStatus())) {
+                user.setIsVerified(true);
+                user.setStatus("active");
+                user.setOtp(null);
+                user.setOtpExpiry(null);
+                userRepository.save(user);
             }
 
             Wallet wallet = walletService.getOrCreateWallet(user.getId());
@@ -451,18 +440,11 @@ public class UserController {
         }
 
         if (Boolean.FALSE.equals(user.getIsVerified()) || "pending".equals(user.getStatus())) {
-            String otp = String.format("%06d", new Random().nextInt(999999));
-            user.setOtp(otp);
-            user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+            user.setIsVerified(true);
+            user.setStatus("active");
+            user.setOtp(null);
+            user.setOtpExpiry(null);
             userRepository.save(user);
-            sendOtp(user, otp);
-            recordAdminLoginHistory(user, identifier, user.getRole().toString(), false, request);
-            return ResponseEntity.status(403).body(Map.of(
-                    "error", "Admin account needs verification",
-                    "requireOtp", true,
-                    "message", "OTP sent to your registered email or phone",
-                    "identifier", identifier
-            ));
         }
 
         // Refresh permissions on every login to ensure they match the role
