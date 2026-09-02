@@ -5,9 +5,10 @@
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
     </domain-config>
-    <!-- Trust the Render backend domain -->
+    <!-- Trust the DigitalOcean & LioMart backend domain -->
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">onrender.com</domain>
+        <domain includeSubdomains="true">liomart.co.in</domain>
+        <domain includeSubdomains="true">ondigitalocean.app</domain>
     </domain-config>
     <!-- Default: allow HTTPS connections to all domains -->
     <base-config cleartextTrafficPermitted="false">

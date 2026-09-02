@@ -11,9 +11,6 @@ const config: CapacitorConfig = {
       '*.liomart.co.in',
       'walrus-app-memsh.ondigitalocean.app',
       '*.ondigitalocean.app',
-      'affliatemarketing.onrender.com',
-      '*.onrender.com',
-      'cyvantacashback-3.onrender.com',
       '192.168.1.61',
       '*'
     ],

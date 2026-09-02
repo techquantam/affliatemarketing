@@ -33,9 +33,9 @@ async function request(url, options = {}, retryCount = 0) {
     config.mode = options.mode || 'cors';
   }
 
-  // Add a 180-second timeout to handle Render free-tier cold starts (takes ~130s to wake up)
+  // 30-second request timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 180000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
   config.signal = controller.signal;
 
   try {
@@ -63,7 +63,7 @@ async function request(url, options = {}, retryCount = 0) {
     return text ? JSON.parse(text) : null;
   } catch (err) {
     clearTimeout(timeoutId);
-    // Auto-retry once on network/timeout errors (common with Render cold starts)
+    // Auto-retry once on network/timeout errors
     if (retryCount < 1 && (err.name === 'AbortError' || err.message === 'Failed to fetch' || err.name === 'TypeError')) {
       console.warn(`[API] Request to ${url} failed (${err.message}), retrying...`);
       return request(url, options, retryCount + 1);
