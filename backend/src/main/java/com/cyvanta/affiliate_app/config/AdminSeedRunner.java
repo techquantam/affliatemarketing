@@ -266,8 +266,8 @@ public class AdminSeedRunner implements CommandLineRunner {
                 System.out.println("Sample products seeded successfully");
             }
 
-            storeRepository.deleteAll();
-            storeRepository.saveAll(List.of(
+            if (storeRepository.count() == 0) {
+                storeRepository.saveAll(List.of(
                     Store.builder()
                             .name("Amazon")
                             .logo("https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg")
@@ -320,7 +320,8 @@ public class AdminSeedRunner implements CommandLineRunner {
                             .isPopular(false)
                             .build()
             ));
-            System.out.println("Sample stores with coupons seeded successfully");
+                System.out.println("Sample stores with coupons seeded successfully");
+            }
 
             if (dealRepository.count() == 0) {
                 dealRepository.saveAll(List.of(
