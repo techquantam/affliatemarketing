@@ -53,6 +53,14 @@ public class UserController {
         return ResponseEntity.ok(Map.of("status", "UP", "message", "User Controller is reachable"));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getUserById(@PathVariable String id) {
+        return userRepository.findById(id).map(user -> {
+            Wallet wallet = walletService.getOrCreateWallet(user.getId());
+            return ResponseEntity.ok(buildUserResponse(user, wallet));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     @PutMapping("/{id}/status")
     public ResponseEntity<User> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
         return userRepository.findById(id).map(user -> {
@@ -813,12 +821,57 @@ public class UserController {
     @PutMapping("/{id}/payment-details")
     public ResponseEntity<?> updatePaymentDetails(@PathVariable String id, @RequestBody Map<String, String> body) {
         return userRepository.findById(id).map(user -> {
-            user.setUpiId(body.get("upiId"));
-            user.setBankAccountName(body.get("bankAccountName"));
-            user.setBankAccountNumber(body.get("bankAccountNumber"));
-            user.setBankIfsc(body.get("bankIfsc"));
-            user.setBankName(body.get("bankName"));
-            user.setPaymentDetailsStatus("pending");
+            String upiId = normalize(body.get("upiId"));
+            String bankAccountName = normalize(body.get("bankAccountName"));
+            String bankAccountNumber = normalize(body.get("bankAccountNumber"));
+            String bankIfsc = normalize(body.get("bankIfsc"));
+            String bankName = normalize(body.get("bankName"));
+
+            // Validation: at least one method required
+            if ((upiId == null || upiId.isEmpty()) &&
+                (bankAccountNumber == null || bankAccountNumber.isEmpty())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Please provide either a UPI ID or Bank Account details."));
+            }
+
+            // UPI Validation: if provided, must match standard UPI ID regex
+            if (upiId != null && !upiId.isEmpty()) {
+                if (!upiId.matches("^[a-zA-Z0-9.\\-_]{2,256}@[a-zA-Z]{2,64}$")) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Invalid UPI ID format. Expected format: username@bank (e.g. rahul@okhdfcbank)"));
+                }
+                user.setUpiId(upiId);
+            } else if (body.containsKey("upiId")) {
+                user.setUpiId(null);
+            }
+
+            // Bank details validation: if account number provided, validate format and require name & IFSC
+            if (bankAccountNumber != null && !bankAccountNumber.isEmpty()) {
+                if (!bankAccountNumber.matches("^\\d{9,18}$")) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Bank account number must be between 9 and 18 numeric digits."));
+                }
+                if (bankIfsc == null || !bankIfsc.matches("^[A-Z]{4}0[A-Z0-9]{6}$")) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Invalid IFSC code format. Expected 11 characters (e.g. SBIN0001234)."));
+                }
+                if (bankAccountName == null || bankAccountName.trim().length() < 2) {
+                    return ResponseEntity.badRequest().body(Map.of("error", "Account holder name must be at least 2 characters."));
+                }
+                user.setBankAccountNumber(bankAccountNumber);
+                user.setBankIfsc(bankIfsc.toUpperCase());
+                user.setBankAccountName(bankAccountName);
+                if (bankName != null && !bankName.isEmpty()) {
+                    user.setBankName(bankName);
+                }
+            } else if (body.containsKey("bankAccountNumber")) {
+                user.setBankAccountNumber(null);
+                user.setBankIfsc(null);
+                user.setBankAccountName(null);
+                user.setBankName(null);
+            }
+
+            // Auto-approve payment details so users can immediately use them for withdrawals
+            String currentStatus = user.getPaymentDetailsStatus();
+            if (currentStatus == null || "not_submitted".equalsIgnoreCase(currentStatus) || "rejected".equalsIgnoreCase(currentStatus) || "pending".equalsIgnoreCase(currentStatus)) {
+                user.setPaymentDetailsStatus("approved");
+            }
             user.setPaymentDetailsRemarks(null);
             
             User saved = userRepository.save(user);

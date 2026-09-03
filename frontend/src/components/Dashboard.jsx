@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Share2, Percent, Trash2, Play, ExternalLink, Plus, BookOpen, HelpCircle, User, Camera, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Share2, Percent, Trash2, Play, ExternalLink, Plus, BookOpen, HelpCircle, User, Camera, ArrowLeft, ShieldAlert, CreditCard, Landmark } from 'lucide-react';
 import { apiSharedLinks, apiSharedCommissions, apiSettings, apiUsers, apiUpload } from '../services/api';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
@@ -47,10 +47,38 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   const [bankIfsc, setBankIfsc] = useState(currentUser?.bankIfsc || '');
   const [bankName, setBankName] = useState(currentUser?.bankName || '');
   const [isEditingPayment, setIsEditingPayment] = useState(
-    currentUser?.paymentDetailsStatus === 'not_submitted' || 
-    currentUser?.paymentDetailsStatus === 'rejected'
+    !currentUser?.upiId && !currentUser?.bankAccountNumber
   );
   const [isSavingPayment, setIsSavingPayment] = useState(false);
+
+  // Keep payment details and profile states in sync with latest currentUser from DB
+  useEffect(() => {
+    if (currentUser) {
+      setUpiId(currentUser.upiId || '');
+      setBankAccountName(currentUser.bankAccountName || '');
+      setBankAccountNumber(currentUser.bankAccountNumber || '');
+      setBankIfsc(currentUser.bankIfsc || '');
+      setBankName(currentUser.bankName || '');
+      if (currentUser.upiId || currentUser.bankAccountNumber) {
+        setIsEditingPayment(false);
+      }
+      setProfileName(currentUser.name || '');
+      setProfileEmail(currentUser.email || '');
+      setProfilePhone(currentUser.phone || '');
+      setProfileDob(currentUser.dob || '');
+      setProfileGender(currentUser.gender || 'Male');
+      setProfileAddress(currentUser.address || '');
+      setProfileCity(currentUser.city || '');
+      setProfileState(currentUser.state || '');
+      setProfilePincode(currentUser.pincode || '');
+      setKycAadhaar(currentUser.aadhaarNumber || '');
+      setKycPan(currentUser.panNumber || '');
+      setAadhaarFront(currentUser.aadhaarFrontUrl || '');
+      setAadhaarBack(currentUser.aadhaarBackUrl || '');
+      setPanCard(currentUser.panCardUrl || '');
+      setSelfie(currentUser.selfieUrl || '');
+    }
+  }, [currentUser]);
 
   // --- KYC STATES ---
   const [kycAadhaar, setKycAadhaar] = useState(currentUser?.aadhaarNumber || '');
@@ -287,32 +315,61 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
 
   const handleSavePaymentDetails = async (e) => {
     e.preventDefault();
-    if (!upiId.trim() && (!bankAccountNumber.trim() || !bankIfsc.trim() || !bankName.trim())) {
-      onAddNotification('Please fill in either a UPI ID or complete Bank Account Details.', 'error');
+    const cleanUpi = upiId.trim();
+    const cleanAccNo = bankAccountNumber.trim();
+    const cleanIfsc = bankIfsc.trim().toUpperCase();
+    const cleanAccName = bankAccountName.trim();
+    const cleanBank = bankName.trim();
+
+    if (!cleanUpi && !cleanAccNo) {
+      onAddNotification('Please enter either a UPI ID or Bank Account details.', 'error');
       return;
     }
 
-    if (!window.confirm("Are you sure you want to submit these payout details? They will require Admin verification. Your withdrawals will be locked until approved.")) {
-      return;
+    // 1. UPI Validation
+    if (cleanUpi) {
+      const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+      if (!upiRegex.test(cleanUpi)) {
+        onAddNotification('Please enter a valid UPI ID (e.g. name@bank or 9876543210@paytm).', 'error');
+        return;
+      }
+    }
+
+    // 2. Bank Details Validation
+    if (cleanAccNo) {
+      const accRegex = /^\d{9,18}$/;
+      if (!accRegex.test(cleanAccNo)) {
+        onAddNotification('Bank Account Number must be between 9 and 18 digits.', 'error');
+        return;
+      }
+      const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+      if (!ifscRegex.test(cleanIfsc)) {
+        onAddNotification('Please enter a valid 11-character IFSC Code (e.g. SBIN0001234).', 'error');
+        return;
+      }
+      if (cleanAccName.length < 2) {
+        onAddNotification('Please enter the Account Holder Name (minimum 2 characters).', 'error');
+        return;
+      }
     }
 
     setIsSavingPayment(true);
     try {
       const updatedUser = await apiUsers.updatePaymentDetails(currentUser.id, {
-        upiId: upiId.trim(),
-        bankAccountName: bankAccountName.trim(),
-        bankAccountNumber: bankAccountNumber.trim(),
-        bankIfsc: bankIfsc.trim(),
-        bankName: bankName.trim(),
+        upiId: cleanUpi,
+        bankAccountName: cleanAccName,
+        bankAccountNumber: cleanAccNo,
+        bankIfsc: cleanIfsc,
+        bankName: cleanBank,
       });
       if (onUpdateUser) {
         onUpdateUser(updatedUser);
       }
       setIsEditingPayment(false);
-      onAddNotification('Payout details saved and submitted for verification!', 'success');
+      onAddNotification('Payment details saved successfully!', 'success');
     } catch (err) {
       console.error(err);
-      onAddNotification(err.message || 'Failed to save payout details.', 'error');
+      onAddNotification(err.message || 'Failed to save payment details.', 'error');
     } finally {
       setIsSavingPayment(false);
     }
@@ -428,6 +485,166 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
     onAddNotification('Affiliate link copied to clipboard!', 'success');
   };
 
+  const renderPaymentDetailsCard = () => (
+    <div id="payment-details-section" className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px', marginTop: activeTab === 'payment' ? '0' : '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+        <h3 className="referral-title" style={{ fontSize: '17px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CreditCard size={20} style={{ color: 'var(--primary)' }} /> Payment Details / Bank Account
+        </h3>
+        <span className={`status-badge ${currentUser?.paymentDetailsStatus || 'not_submitted'}`} style={{ fontSize: '11px', textTransform: 'uppercase' }}>
+          {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
+        </span>
+      </div>
+
+      {currentUser?.paymentDetailsRemarks && currentUser?.paymentDetailsStatus === 'rejected' && (
+        <div style={{ padding: '10px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '6px', fontSize: '13px' }}>
+          <strong>Rejection Reason:</strong> {currentUser.paymentDetailsRemarks}
+        </div>
+      )}
+
+      {!isEditingPayment && (currentUser?.upiId || currentUser?.bankAccountNumber) ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            {currentUser?.upiId && (
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text)', display: 'block', fontWeight: 600 }}>UPI ID</span>
+                <p style={{ fontWeight: '700', color: 'var(--text-bold)', margin: '6px 0 0 0', fontSize: '15px' }}>{currentUser.upiId}</p>
+              </div>
+            )}
+            {currentUser?.bankAccountName && (
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text)', display: 'block', fontWeight: 600 }}>Account Holder Name</span>
+                <p style={{ fontWeight: '700', color: 'var(--text-bold)', margin: '6px 0 0 0', fontSize: '15px' }}>{currentUser.bankAccountName}</p>
+              </div>
+            )}
+            {currentUser?.bankName && (
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text)', display: 'block', fontWeight: 600 }}>Bank Name</span>
+                <p style={{ fontWeight: '700', color: 'var(--text-bold)', margin: '6px 0 0 0', fontSize: '15px' }}>{currentUser.bankName}</p>
+              </div>
+            )}
+            {currentUser?.bankAccountNumber && (
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text)', display: 'block', fontWeight: 600 }}>Account Number</span>
+                <p style={{ fontWeight: '700', color: 'var(--text-bold)', margin: '6px 0 0 0', fontSize: '15px' }}>
+                  XXXXXX{currentUser.bankAccountNumber.slice(-4)}
+                </p>
+              </div>
+            )}
+            {currentUser?.bankIfsc && (
+              <div style={{ padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text)', display: 'block', fontWeight: 600 }}>IFSC Code</span>
+                <p style={{ fontWeight: '700', color: 'var(--text-bold)', margin: '6px 0 0 0', fontFamily: 'monospace', fontSize: '15px' }}>{currentUser.bankIfsc}</p>
+              </div>
+            )}
+          </div>
+          
+          <button 
+            type="button" 
+            onClick={() => setIsEditingPayment(true)} 
+            className="btn-primary" 
+            style={{ alignSelf: 'flex-start', padding: '8px 20px', fontSize: '13px' }}
+          >
+            Edit / Update Details
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSavePaymentDetails} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text)', margin: 0 }}>
+            Enter your preferred payout details (UPI ID or Bank Account). These details will be saved to your profile and pre-filled for future withdrawals.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>UPI ID (e.g. name@bank or 9876543210@paytm)</label>
+            <input 
+              type="text" 
+              placeholder="e.g. rahul@oksbi" 
+              value={upiId} 
+              onChange={e => setUpiId(e.target.value)} 
+              style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
+            />
+          </div>
+
+          <div style={{ borderTop: '1px dashed var(--border)', margin: '6px 0', position: 'relative', textAlign: 'center' }}>
+            <span style={{ position: 'relative', top: '-10px', background: 'var(--card-bg)', padding: '0 8px', fontSize: '11px', color: 'var(--text)', fontWeight: 600 }}>OR BANK ACCOUNT DETAILS</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Account Holder Name</label>
+              <input 
+                type="text" 
+                placeholder="Name as in bank records" 
+                value={bankAccountName} 
+                onChange={e => setBankAccountName(e.target.value)} 
+                style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Bank Name (Optional)</label>
+              <input 
+                type="text" 
+                placeholder="e.g. State Bank of India" 
+                value={bankName} 
+                onChange={e => setBankName(e.target.value)} 
+                style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Bank Account Number</label>
+              <input 
+                type="text" 
+                placeholder="9-18 digit account number" 
+                value={bankAccountNumber} 
+                onChange={e => setBankAccountNumber(e.target.value.replace(/\D/g, ''))} 
+                style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>IFSC Code</label>
+              <input 
+                type="text" 
+                maxLength={11}
+                placeholder="e.g. SBIN0001234" 
+                value={bankIfsc} 
+                onChange={e => setBankIfsc(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} 
+                style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} 
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+            <button 
+              type="submit" 
+              disabled={isSavingPayment} 
+              className="btn-primary" 
+              style={{ padding: '10px 20px', fontWeight: 'bold' }}
+            >
+              {isSavingPayment ? 'Saving...' : 'Save Payment Details'}
+            </button>
+            {(currentUser?.upiId || currentUser?.bankAccountNumber) && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  setUpiId(currentUser?.upiId || '');
+                  setBankAccountName(currentUser?.bankAccountName || '');
+                  setBankAccountNumber(currentUser?.bankAccountNumber || '');
+                  setBankIfsc(currentUser?.bankIfsc || '');
+                  setBankName(currentUser?.bankName || '');
+                  setIsEditingPayment(false);
+                }} 
+                className="btn-secondary" 
+                style={{ padding: '10px 20px' }}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+    </div>
+  );
+
   return (
     <div className="dashboard-grid animate-fade">
       {/* Sidebar navigation */}
@@ -462,6 +679,12 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
             onClick={() => setActiveTab('profile')}
           >
             <User size={18} /> My Profile & KYC
+          </div>
+          <div
+            className={`dashboard-menu-item ${activeTab === 'payment' ? 'active' : ''}`}
+            onClick={() => setActiveTab('payment')}
+          >
+            <CreditCard size={18} /> Payment Details
           </div>
           <div
             className={`dashboard-menu-item ${activeTab === 'url-converter' ? 'active' : ''}`}
@@ -1042,143 +1265,24 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
             </div>
 
             {/* Bank Account & UPI Details Card */}
-            <div className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
-                <h3 className="referral-title" style={{ fontSize: '16px', margin: 0 }}>Payout Method (Bank Account / UPI)</h3>
-                <span className={`status-badge ${currentUser?.paymentDetailsStatus || 'not_submitted'}`} style={{ fontSize: '11px', textTransform: 'uppercase' }}>
-                  {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
-                </span>
-              </div>
+            {renderPaymentDetailsCard()}
+          </div>
+        )}
 
-              {currentUser?.paymentDetailsRemarks && currentUser?.paymentDetailsStatus === 'rejected' && (
-                <div style={{ padding: '10px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '6px', fontSize: '13px' }}>
-                  <strong>Rejection Reason:</strong> {currentUser.paymentDetailsRemarks}
-                </div>
-              )}
-
-              {!isEditingPayment ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div>
-                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>UPI Address</span>
-                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0' }}>{currentUser?.upiId || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>Account Holder Name</span>
-                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0' }}>{currentUser?.bankAccountName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>Bank Name</span>
-                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0' }}>{currentUser?.bankName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>Account Number</span>
-                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0' }}>
-                        {currentUser?.bankAccountNumber ? `XXXXXX${currentUser.bankAccountNumber.slice(-4)}` : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '11px', color: 'var(--text)' }}>Bank IFSC Code</span>
-                      <p style={{ fontWeight: '600', color: 'var(--text-bold)', margin: '4px 0 0 0', fontFamily: 'monospace' }}>{currentUser?.bankIfsc || 'N/A'}</p>
-                    </div>
-                  </div>
-                  
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      if (window.confirm("Are you sure you want to update your payout details? Your status will return to PENDING and you won't be able to withdraw until the Admin re-verifies them.")) {
-                        setIsEditingPayment(true);
-                      }
-                    }} 
-                    className="btn-primary" 
-                    style={{ alignSelf: 'flex-start', padding: '8px 16px', fontSize: '13px', marginTop: '10px' }}
-                  >
-                    Edit / Correct Details
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleSavePaymentDetails} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <p style={{ fontSize: '13px', color: 'var(--text)', margin: 0 }}>
-                    Please fill out either a UPI ID or Bank account details. Leave the other empty if you do not want to use it.
-                  </p>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>UPI Address (e.g. name@bank)</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. rahul@ybl" 
-                      value={upiId} 
-                      onChange={e => setUpiId(e.target.value)} 
-                      style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Account Holder Name</label>
-                      <input 
-                        type="text" 
-                        placeholder="Name as in bank records" 
-                        value={bankAccountName} 
-                        onChange={e => setBankAccountName(e.target.value)} 
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
-                      />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Bank Name</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. State Bank of India" 
-                        value={bankName} 
-                        onChange={e => setBankName(e.target.value)} 
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
-                      />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Bank Account Number</label>
-                      <input 
-                        type="text" 
-                        placeholder="Enter full account number" 
-                        value={bankAccountNumber} 
-                        onChange={e => setBankAccountNumber(e.target.value)} 
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)' }} 
-                      />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>IFSC Code</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. SBIN0001234" 
-                        value={bankIfsc} 
-                        onChange={e => setBankIfsc(e.target.value.toUpperCase())} 
-                        style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontFamily: 'monospace' }} 
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-                    <button 
-                      type="submit" 
-                      disabled={isSavingPayment} 
-                      className="btn-primary" 
-                      style={{ padding: '8px 16px', fontWeight: 'bold' }}
-                    >
-                      {isSavingPayment ? 'Saving...' : 'Save & Submit details'}
-                    </button>
-                    {currentUser?.paymentDetailsStatus !== 'not_submitted' && (
-                      <button 
-                        type="button" 
-                        onClick={() => setIsEditingPayment(false)} 
-                        className="btn-secondary" 
-                        style={{ padding: '8px 16px' }}
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </form>
-              )}
+        {activeTab === 'payment' && (
+          <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <h2 className="section-title">Payment & Bank Details</h2>
+            <div style={{
+              padding: '16px 20px',
+              borderRadius: '12px',
+              background: 'rgba(var(--primary-rgb), 0.05)',
+              border: '1px solid rgba(var(--primary-rgb), 0.2)',
+              fontSize: '13px',
+              color: 'var(--text)'
+            }}>
+              Add or update your UPI ID and Bank Account details below. These are pre-filled automatically and saved to your account for quick and seamless cashback payouts.
             </div>
+            {renderPaymentDetailsCard()}
           </div>
         )}
 

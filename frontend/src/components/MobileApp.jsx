@@ -33,7 +33,9 @@ import {
   ArrowLeft,
   ShieldAlert,
   Link2,
-  Bell
+  Bell,
+  CreditCard,
+  Landmark
 } from 'lucide-react';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
@@ -160,6 +162,17 @@ export default function MobileApp({
   const [profilePincode, setProfilePincode] = useState(currentUser?.pincode || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
+  // --- PAYMENT DETAILS STATES (MOBILE) ---
+  const [payUpiId, setPayUpiId] = useState(currentUser?.upiId || '');
+  const [payAccountName, setPayAccountName] = useState(currentUser?.bankAccountName || '');
+  const [payAccountNumber, setPayAccountNumber] = useState(currentUser?.bankAccountNumber || '');
+  const [payIfsc, setPayIfsc] = useState(currentUser?.bankIfsc || '');
+  const [payBankName, setPayBankName] = useState(currentUser?.bankName || '');
+  const [isSavingPayment, setIsSavingPayment] = useState(false);
+  const [isEditingPayment, setIsEditingPayment] = useState(
+    !currentUser?.upiId && !currentUser?.bankAccountNumber
+  );
+
   // --- E-KYC STATES ---
   const [kycAadhaar, setKycAadhaar] = useState(currentUser?.aadhaarNumber || '');
   const [kycPan, setKycPan] = useState(currentUser?.panNumber || '');
@@ -169,6 +182,37 @@ export default function MobileApp({
   const [selfie, setSelfie] = useState(currentUser?.selfieUrl || '');
   const [uploadingField, setUploadingField] = useState(null);
   const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
+
+  // Synchronize state when currentUser updates or loads
+  useEffect(() => {
+    if (currentUser) {
+      setProfileName(currentUser.name || '');
+      setProfileDob(currentUser.dob || '');
+      setProfileGender(currentUser.gender || 'Male');
+      setProfileAddress(currentUser.address || '');
+      setProfileCity(currentUser.city || '');
+      setProfileState(currentUser.state || '');
+      setProfilePincode(currentUser.pincode || '');
+      setKycAadhaar(currentUser.aadhaarNumber || '');
+      setKycPan(currentUser.panNumber || '');
+      setAadhaarFront(currentUser.aadhaarFrontUrl || '');
+      setAadhaarBack(currentUser.aadhaarBackUrl || '');
+      setPanCard(currentUser.panCardUrl || '');
+      setSelfie(currentUser.selfieUrl || '');
+
+      setPayUpiId(currentUser.upiId || '');
+      setPayAccountName(currentUser.bankAccountName || '');
+      setPayAccountNumber(currentUser.bankAccountNumber || '');
+      setPayIfsc(currentUser.bankIfsc || '');
+      setPayBankName(currentUser.bankName || '');
+      if (currentUser.upiId || currentUser.bankAccountNumber) {
+        setIsEditingPayment(false);
+      }
+      if (currentUser.upiId) {
+        setUpiId(currentUser.upiId);
+      }
+    }
+  }, [currentUser]);
 
   // Selected Order for tracking modal
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -537,6 +581,67 @@ export default function MobileApp({
       onAddNotification('Failed to save profile.', 'error');
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  // --- PAYMENT DETAILS SAVE (MOBILE) ---
+  const handleSavePaymentDetails = async (e) => {
+    e.preventDefault();
+    const cleanUpi = payUpiId.trim();
+    const cleanAccNo = payAccountNumber.trim();
+    const cleanIfsc = payIfsc.trim().toUpperCase();
+    const cleanAccName = payAccountName.trim();
+    const cleanBank = payBankName.trim();
+
+    if (!cleanUpi && !cleanAccNo) {
+      onAddNotification('Please enter either a UPI ID or Bank Account details.', 'error');
+      return;
+    }
+
+    if (cleanUpi) {
+      const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+      if (!upiRegex.test(cleanUpi)) {
+        onAddNotification('Please enter a valid UPI ID (e.g. name@bank or 9876543210@paytm).', 'error');
+        return;
+      }
+    }
+
+    if (cleanAccNo) {
+      const accRegex = /^\d{9,18}$/;
+      if (!accRegex.test(cleanAccNo)) {
+        onAddNotification('Bank Account Number must be between 9 and 18 digits.', 'error');
+        return;
+      }
+      const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+      if (!ifscRegex.test(cleanIfsc)) {
+        onAddNotification('Please enter a valid 11-character IFSC Code (e.g. SBIN0001234).', 'error');
+        return;
+      }
+      if (cleanAccName.length < 2) {
+        onAddNotification('Please enter Account Holder Name (minimum 2 characters).', 'error');
+        return;
+      }
+    }
+
+    setIsSavingPayment(true);
+    try {
+      const updatedUser = await apiUsers.updatePaymentDetails(currentUser.id, {
+        upiId: cleanUpi,
+        bankAccountName: cleanAccName,
+        bankAccountNumber: cleanAccNo,
+        bankIfsc: cleanIfsc,
+        bankName: cleanBank,
+      });
+      if (onUpdateUser) {
+        onUpdateUser(updatedUser);
+      }
+      setIsEditingPayment(false);
+      onAddNotification('Payment details saved successfully!', 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification(err.message || 'Failed to save payment details.', 'error');
+    } finally {
+      setIsSavingPayment(false);
     }
   };
 
@@ -1018,12 +1123,57 @@ export default function MobileApp({
                   </div>
                 </div>
 
-                {/* Search Bar */}
-                <SearchBar
-                  placeholder="Search products, brands, categories or stores..."
-                  value={homeSearchQuery}
-                  onChange={setHomeSearchQuery}
-                />
+                {/* Sticky Search & Categories Header */}
+                <div className="mobile-sticky-search-categories">
+                  <SearchBar
+                    placeholder="Search products, brands, categories or stores..."
+                    value={homeSearchQuery}
+                    onChange={setHomeSearchQuery}
+                  />
+
+                  {!homeSearchQuery && (
+                    <div className="mobile-sticky-categories-bar" style={{ width: '100%', marginTop: '4px' }}>
+                      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                        {CATEGORIES.map((cat) => {
+                          const isActive = selectedCategory === cat.id || 
+                            (selectedCategory && cat.slug && selectedCategory.toLowerCase() === cat.slug.toLowerCase()) ||
+                            (selectedCategory && selectedCategory.toLowerCase() === cat.name.toLowerCase());
+                          return (
+                            <div
+                              key={cat.id || cat.slug || cat.name}
+                              onClick={() => setSelectedCategory(cat.slug || cat.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 12px',
+                                borderRadius: '99px',
+                                backgroundColor: isActive ? 'var(--primary)' : 'var(--card-bg)',
+                                color: isActive ? '#fff' : 'var(--text)',
+                                border: isActive ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                whiteSpace: 'nowrap',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                                boxShadow: isActive ? '0 4px 10px rgba(255, 79, 47, 0.2)' : 'none'
+                              }}
+                            >
+                              <CategoryIcon
+                                icon={cat.icon}
+                                iconType={cat.iconType}
+                                customIconUrl={cat.customIconUrl}
+                                color={isActive ? '#fff' : (cat.badgeColor || 'var(--primary)')}
+                                size={13}
+                              />
+                              <span>{cat.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {homeSearchQuery ? (
                   <div className="search-results-section animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1205,50 +1355,7 @@ export default function MobileApp({
                   </div>
                 ) : (
                   <>
-                    {/* Category horizontal scroll container */}
-                    <div style={{ width: '100%', marginTop: '4px' }}>
-                      <h3 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-bold)', marginBottom: '10px' }}>
-                        Shop by Category
-                      </h3>
-                      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
-                        {CATEGORIES.map((cat) => {
-                          const isActive = selectedCategory === cat.id || 
-                            (selectedCategory && cat.slug && selectedCategory.toLowerCase() === cat.slug.toLowerCase()) ||
-                            (selectedCategory && selectedCategory.toLowerCase() === cat.name.toLowerCase());
-                          return (
-                            <div
-                              key={cat.id || cat.slug || cat.name}
-                              onClick={() => setSelectedCategory(cat.slug || cat.id)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '8px 12px',
-                                borderRadius: '99px',
-                                backgroundColor: isActive ? 'var(--primary)' : 'var(--card-bg)',
-                                color: isActive ? '#fff' : 'var(--text)',
-                                border: isActive ? '1px solid var(--primary)' : '1px solid var(--border)',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                whiteSpace: 'nowrap',
-                                cursor: 'pointer',
-                                flexShrink: 0,
-                                boxShadow: isActive ? '0 4px 10px rgba(255, 79, 47, 0.2)' : 'none'
-                              }}
-                            >
-                              <CategoryIcon
-                                icon={cat.icon}
-                                iconType={cat.iconType}
-                                customIconUrl={cat.customIconUrl}
-                                color={isActive ? '#fff' : (cat.badgeColor || 'var(--primary)')}
-                                size={13}
-                              />
-                              <span>{cat.name}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+
 
                     {/* Popular Stores Grid (Filtered) */}
                     <div style={{ width: '100%' }}>
@@ -1577,7 +1684,16 @@ export default function MobileApp({
                 </div>
 
                 <div className="app-input-group">
-                  <label>Linked UPI Address / Account</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                    <label style={{ margin: 0 }}>Linked UPI / Account</label>
+                    <button 
+                      type="button" 
+                      onClick={() => setActiveTab('profile')}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                    >
+                      Update Details &rarr;
+                    </button>
+                  </div>
                   <input 
                     type="text" 
                     placeholder="e.g. username@paytm" 
@@ -1752,6 +1868,138 @@ export default function MobileApp({
                 </button>
               </form>
             )}
+
+            {/* Payment Details / Bank Account Card (Mobile) */}
+            <div className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CreditCard size={16} style={{ color: 'var(--primary)' }} />
+                  <h4 style={{ margin: 0, fontSize: '13px', color: 'var(--text-bold)', fontWeight: 'bold' }}>Payment & Bank Details</h4>
+                </div>
+                <span className={`status-badge ${currentUser?.paymentDetailsStatus || 'not_submitted'}`} style={{ fontSize: '10px', textTransform: 'uppercase' }}>
+                  {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
+                </span>
+              </div>
+
+              {!isEditingPayment && (currentUser?.upiId || currentUser?.bankAccountNumber) ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {currentUser?.upiId && (
+                    <div style={{ padding: '8px 10px', borderRadius: '6px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text)', display: 'block' }}>UPI ID</span>
+                      <strong style={{ fontSize: '13px', color: 'var(--text-bold)' }}>{currentUser.upiId}</strong>
+                    </div>
+                  )}
+                  {currentUser?.bankAccountNumber && (
+                    <div style={{ padding: '8px 10px', borderRadius: '6px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text)', display: 'block' }}>Bank Account</span>
+                      <strong style={{ fontSize: '13px', color: 'var(--text-bold)' }}>
+                        {currentUser.bankAccountName ? `${currentUser.bankAccountName} • ` : ''}XXXXXX{currentUser.bankAccountNumber.slice(-4)}
+                      </strong>
+                      <span style={{ fontSize: '11px', color: 'var(--text)', fontFamily: 'monospace' }}>
+                        IFSC: {currentUser.bankIfsc} {currentUser.bankName ? `(${currentUser.bankName})` : ''}
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingPayment(true)}
+                    className="app-withdraw-submit-btn"
+                    style={{ padding: '8px', fontSize: '12px', marginTop: '4px' }}
+                  >
+                    Edit / Update Payment Details
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSavePaymentDetails} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text)', margin: 0 }}>
+                    Enter your UPI ID or Bank Account to receive cashback withdrawals.
+                  </p>
+
+                  <div className="app-input-group">
+                    <label>UPI ID (e.g. name@okhdfcbank or 9876543210@paytm)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. rahul@oksbi"
+                      value={payUpiId}
+                      onChange={e => setPayUpiId(e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ textAlign: 'center', margin: '2px 0', position: 'relative' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text)', fontWeight: 'bold' }}>— OR BANK ACCOUNT —</span>
+                  </div>
+
+                  <div className="app-input-group">
+                    <label>Account Holder Name</label>
+                    <input
+                      type="text"
+                      placeholder="Name as in bank account"
+                      value={payAccountName}
+                      onChange={e => setPayAccountName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="app-input-group">
+                    <label>Bank Name (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. State Bank of India"
+                      value={payBankName}
+                      onChange={e => setPayBankName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="app-input-group">
+                    <label>Bank Account Number</label>
+                    <input
+                      type="text"
+                      placeholder="9-18 digit account number"
+                      value={payAccountNumber}
+                      onChange={e => setPayAccountNumber(e.target.value.replace(/\D/g, ''))}
+                    />
+                  </div>
+
+                  <div className="app-input-group">
+                    <label>IFSC Code</label>
+                    <input
+                      type="text"
+                      maxLength={11}
+                      placeholder="e.g. SBIN0001234"
+                      value={payIfsc}
+                      onChange={e => setPayIfsc(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                      style={{ fontFamily: 'monospace' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <button
+                      type="submit"
+                      disabled={isSavingPayment}
+                      className="app-withdraw-submit-btn"
+                      style={{ flex: 1, padding: '10px', fontSize: '12px' }}
+                    >
+                      {isSavingPayment ? 'Saving...' : 'Save Payment Details'}
+                    </button>
+                    {(currentUser?.upiId || currentUser?.bankAccountNumber) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPayUpiId(currentUser?.upiId || '');
+                          setPayAccountName(currentUser?.bankAccountName || '');
+                          setPayAccountNumber(currentUser?.bankAccountNumber || '');
+                          setPayIfsc(currentUser?.bankIfsc || '');
+                          setPayBankName(currentUser?.bankName || '');
+                          setIsEditingPayment(false);
+                        }}
+                        style={{ padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: '12px', cursor: 'pointer' }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         )}
 

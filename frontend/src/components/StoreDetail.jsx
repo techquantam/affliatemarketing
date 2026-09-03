@@ -55,21 +55,24 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
 
   return (
     <div className="animate-fade" style={{ width: '100%' }}>
-      {/* Back navigation */}
-      <button
-        onClick={onBack}
-        className="btn-secondary"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 16px',
-          marginBottom: '24px',
-          fontWeight: 600,
-        }}
-      >
-        <ArrowLeft size={16} /> Back to All Stores
-      </button>
+      {/* Sticky Back navigation header */}
+      <div className="store-sticky-back-header">
+        <button
+          onClick={onBack}
+          className="btn-secondary store-back-btn"
+          aria-label="Back to All Stores"
+        >
+          <ArrowLeft size={16} /> Back to All Stores
+        </button>
+        {store && (
+          <div className="store-sticky-back-info">
+            {store.logo && (
+              <img src={store.logo} alt={store.name} className="store-sticky-back-logo" />
+            )}
+            <span className="store-sticky-back-name">{store.name}</span>
+          </div>
+        )}
+      </div>
 
       {/* Store Detailed Banner */}
       <div className="store-detail-header" style={{ position: 'relative' }}>

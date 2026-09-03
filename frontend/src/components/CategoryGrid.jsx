@@ -39,10 +39,10 @@ export default function CategoryGrid({ activeCategory, onCategoryChange, categor
   }, [categories]);
 
   return (
-    <div style={{ width: '100%' }}>
-      <div className="section-header">
+    <div className="category-grid-sticky-wrapper" style={{ width: '100%' }}>
+      <div className="section-header category-sticky-header">
         <div className="section-title-wrap">
-          <Layers className="section-icon" size={24} />
+          <Layers className="section-icon" size={20} />
           <h3 className="section-title">Shop by Category</h3>
         </div>
       </div>

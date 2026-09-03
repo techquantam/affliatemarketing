@@ -589,6 +589,22 @@ export default function App() {
     return () => clearInterval(interval);
   }, [currentUser?.id, currentView]);
 
+  // Keep full user profile (including UPI/bank details & KYC) fresh from backend
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const fetchFreshProfile = async () => {
+      try {
+        const fresh = await apiUsers.getById(currentUser.id);
+        if (fresh && fresh.id) {
+          handleUpdateUser(fresh);
+        }
+      } catch (err) {
+        console.warn('Failed to refresh user profile:', err);
+      }
+    };
+    fetchFreshProfile();
+  }, [currentUser?.id]);
+
   // Sync notifications for logged-in user
   const fetchUserNotifications = async () => {
     if (!currentUser?.id) return;
@@ -853,7 +869,17 @@ export default function App() {
 
   const handleLogin = (userProfile) => {
     setCurrentUser(userProfile);
+    localStorage.setItem('user_session', JSON.stringify(userProfile));
     addNotification(`Logged in successfully as ${userProfile.name}! Welcome back.`, 'success');
+  };
+
+  const handleUpdateUser = (updatedUser) => {
+    if (!updatedUser) return;
+    setCurrentUser(prev => {
+      const merged = { ...(prev || {}), ...updatedUser };
+      localStorage.setItem('user_session', JSON.stringify(merged));
+      return merged;
+    });
   };
 
   const handleLogout = () => {
@@ -1319,7 +1345,7 @@ export default function App() {
             trackedOrders={trackedOrders}
             withdrawRequests={withdrawRequests}
             onAddWithdrawalRequest={handleAppWithdrawalRequest}
-            onUpdateUser={setCurrentUser}
+            onUpdateUser={handleUpdateUser}
             storesData={storesData}
             dealsData={dynamicDeals}
             categoriesData={categoriesData}
@@ -1646,12 +1672,22 @@ export default function App() {
               openAuthModal={() => setIsAuthModalOpen(true)}
             />
 
-            {/* Search Bar */}
-            <SearchBar
-              placeholder="Search products, brands, categories or stores..."
-              value={homeSearchQuery}
-              onChange={setHomeSearchQuery}
-            />
+            {/* Sticky Search Bar & Categories Section */}
+            <div className="home-sticky-header">
+              <SearchBar
+                placeholder="Search products, brands, categories or stores..."
+                value={homeSearchQuery}
+                onChange={setHomeSearchQuery}
+              />
+
+              {!homeSearchQuery && (
+                <CategoryGrid
+                  activeCategory={activeCategory}
+                  onCategoryChange={setActiveCategory}
+                  categories={categoriesData}
+                />
+              )}
+            </div>
 
             {homeSearchQuery ? (
               <div className="search-results-section animate-fade">
@@ -1754,13 +1790,6 @@ export default function App() {
               </div>
             ) : (
               <>
-                {/* Quick Categories Filter */}
-                <CategoryGrid
-                  activeCategory={activeCategory}
-                  onCategoryChange={setActiveCategory}
-                  categories={categoriesData}
-                />
-
                 {/* Promo Ad Banners Placement */}
                 <AdBanners banners={bannersData ? bannersData.filter(b => b.type === 'AD' && b.isActive) : []} />
 
@@ -1822,7 +1851,7 @@ export default function App() {
             onAddNotification={addNotification}
             setView={setView}
             onAddWithdrawalRequest={handleAppWithdrawalRequest}
-            onUpdateUser={setCurrentUser}
+            onUpdateUser={handleUpdateUser}
             initialTab={dashboardTab}
             setInitialTab={setDashboardTab}
           />

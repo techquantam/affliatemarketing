@@ -140,7 +140,8 @@ export const apiUsers = {
   forgotPassword: (identifier) => request('/users/forgot-password', { method: 'POST', body: JSON.stringify({ identifier }) }),
   resetPassword: (identifier, otp, password) => request('/users/reset-password', { method: 'POST', body: JSON.stringify({ identifier, otp, password }) }),
   updatePaymentDetails: (id, details) => request(`/users/${id}/payment-details`, { method: 'PUT', body: JSON.stringify(details) }),
-  updatePaymentDetailsStatus: (id, payload) => request(`/users/${id}/payment-details/status`, { method: 'PUT', body: JSON.stringify(payload) })
+  updatePaymentDetailsStatus: (id, payload) => request(`/users/${id}/payment-details/status`, { method: 'PUT', body: JSON.stringify(payload) }),
+  getById: (id) => request(`/users/${id}`)
 };
 
 export const apiProducts = {

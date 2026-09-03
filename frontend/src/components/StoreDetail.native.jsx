@@ -72,12 +72,18 @@ export default function StoreDetail({ store, onBack, onAddNotification, theme, d
   };
 
   return (
-    <ScrollView style={[styles.container, themeStyles.container]} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-      {/* Back navigation */}
-      <TouchableOpacity style={[styles.backBtn, themeStyles.backBtn]} onPress={onBack}>
-        <ArrowLeft size={16} color="#ff4f2f" />
-        <Text style={styles.backBtnText}>Back to All Stores</Text>
-      </TouchableOpacity>
+    <ScrollView
+      style={[styles.container, themeStyles.container]}
+      contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+      stickyHeaderIndices={[0]}
+    >
+      {/* Sticky Back navigation */}
+      <View style={{ backgroundColor: isDark ? '#090d16' : '#f8fafc', paddingBottom: 8, zIndex: 10 }}>
+        <TouchableOpacity style={[styles.backBtn, themeStyles.backBtn]} onPress={onBack}>
+          <ArrowLeft size={16} color="#ff4f2f" />
+          <Text style={styles.backBtnText}>Back to All Stores</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Store Detailed Banner */}
       <View style={[styles.headerCard, themeStyles.card]}>
