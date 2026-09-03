@@ -920,8 +920,11 @@ export default function App() {
         productUrl: item.link || 'https://google.com',
         userSharePercent: 100
       });
-      if (generated.shortUrl && generated.shortUrl.includes('liomart.com')) {
-         generated.shortUrl = generated.shortUrl.replace('https://liomart.com', window.location.origin + '/#');
+      if (generated.shortUrl) {
+         generated.shortUrl = generated.shortUrl
+           .replace('https://liomart.com', window.location.origin + '/#')
+           .replace('https://liomart.co.in', window.location.origin + '/#')
+           .replace('http://localhost:5173', window.location.origin);
       }
       setGeneratedShareData(generated);
       setIsShareModalOpen(true);

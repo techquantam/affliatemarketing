@@ -473,8 +473,11 @@ export default function MobileApp({
         userSharePercent: 100
       });
       let shareUrl = res.shortUrl;
-      if (shareUrl && shareUrl.includes('liomart.com')) {
-        shareUrl = shareUrl.replace('https://liomart.com', window.location.origin + '/#');
+      if (shareUrl) {
+        shareUrl = shareUrl
+          .replace('https://liomart.com', window.location.origin + '/#')
+          .replace('https://liomart.co.in', window.location.origin + '/#')
+          .replace('http://localhost:5173', window.location.origin);
       }
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareUrl);

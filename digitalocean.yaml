@@ -1,4 +1,10 @@
 name: cyvanta-app
+domains:
+  - domain: liomart.co.in
+    type: PRIMARY
+  - domain: api.liomart.co.in
+    type: ALIAS
+
 services:
   - name: cyvanta-backend
     github:
@@ -7,25 +13,64 @@ services:
       deploy_on_push: true
     dockerfile_path: backend/Dockerfile
     source_dir: backend
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
     envs:
       - key: MONGODB_URI
         scope: RUN_AND_BUILD_TIME
-        value: "mongodb+srv://your_user:your_password@cluster.mongodb.net/affiliate-app"
+        value: "mongodb+srv://shailavisrivastava977_db_user:Matra04@cluster0.usvsonz.mongodb.net/affiliate-app?retryWrites=true&w=majority&appName=Cluster0"
       - key: MONGODB_DATABASE
         scope: RUN_AND_BUILD_TIME
         value: "affiliate-app"
       - key: JWT_SECRET
         scope: RUN_AND_BUILD_TIME
-        value: "cyvanta_super_secret_jwt_key_2026_production_32char"
+        value: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2"
       - key: JWT_EXPIRATION
         scope: RUN_AND_BUILD_TIME
         value: "86400000"
       - key: APP_CORS_ORIGINS
         scope: RUN_AND_BUILD_TIME
         value: "*"
-    http_port: 8080
-    instance_count: 1
-    instance_size_slug: basic-xxs
+      - key: FRONTEND_URL
+        scope: RUN_AND_BUILD_TIME
+        value: "https://liomart.co.in"
+      - key: CLOUDINARY_CLOUD_NAME
+        scope: RUN_AND_BUILD_TIME
+        value: "dvbcueu9t"
+      - key: CLOUDINARY_API_KEY
+        scope: RUN_AND_BUILD_TIME
+        value: "618716833945923"
+      - key: CLOUDINARY_API_SECRET
+        scope: RUN_AND_BUILD_TIME
+        value: "PaqMktEl6X276Bt1m_Csat-Rzac"
+      - key: CLOUDINARY_FOLDER
+        scope: RUN_AND_BUILD_TIME
+        value: "affiliate-app"
+      - key: MAIL_HOST
+        scope: RUN_AND_BUILD_TIME
+        value: "smtp.gmail.com"
+      - key: MAIL_PORT
+        scope: RUN_AND_BUILD_TIME
+        value: "587"
+      - key: MAIL_USERNAME
+        scope: RUN_AND_BUILD_TIME
+        value: "shailavisrivastava977@gmail.com"
+      - key: MAIL_PASSWORD
+        scope: RUN_AND_BUILD_TIME
+        value: "jcgtvfrieisllidj"
+      - key: SMS_PROVIDER
+        scope: RUN_AND_BUILD_TIME
+        value: "messagecentral"
+      - key: MESSAGECENTRAL_CUSTOMER_ID
+        scope: RUN_AND_BUILD_TIME
+        value: "C-2A0C7B9C9D93415"
+      - key: MESSAGECENTRAL_AUTH_TOKEN
+        scope: RUN_AND_BUILD_TIME
+        value: "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJDLTJBMEM3QjlDOUQ5MzQxNSIsImlhdCI6MTc4MzMxMDY1MSwiZXhwIjoxOTQwOTkwNjUxfQ.iS3a3GBoH9ZKTUdF8yRPpa89MvcHOov72JNaaaiEgzh_IL2SDDg9QzM5QQzbhq3Do7XsKrS9Bfx9nIPdbSOlKg"
+      - key: MESSAGECENTRAL_COUNTRY_CODE
+        scope: RUN_AND_BUILD_TIME
+        value: "91"
 
 static_sites:
   - name: cyvanta-frontend
@@ -36,3 +81,21 @@ static_sites:
     source_dir: frontend
     build_command: npm run build
     output_dir: dist
+    catchall_document: index.html
+    envs:
+      - key: VITE_API_URL
+        scope: BUILD_TIME
+        value: "https://api.liomart.co.in/api"
+
+ingress:
+  rules:
+    - component:
+        name: cyvanta-backend
+      match:
+        path:
+          prefix: /api
+    - component:
+        name: cyvanta-frontend
+      match:
+        path:
+          prefix: /
