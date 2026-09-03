@@ -35,7 +35,8 @@ import {
   Link2,
   Bell,
   CreditCard,
-  Landmark
+  Landmark,
+  ArrowLeftRight
 } from 'lucide-react';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
@@ -141,7 +142,10 @@ export default function MobileApp({
   onGrabDeal,
   onShareDeal,
   onStoreSelect,
-  setView
+  setView,
+  compareList = [],
+  onToggleCompare,
+  onOpenCompare
 }) {
   const sanitizedStores = React.useMemo(() => {
     return (storesData || [])
@@ -1388,6 +1392,29 @@ export default function MobileApp({
                                     >
                                       Shop
                                     </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onToggleCompare) {
+                                          onToggleCompare(deal);
+                                        } else {
+                                          handleGrabDeal(deal);
+                                        }
+                                      }}
+                                      style={{
+                                        flex: 1,
+                                        backgroundColor: (compareList && compareList.some(item => item.id === deal.id)) ? '#10b981' : 'var(--bg)',
+                                        color: (compareList && compareList.some(item => item.id === deal.id)) ? '#fff' : 'var(--text)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '4px',
+                                        padding: '4px 0',
+                                        fontSize: '8px',
+                                        fontWeight: '700',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {(compareList && compareList.some(item => item.id === deal.id)) ? '✓ Added' : '⇄ Compare'}
+                                    </button>
                                   </div>
                                 </div>
                               </div>
@@ -1552,20 +1579,24 @@ export default function MobileApp({
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleGrabDeal(deal);
+                                        if (onToggleCompare) {
+                                          onToggleCompare(deal);
+                                        } else {
+                                          handleGrabDeal(deal);
+                                        }
                                       }}
                                       style={{
-                                        backgroundColor: 'var(--bg)',
-                                        color: 'var(--text)',
+                                        backgroundColor: (compareList && compareList.some(item => item.id === deal.id)) ? '#10b981' : 'var(--bg)',
+                                        color: (compareList && compareList.some(item => item.id === deal.id)) ? '#fff' : 'var(--text)',
                                         border: '1px solid var(--border)',
                                         borderRadius: '4px',
                                         padding: '4px 6px',
                                         fontSize: '8px',
-                                        fontWeight: '600',
+                                        fontWeight: '700',
                                         cursor: 'pointer'
                                       }}
                                     >
-                                      Compare
+                                      {(compareList && compareList.some(item => item.id === deal.id)) ? '✓ Added' : '⇄ Compare'}
                                     </button>
                                   </div>
                                 </div>
@@ -2305,6 +2336,35 @@ export default function MobileApp({
           <span>Wallet</span>
         </div>
       </nav>
+
+      {/* Floating Compare Pill for Mobile */}
+      {compareList && compareList.length > 0 && (
+        <div
+          onClick={onOpenCompare}
+          style={{
+            position: 'absolute',
+            bottom: '68px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#10b981',
+            color: '#fff',
+            padding: '7px 16px',
+            borderRadius: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 16px rgba(16, 185, 129, 0.45)',
+            zIndex: 100,
+            cursor: 'pointer',
+            fontSize: '11px',
+            fontWeight: '800',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <ArrowLeftRight size={13} />
+          <span>Compare ({compareList.length} items)</span>
+        </div>
+      )}
     </div>
   );
 }

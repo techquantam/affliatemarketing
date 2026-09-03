@@ -16,6 +16,8 @@ import CheckoutModal from './components/CheckoutModal';
 import AdminLogin from './components/AdminLogin';
 import AdminPanel from './components/AdminPanel';
 import MobileApp from './components/MobileApp';
+import CompareModal from './components/CompareModal';
+import CompareTray from './components/CompareTray';
 import SearchBar from './components/SearchBar';
 import CategoryIcon from './components/CategoryIcon';
 import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories, apiWallet, apiNotifications } from './services/api';
@@ -432,6 +434,51 @@ export default function App() {
   const [categoriesData, setCategoriesData] = useState([]);
   const [activeComparisonDeal, setActiveComparisonDeal] = useState(null);
   const [sharingDealId, setSharingDealId] = useState(null);
+
+  // Multi-Product Side-by-Side Comparison states
+  const [compareList, setCompareList] = useState(() => {
+    try {
+      const stored = localStorage.getItem('lio_compare_list');
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('lio_compare_list', JSON.stringify(compareList));
+    } catch (e) {
+      // ignore
+    }
+  }, [compareList]);
+
+  const handleToggleCompare = (deal) => {
+    if (!deal) return;
+    const exists = compareList.some(item => item.id === deal.id);
+    if (exists) {
+      setCompareList(prev => prev.filter(item => item.id !== deal.id));
+      addNotification(`Removed "${deal.title || deal.name}" from comparison.`, 'info');
+    } else {
+      if (compareList.length >= 4) {
+        addNotification('You can compare up to 4 items at a time. Please remove an item first.', 'error');
+        setIsCompareModalOpen(true);
+        return;
+      }
+      setCompareList(prev => [...prev, deal]);
+      addNotification(`Added "${deal.title || deal.name}" (${deal.platform || 'Shop'}) to comparison!`, 'success');
+    }
+  };
+
+  const handleRemoveCompareItem = (id) => {
+    setCompareList(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleClearCompare = () => {
+    setCompareList([]);
+    addNotification('Comparison list cleared.', 'info');
+  };
   
   // Checkout states
   const [checkoutDeal, setCheckoutDeal] = useState(null);
@@ -1394,6 +1441,8 @@ export default function App() {
               onShareDeal={handleShareDeal}
               currentUser={currentUser}
               openAuthModal={() => setIsAuthModalOpen(true)}
+              compareList={compareList}
+              onToggleCompare={handleToggleCompare}
             />
           </div>
         ) : (
@@ -1416,6 +1465,9 @@ export default function App() {
               setSelectedStoreId(id);
               setView('store');
             }}
+            compareList={compareList}
+            onToggleCompare={handleToggleCompare}
+            onOpenCompare={() => setIsCompareModalOpen(true)}
           />
         )}
 
@@ -1869,6 +1921,8 @@ export default function App() {
                       deals={searchedDeals}
                       onGrabDeal={handleGrabProductDeal}
                       onShareDeal={handleShareDeal}
+                      compareList={compareList}
+                      onToggleCompare={handleToggleCompare}
                     />
                   </div>
                 )}
@@ -1890,6 +1944,8 @@ export default function App() {
                   onGrabDeal={handleGrabProductDeal}
                   onShareDeal={handleShareDeal}
                   activeCategory={activeCategory}
+                  compareList={compareList}
+                  onToggleCompare={handleToggleCompare}
                 />
 
                 {/* Business Model Explanation */}
@@ -1925,8 +1981,11 @@ export default function App() {
               return false;
             })}
             onGrabDeal={handleGrabProductDeal}
+            onShareDeal={handleShareDeal}
             currentUser={currentUser}
             openAuthModal={() => setIsAuthModalOpen(true)}
+            compareList={compareList}
+            onToggleCompare={handleToggleCompare}
           />
         )}
 
@@ -2530,6 +2589,24 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Floating Compare Tray */}
+      <CompareTray
+        compareList={compareList}
+        onOpenCompare={() => setIsCompareModalOpen(true)}
+        onRemoveItem={handleRemoveCompareItem}
+        onClearAll={handleClearCompare}
+      />
+
+      {/* Side-by-Side Comparison Modal */}
+      <CompareModal
+        isOpen={isCompareModalOpen}
+        onClose={() => setIsCompareModalOpen(false)}
+        compareList={compareList}
+        onRemoveItem={handleRemoveCompareItem}
+        onClearAll={handleClearCompare}
+        onGrabDeal={handleGrabProductDeal}
+      />
 
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Tag, Sparkles, Share2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Tag, Sparkles, Share2, ChevronDown, ChevronUp, ArrowLeftRight, Check } from 'lucide-react';
 
-export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCategory = 'all' }) {
+export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCategory = 'all', compareList = [], onToggleCompare }) {
   const [showAll, setShowAll] = useState(false);
   const displayLimit = 36;
   const hasMore = deals && deals.length > displayLimit;
@@ -42,6 +42,7 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
             {visibleDeals.map((deal) => {
               // Calculations
               const discountPercent = Math.round((((deal.retailPrice || 0) - (deal.dealPrice || 0)) / (deal.retailPrice || 1)) * 100);
+              const isInCompare = compareList && compareList.some(item => item.id === deal.id);
 
               return (
                 <div 
@@ -133,28 +134,45 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                         Buy Now
                       </button>
 
-                      {deal.comparisons && deal.comparisons.length > 1 && (
-                        <button
-                          className="btn-secondary"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                      <button
+                        className={`btn-secondary ${isInCompare ? 'btn-in-compare' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onToggleCompare) {
+                            onToggleCompare(deal);
+                          } else {
                             onGrabDeal(deal);
-                          }}
-                          style={{
-                            flex: 1,
-                            padding: '8px 8px',
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            color: '#10b981',
-                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                            borderRadius: '6px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Compare ({deal.comparisons.length})
-                        </button>
-                      )}
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px 6px',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          backgroundColor: isInCompare ? '#10b981' : 'rgba(16, 185, 129, 0.08)',
+                          color: isInCompare ? '#ffffff' : '#10b981',
+                          border: isInCompare ? '1px solid #10b981' : '1px solid rgba(16, 185, 129, 0.3)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          transition: 'all 0.2s ease',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title={isInCompare ? 'Click to remove from compare list' : 'Click to add to compare list'}
+                      >
+                        {isInCompare ? (
+                          <>
+                            <Check size={13} /> Compared
+                          </>
+                        ) : (
+                          <>
+                            <ArrowLeftRight size={13} /> Compare
+                          </>
+                        )}
+                      </button>
 
                       <button
                         className="btn-secondary"

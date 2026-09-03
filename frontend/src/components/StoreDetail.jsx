@@ -3,7 +3,7 @@ import { ArrowLeft, Clock, Copy, Check, Info, ShieldAlert, Sparkles, ExternalLin
 import TopDeals from './TopDeals';
 import { openExternalUrl, getStoreUrl } from '../utils/openUrl';
 
-export default function StoreDetail({ store, onBack, onAddNotification, deals, onGrabDeal, onShareDeal, currentUser, openAuthModal }) {
+export default function StoreDetail({ store, onBack, onAddNotification, deals, onGrabDeal, onShareDeal, currentUser, openAuthModal, compareList = [], onToggleCompare }) {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
   const [activatingDealId, setActivatingDealId] = useState(null);
   const [storeProductSearch, setStoreProductSearch] = useState('');
@@ -316,7 +316,13 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
         </div>
 
         {filteredDeals.length > 0 ? (
-          <TopDeals deals={filteredDeals} onGrabDeal={onGrabDeal} onShareDeal={onShareDeal} />
+          <TopDeals
+            deals={filteredDeals}
+            onGrabDeal={onGrabDeal}
+            onShareDeal={onShareDeal}
+            compareList={compareList}
+            onToggleCompare={onToggleCompare}
+          />
         ) : (
           <div style={{
             textAlign: 'center',
