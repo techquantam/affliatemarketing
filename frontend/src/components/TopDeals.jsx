@@ -135,23 +135,19 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                       </button>
 
                       <button
-                        className={`btn-secondary ${isInCompare ? 'btn-in-compare' : ''}`}
+                        className="btn-secondary"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (onToggleCompare) {
-                            onToggleCompare(deal);
-                          } else {
-                            onGrabDeal(deal);
-                          }
+                          onGrabDeal(deal);
                         }}
                         style={{
                           flex: 1,
                           padding: '8px 6px',
                           fontSize: '11px',
                           fontWeight: 'bold',
-                          backgroundColor: isInCompare ? '#10b981' : 'rgba(16, 185, 129, 0.08)',
-                          color: isInCompare ? '#ffffff' : '#10b981',
-                          border: isInCompare ? '1px solid #10b981' : '1px solid rgba(16, 185, 129, 0.3)',
+                          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                          color: '#10b981',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
                           borderRadius: '6px',
                           cursor: 'pointer',
                           display: 'flex',
@@ -161,17 +157,9 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                           transition: 'all 0.2s ease',
                           whiteSpace: 'nowrap'
                         }}
-                        title={isInCompare ? 'Click to remove from compare list' : 'Click to add to compare list'}
+                        title="Compare prices across all shops"
                       >
-                        {isInCompare ? (
-                          <>
-                            <Check size={13} /> Compared
-                          </>
-                        ) : (
-                          <>
-                            <ArrowLeftRight size={13} /> Compare
-                          </>
-                        )}
+                        <ArrowLeftRight size={13} /> Compare
                       </button>
 
                       <button

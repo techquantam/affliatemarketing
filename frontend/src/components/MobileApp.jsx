@@ -41,6 +41,7 @@ import {
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
 import CategoryIcon from './CategoryIcon';
+import PriceComparisonModal from './PriceComparisonModal';
 import { apiUsers, apiUpload, apiSharedLinks, apiNotifications } from '../services/api';
 import { apiAffiliate } from '../services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from '../utils/openUrl';
@@ -453,6 +454,37 @@ export default function MobileApp({
     
     const link = storeItem?.link || dealItem?.affiliateUrl || dealItem?.link || getProductPlatformUrl(dealItem, storeItem?.platform);
     openExternalUrl(link);
+  };
+
+  const handleMobileReferLink = async (dealItem, storeItem) => {
+    if (isGuest) {
+      setComparisonDeal(null);
+      onAddNotification('Please Login / Sign Up first to create referral links!', 'info');
+      openAuthModal();
+      return;
+    }
+    try {
+      const res = await apiSharedLinks.create({
+        userId: currentUser.id,
+        userName: currentUser.name,
+        productName: dealItem.title || dealItem.name,
+        store: storeItem.platform,
+        productUrl: storeItem.link || getProductPlatformUrl(dealItem, storeItem.platform),
+        userSharePercent: 100
+      });
+      let shareUrl = res.shortUrl;
+      if (shareUrl && shareUrl.includes('liomart.com')) {
+        shareUrl = shareUrl.replace('https://liomart.com', window.location.origin + '/#');
+      }
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        onAddNotification(`Referral link for ${storeItem.platform} copied to clipboard!`, 'success');
+      } else {
+        onAddNotification(`Referral link created!`, 'success');
+      }
+    } catch (err) {
+      onAddNotification('Failed to create referral link.', 'error');
+    }
   };
 
   const handleStoreClick = (store) => {
@@ -932,153 +964,7 @@ export default function MobileApp({
 
       {/* Main Screen Content Frame */}
       <div className="mobile-app-screen-content">
-        {comparisonDeal ? (
-          <div className="mobile-screen-tab-panel animate-fade" style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', overflowY: 'auto' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <button 
-                onClick={() => setComparisonDeal(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  color: 'var(--primary)',
-                  fontWeight: '700',
-                  padding: 0
-                }}
-              >
-                &larr; Back
-              </button>
-              <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-bold)' }}>Price Comparison</span>
-            </div>
-
-            {/* Product card info */}
-            <div style={{ display: 'flex', gap: '10px', backgroundColor: 'var(--bg)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-              <img 
-                src={comparisonDeal.image} 
-                alt="" 
-                style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '4px' }}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                <h4 style={{ margin: 0, fontSize: '11px', fontWeight: '700', color: 'var(--text-bold)', lineHeight: '1.3', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {comparisonDeal.title || comparisonDeal.name}
-                </h4>
-                <span style={{ fontSize: '9px', color: 'var(--text)', textTransform: 'capitalize', marginTop: '2px' }}>
-                  Category: <strong>{comparisonDeal.category}</strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Platform Comparison List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', paddingBottom: '20px' }}>
-              {generatePriceComparisons(comparisonDeal).map((item, index, allComps) => {
-                const isBestValue = index === 0;
-                const lowestPrice = allComps[0]?.dealPrice || item.dealPrice;
-                const priceDiff = item.dealPrice - lowestPrice;
-                return (
-                  <div
-                    key={item.platform}
-                    style={{
-                      border: isBestValue ? '1.5px solid #10b981' : '1px solid var(--border)',
-                      borderRadius: '6px',
-                      padding: '8px 10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      position: 'relative',
-                      backgroundColor: isBestValue ? 'rgba(16, 185, 129, 0.05)' : 'var(--card-bg)'
-                    }}
-                  >
-                    {isBestValue ? (
-                      <span style={{
-                        position: 'absolute',
-                        top: '-7px',
-                        left: '8px',
-                        backgroundColor: '#10b981',
-                        color: '#fff',
-                        fontSize: '7px',
-                        fontWeight: '800',
-                        padding: '1px 6px',
-                        borderRadius: '6px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.4px'
-                      }}>
-                        🏆 Best Price
-                      </span>
-                    ) : (
-                      <span style={{
-                        position: 'absolute',
-                        top: '-7px',
-                        left: '8px',
-                        backgroundColor: 'var(--border)',
-                        color: 'var(--text)',
-                        fontSize: '6px',
-                        fontWeight: '700',
-                        padding: '1px 4px',
-                        borderRadius: '4px',
-                        textTransform: 'uppercase'
-                      }}>
-                        #{index + 1}
-                      </span>
-                    )}
-
-                    {/* Left side info */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-bold)' }}>{item.platform}</span>
-                      {item.retailPrice > item.dealPrice && (
-                        <span style={{ fontSize: '8px', color: 'var(--text)', textDecoration: 'line-through' }}>
-                          MRP: ₹{item.retailPrice.toFixed(2)}
-                        </span>
-                      )}
-                      <span style={{ fontSize: '9px', color: '#10b981', fontWeight: '600' }}>
-                        -{item.cashbackPercent}% CB (-₹{item.cashbackEarned.toFixed(2)})
-                      </span>
-                    </div>
-
-                    {/* Right side Price & CTA */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '800', color: isBestValue ? '#10b981' : 'var(--text-bold)' }}>
-                            ₹{item.dealPrice.toFixed(2)}
-                          </span>
-                          {priceDiff > 0 && (
-                            <span style={{ fontSize: '8px', color: '#ef4444', fontWeight: '700' }}>
-                              (+₹{priceDiff.toFixed(2)})
-                            </span>
-                          )}
-                        </div>
-                        <span style={{ fontSize: '8px', color: '#10b981', fontWeight: '600' }}>
-                          Net: ₹{item.effectivePrice.toFixed(2)}
-                        </span>
-                      </div>
-                      
-                      <button
-                        onClick={() => executeSimulatorGrabDeal(comparisonDeal, item)}
-                        style={{
-                          backgroundColor: isBestValue ? '#10b981' : '#ff4f2f',
-                          color: '#fff',
-                          border: 'none',
-                          padding: '5px 10px',
-                          borderRadius: '4px',
-                          fontWeight: '700',
-                          fontSize: '10px',
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {isBestValue ? 'Best Price' : 'Shop'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* TAB 1: HOME SCREEN */}
+        {/* TAB 1: HOME SCREEN */}
             {activeTab === 'home' && (
               <div className="mobile-screen-tab-panel animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {/* Wallet Quick Summary */}
@@ -1392,29 +1278,25 @@ export default function MobileApp({
                                     >
                                       Shop
                                     </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (onToggleCompare) {
-                                          onToggleCompare(deal);
-                                        } else {
-                                          handleGrabDeal(deal);
-                                        }
-                                      }}
-                                      style={{
-                                        flex: 1,
-                                        backgroundColor: (compareList && compareList.some(item => item.id === deal.id)) ? '#10b981' : 'var(--bg)',
-                                        color: (compareList && compareList.some(item => item.id === deal.id)) ? '#fff' : 'var(--text)',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '4px',
-                                        padding: '4px 0',
-                                        fontSize: '8px',
-                                        fontWeight: '700',
-                                        cursor: 'pointer'
-                                      }}
-                                    >
-                                      {(compareList && compareList.some(item => item.id === deal.id)) ? '✓ Added' : '⇄ Compare'}
-                                    </button>
+                                     <button
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         handleGrabDeal(deal);
+                                       }}
+                                       style={{
+                                         flex: 1,
+                                         backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                         color: '#10b981',
+                                         border: '1px solid rgba(16, 185, 129, 0.4)',
+                                         borderRadius: '4px',
+                                         padding: '4px 0',
+                                         fontSize: '9px',
+                                         fontWeight: '700',
+                                         cursor: 'pointer'
+                                       }}
+                                     >
+                                       ⇄ Compare
+                                     </button>
                                   </div>
                                 </div>
                               </div>
@@ -1579,24 +1461,20 @@ export default function MobileApp({
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (onToggleCompare) {
-                                          onToggleCompare(deal);
-                                        } else {
-                                          handleGrabDeal(deal);
-                                        }
+                                        handleGrabDeal(deal);
                                       }}
                                       style={{
-                                        backgroundColor: (compareList && compareList.some(item => item.id === deal.id)) ? '#10b981' : 'var(--bg)',
-                                        color: (compareList && compareList.some(item => item.id === deal.id)) ? '#fff' : 'var(--text)',
-                                        border: '1px solid var(--border)',
+                                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                        color: '#10b981',
+                                        border: '1px solid rgba(16, 185, 129, 0.4)',
                                         borderRadius: '4px',
                                         padding: '4px 6px',
-                                        fontSize: '8px',
+                                        fontSize: '9px',
                                         fontWeight: '700',
                                         cursor: 'pointer'
                                       }}
                                     >
-                                      {(compareList && compareList.some(item => item.id === deal.id)) ? '✓ Added' : '⇄ Compare'}
+                                      ⇄ Compare
                                     </button>
                                   </div>
                                 </div>
@@ -2158,9 +2036,7 @@ export default function MobileApp({
             </div>
           </div>
         )}
-      </>
-    )}
-  </div>
+      </div>
 
       {/* App Mobile Stepper Details Modal */}
       {selectedOrder && (
@@ -2365,6 +2241,16 @@ export default function MobileApp({
           <span>Compare ({compareList.length} items)</span>
         </div>
       )}
+
+      {/* Price Comparison Modal (Matching exact user screenshot) */}
+      <PriceComparisonModal
+        isOpen={!!comparisonDeal}
+        onClose={() => setComparisonDeal(null)}
+        deal={comparisonDeal}
+        onBuyAndEarn={executeSimulatorGrabDeal}
+        onReferLink={handleMobileReferLink}
+        storesData={storesData}
+      />
     </div>
   );
 }
