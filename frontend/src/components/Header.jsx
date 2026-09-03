@@ -90,12 +90,16 @@ export default function Header({
         const cbVal = typeof deal.cashbackEarned === 'number' && deal.cashbackEarned > 0 
           ? deal.cashbackEarned 
           : (parseFloat(deal.cashbackEarned || deal.cashbackAmount || '0') || 0);
+        const isMultiShop = deal.comparisons && deal.comparisons.length > 1;
+        const badgeText = isMultiShop
+          ? `Best: ₹${dealPrice.toFixed(2)} at ${deal.platform} (${deal.comparisons.length} shops)`
+          : `₹${dealPrice.toFixed(2)}${cbVal > 0 ? ` (+₹${cbVal.toFixed(2)} CB)` : ''}`;
         return {
           type: 'deal',
           id: deal.id,
           name: deal.title || deal.name,
           logo: deal.image,
-          badge: `₹${dealPrice.toFixed(2)}${cbVal > 0 ? ` (+₹${cbVal.toFixed(2)} CB)` : ''}`,
+          badge: badgeText,
           original: deal
         };
       });

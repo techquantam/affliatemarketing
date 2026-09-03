@@ -919,7 +919,71 @@ export default function App() {
 
   const selectedStore = storesData.find((s) => s.id === selectedStoreId);
 
-  // Format deals for display
+  // Normalization helper for grouping products by name across shops
+  const normalizeProdTitle = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str.toLowerCase().replace(/[-_.,()/\\]+/g, ' ').replace(/\s+/g, ' ').trim();
+  };
+
+  // 1. Raw store-specific products for individual shop pages (strictly isolated per shop)
+  const storeSpecificDeals = React.useMemo(() => {
+    if (!products || products.length === 0) return [];
+
+    const storesLogoMap = storesData.reduce((acc, store) => { 
+      if (store && store.name) {
+        acc[store.name.trim().toLowerCase()] = store.logo; 
+      }
+      return acc; 
+    }, {});
+
+    return products
+      .filter(p => p && (
+        p.status === 'active' || 
+        p.status === 'ACTIVE' || 
+        p.isActive === true || 
+        p.status === undefined || 
+        p.status === null
+      ))
+      .map(p => {
+        const platform = p.platform || p.sourcePlatform || 'Amazon';
+        const cleanPlatform = platform.trim().toLowerCase();
+        const matchedStore = storesData.find(s => {
+          const cleanName = (s.name || '').trim().toLowerCase();
+          return cleanPlatform === cleanName || cleanPlatform.includes(cleanName) || cleanName.includes(cleanPlatform);
+        });
+        const storeLogo = matchedStore ? matchedStore.logo : (storesLogoMap[cleanPlatform] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300');
+        const prodName = p.name || p.title || 'Product';
+        const dealPrice = typeof p.price === 'number' && p.price > 0 
+          ? (p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price)
+          : (parseFloat(p.discountPrice || p.dealPrice || p.price || '999') || 999);
+        const retailPrice = typeof p.retailPrice === 'number' && p.retailPrice > 0 
+          ? p.retailPrice 
+          : (p.price && p.discountPrice && p.price > p.discountPrice ? p.price : parseFloat((dealPrice * 1.4).toFixed(2)));
+        const cashbackVal = p.cashbackValue || p.commissionPercentage || 10;
+        const cashbackEarned = parseFloat(((dealPrice * cashbackVal) / 100).toFixed(2));
+        const productImage = p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
+
+        return {
+          id: p.id || `prod-${Date.now()}-${Math.random()}`,
+          title: prodName,
+          name: prodName,
+          platform: platform,
+          storeId: matchedStore ? (matchedStore.id || matchedStore._id) : (p.storeId || null),
+          price: dealPrice,
+          retailPrice,
+          dealPrice,
+          cashbackEarned,
+          cashbackValue: cashbackVal,
+          category: (p.category || 'retail').toLowerCase(),
+          storeLogo,
+          affiliateUrl: p.affiliateUrl || getProductPlatformUrl(p, platform),
+          image: productImage,
+          isProduct: true
+        };
+      });
+  }, [products, storesData]);
+
+  // 2. Format deals for comparison display (lowest price first, highlighted badge, ascending order)
   const dynamicDeals = React.useMemo(() => {
     let combinedDeals = [];
     
@@ -930,54 +994,37 @@ export default function App() {
       return acc; 
     }, {});
 
-    // 1. Process custom / newly added products FIRST so they are prominently featured!
+    // Group active products by normalized title across all shops
     if (products && products.length > 0) {
-      const productDeals = products
-        .filter(p => p && (
-          p.status === 'active' || 
-          p.status === 'ACTIVE' || 
-          p.isActive === true || 
-          p.status === undefined || 
-          p.status === null
-        ))
-        .map(p => {
+      const activeProducts = products.filter(p => p && (
+        p.status === 'active' || 
+        p.status === 'ACTIVE' || 
+        p.isActive === true || 
+        p.status === undefined || 
+        p.status === null
+      ));
+
+      const groupedByTitle = new Map();
+      activeProducts.forEach(p => {
+        const prodName = p.name || p.title || 'Product';
+        const normKey = normalizeProdTitle(prodName);
+        if (!groupedByTitle.has(normKey)) {
+          groupedByTitle.set(normKey, []);
+        }
+        groupedByTitle.get(normKey).push(p);
+      });
+
+      const productDeals = [];
+      groupedByTitle.forEach((items, normKey) => {
+        // Collect shop entries selling this product
+        const comparisons = items.map(p => {
           const platform = p.platform || p.sourcePlatform || 'Amazon';
-          const fallbackLogo = p.storeId && storesData.find(s => s.id === p.storeId)?.logo 
-            ? storesData.find(s => s.id === p.storeId).logo 
-            : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
-            
           const cleanPlatform = platform.trim().toLowerCase();
           const matchedStore = storesData.find(s => {
             const cleanName = (s.name || '').trim().toLowerCase();
-            return cleanPlatform.includes(cleanName) || cleanName.includes(cleanPlatform);
+            return cleanPlatform === cleanName || cleanPlatform.includes(cleanName) || cleanName.includes(cleanPlatform);
           });
-          
-          const storeLogo = matchedStore ? matchedStore.logo : (storesLogoMap[cleanPlatform] || storesLogoMap['amazon'] || fallbackLogo);
-          
-          let category = (p.category || '').toLowerCase();
-          const prodName = p.name || p.title || 'Product';
-          if (!category) {
-              category = 'electronics';
-              const lowerName = prodName.toLowerCase();
-              const lowerPlatform = platform ? platform.toLowerCase() : '';
-              
-              if (lowerPlatform === 'myntra' || lowerPlatform === 'ajio' || lowerName.includes('shoes') || lowerName.includes('boots') || lowerName.includes('wear') || lowerName.includes('sneakers')) {
-                category = 'fashion';
-              } else if (lowerName.includes('clothing') || lowerName.includes('shirt') || lowerName.includes('pants') || lowerName.includes('jeans')) {
-                category = 'fashion';
-              } else if (lowerPlatform === 'nykaa beauty' || lowerName.includes('cleanser') || lowerName.includes('cream') || lowerName.includes('facial') || lowerName.includes('beauty') || lowerName.includes('lipstick')) {
-                category = 'health';
-              } else if (lowerName.includes('vitamin') || lowerName.includes('supplement') || lowerName.includes('health') || lowerName.includes('medicine')) {
-                category = 'health';
-              } else if (lowerPlatform === 'makemytrip' || lowerName.includes('flight') || lowerName.includes('hotel') || lowerName.includes('trip')) {
-                category = 'travel';
-              } else if (lowerName.includes('headphones') || lowerName.includes('laptop') || lowerName.includes('phone') || lowerName.includes('tv') || lowerName.includes('speaker') || lowerName.includes('camera')) {
-                category = 'electronics';
-              } else if (lowerPlatform === 'amazon') {
-                category = 'grocery';
-              }
-          }
-          
+          const storeLogo = matchedStore ? matchedStore.logo : (storesLogoMap[cleanPlatform] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300');
           const dealPrice = typeof p.price === 'number' && p.price > 0 
             ? (p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price)
             : (parseFloat(p.discountPrice || p.dealPrice || p.price || '999') || 999);
@@ -986,78 +1033,66 @@ export default function App() {
             : (p.price && p.discountPrice && p.price > p.discountPrice ? p.price : parseFloat((dealPrice * 1.4).toFixed(2)));
           const cashbackVal = p.cashbackValue || p.commissionPercentage || 10;
           const cashbackEarned = parseFloat(((dealPrice * cashbackVal) / 100).toFixed(2));
-          const productImage = p.image || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
-          
-          const baseDeal = {
-            id: p.id || `prod-${Date.now()}-${Math.random()}`,
-            title: prodName,
-            name: prodName,
-            platform: platform,
-            storeId: matchedStore ? (matchedStore.id || matchedStore._id) : null,
-            price: dealPrice,
-            retailPrice,
-            dealPrice,
-            cashbackEarned,
-            cashbackValue: cashbackVal,
-            category,
-            storeLogo,
-            affiliateUrl: p.affiliateUrl,
-            image: productImage,
-            isProduct: true
-          };
-          
-          const sameNameProducts = products.filter(other => 
-              other && (other.status === 'active' || other.status === 'ACTIVE' || other.isActive === true || other.status === undefined) && 
-              (other.name || other.title) && prodName && 
-              (other.name || other.title)?.toLowerCase() === prodName.toLowerCase()
-          );
-
-          let dbComparisons = sameNameProducts.map(other => {
-            const otherPrice = typeof other.price === 'number' && other.price > 0
-              ? (other.discountPrice && other.discountPrice < other.price ? other.discountPrice : other.price)
-              : (parseFloat(other.discountPrice || other.dealPrice || other.price || dealPrice) || dealPrice);
-            const otherRetail = typeof other.retailPrice === 'number' && other.retailPrice > 0
-              ? other.retailPrice
-              : (other.price && other.discountPrice && other.price > other.discountPrice ? other.price : retailPrice);
-            const otherCb = other.cashbackValue || other.commissionPercentage || 10;
-            const otherCbEarned = parseFloat(((otherPrice * otherCb) / 100).toFixed(2));
-            const otherPlatform = other.platform || other.sourcePlatform || 'Amazon';
-            return {
-              platform: otherPlatform,
-              dealPrice: otherPrice,
-              price: otherPrice,
-              listedPrice: otherPrice,
-              retailPrice: otherRetail,
-              cashbackPercent: otherCb,
-              cashbackEarned: otherCbEarned,
-              effectivePrice: parseFloat((otherPrice - otherCbEarned).toFixed(2)),
-              link: other.affiliateUrl || getProductPlatformUrl(other, otherPlatform)
-            };
-          });
-
-          if (dbComparisons.length === 0) {
-             dbComparisons = [{
-               platform: platform,
-               dealPrice: dealPrice,
-               price: dealPrice,
-               listedPrice: dealPrice,
-               retailPrice: retailPrice,
-               cashbackPercent: cashbackVal,
-               cashbackEarned: cashbackEarned,
-               effectivePrice: parseFloat((dealPrice - cashbackEarned).toFixed(2)),
-               link: p.affiliateUrl || getProductPlatformUrl(p, platform)
-             }];
-          }
-
-          // Sort by effectivePrice so the lowest price is always first
-          dbComparisons.sort((a, b) => a.effectivePrice - b.effectivePrice);
+          const effectivePrice = parseFloat((dealPrice - cashbackEarned).toFixed(2));
 
           return {
-            ...baseDeal,
-            comparisons: dbComparisons
+            productId: p.id,
+            platform,
+            storeId: matchedStore ? (matchedStore.id || matchedStore._id) : (p.storeId || null),
+            logo: storeLogo,
+            dealPrice,
+            price: dealPrice,
+            listedPrice: dealPrice,
+            retailPrice,
+            cashbackPercent: cashbackVal,
+            cashbackEarned,
+            effectivePrice,
+            link: p.affiliateUrl || getProductPlatformUrl(p, platform),
+            isBestPrice: false
           };
         });
+
+        // 1. Sort shops selling this product in strictly ascending order (lowest price first)
+        comparisons.sort((a, b) => a.dealPrice - b.dealPrice);
+
+        // 2. Mark the shop offering the lowest price as the Best Price
+        if (comparisons.length > 0) {
+          comparisons[0].isBestPrice = true;
+        }
+
+        const bestItem = comparisons[0];
+        const primaryProduct = items[0];
+        const prodName = primaryProduct.name || primaryProduct.title || 'Product';
+        const productImage = primaryProduct.image || (primaryProduct.images && primaryProduct.images[0]) || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300';
         
+        let category = (primaryProduct.category || '').toLowerCase();
+        if (!category) {
+          category = 'electronics';
+        }
+
+        productDeals.push({
+          id: primaryProduct.id || `prod-${Date.now()}-${Math.random()}`,
+          title: prodName,
+          name: prodName,
+          platform: bestItem.platform, // featured shop is the lowest price shop
+          storeId: bestItem.storeId,
+          price: bestItem.dealPrice,
+          retailPrice: bestItem.retailPrice,
+          dealPrice: bestItem.dealPrice,
+          cashbackEarned: bestItem.cashbackEarned,
+          cashbackValue: bestItem.cashbackPercent,
+          category,
+          storeLogo: bestItem.logo,
+          affiliateUrl: bestItem.link,
+          image: productImage,
+          isProduct: true,
+          bestPrice: bestItem.dealPrice,
+          bestPriceShop: bestItem.platform,
+          shopCount: comparisons.length,
+          comparisons
+        });
+      });
+
       combinedDeals = [...combinedDeals, ...productDeals];
     }
     
@@ -1124,7 +1159,10 @@ export default function App() {
           });
         }
 
-        finalComparisons.sort((a, b) => a.effectivePrice - b.effectivePrice);
+        finalComparisons.sort((a, b) => a.dealPrice - b.dealPrice);
+        if (finalComparisons.length > 0) {
+          finalComparisons[0].isBestPrice = true;
+        }
 
         const baseDeal = {
           ...d,
@@ -1335,7 +1373,7 @@ export default function App() {
               store={selectedStore}
               onBack={() => setView('home')}
               onAddNotification={addNotification}
-              deals={dynamicDeals.filter(d => {
+              deals={storeSpecificDeals.filter(d => {
                 if (!selectedStore?.name) return false;
                 const storeName = selectedStore.name.trim().toLowerCase();
 
@@ -1349,13 +1387,6 @@ export default function App() {
 
                 // 2. Fallback for storeId matching if available
                 if (d.storeId && (d.storeId === selectedStore.id || d.storeId === selectedStore._id)) return true;
-
-                // 3. Fallback for matching comparisons
-                if (d.comparisons && Array.isArray(d.comparisons)) {
-                  if (d.comparisons.some(c => c.platform && (c.platform.toLowerCase() === storeName || c.platform.toLowerCase().includes(storeName) || storeName.includes(c.platform.toLowerCase())))) {
-                    return true;
-                  }
-                }
 
                 return false;
               })}
@@ -1513,42 +1544,60 @@ export default function App() {
                     };
                   })
                   .sort((a, b) => a.dealPrice - b.dealPrice)
-                  .map((item, index) => {
+                  .map((item, index, allArr) => {
                   const isBestValue = index === 0;
+                  const lowestPrice = allArr[0]?.dealPrice || item.dealPrice;
+                  const priceDiff = item.dealPrice - lowestPrice;
                   return (
                     <div
                       key={item.platform + index}
                       style={{
-                        border: isBestValue ? '2px solid var(--secondary)' : '1px solid var(--border)',
+                        border: isBestValue ? '2px solid #10b981' : '1px solid var(--border)',
                         borderRadius: '10px',
                         padding: '12px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '10px',
                         position: 'relative',
-                        backgroundColor: 'var(--card-bg)',
-                        boxShadow: isBestValue ? '0 4px 12px rgba(16, 185, 129, 0.1)' : 'none'
+                        backgroundColor: isBestValue ? 'rgba(16, 185, 129, 0.04)' : 'var(--card-bg)',
+                        boxShadow: isBestValue ? '0 4px 14px rgba(16, 185, 129, 0.15)' : 'none'
                       }}
                     >
-                      {isBestValue && (
+                      {isBestValue ? (
                         <span style={{
                           position: 'absolute',
                           top: '-10px',
                           left: '12px',
-                          backgroundColor: 'var(--secondary)',
+                          backgroundColor: '#10b981',
                           color: '#fff',
                           fontSize: '9px',
                           fontWeight: '800',
                           padding: '2px 8px',
                           borderRadius: '10px',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.5px'
+                          letterSpacing: '0.5px',
+                          boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)'
                         }}>
-                          🏆 Best Value
+                          🏆 Best Price (Lowest Price)
+                        </span>
+                      ) : (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-10px',
+                          left: '12px',
+                          backgroundColor: 'var(--border)',
+                          color: 'var(--text)',
+                          fontSize: '8px',
+                          fontWeight: '700',
+                          padding: '2px 6px',
+                          borderRadius: '8px',
+                          textTransform: 'uppercase'
+                        }}>
+                          #{index + 1}
                         </span>
                       )}
 
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <img
                             src={item.logo}
@@ -1561,21 +1610,31 @@ export default function App() {
                             }}
                           />
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-bold)' }}>
+                              {item.platform}
+                            </span>
                             {item.retailPrice > item.dealPrice && (
                               <span style={{ fontSize: '10px', color: 'var(--text)', textDecoration: 'line-through' }}>
                                 MRP: ₹{item.retailPrice.toFixed(2)}
                               </span>
                             )}
-                            <span style={{ fontSize: '11px', color: 'var(--secondary)', fontWeight: '600' }}>
-                              -{item.cashbackPercent}% (-₹{item.cashbackEarned.toFixed(2)})
+                            <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '600' }}>
+                              -{item.cashbackPercent}% Commission (-₹{item.cashbackEarned.toFixed(2)})
                             </span>
                           </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                          <span style={{ fontSize: '15px', fontWeight: '800', color: isBestValue ? 'var(--secondary)' : 'var(--text-bold)' }}>
-                            ₹{item.dealPrice.toFixed(2)}
-                          </span>
-                          <span style={{ fontSize: '10px', color: 'var(--secondary)', fontWeight: '600' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '15px', fontWeight: '800', color: isBestValue ? '#10b981' : 'var(--text-bold)' }}>
+                              ₹{item.dealPrice.toFixed(2)}
+                            </span>
+                            {priceDiff > 0 && (
+                              <span style={{ fontSize: '9px', color: '#ef4444', fontWeight: '700' }}>
+                                (+₹{priceDiff.toFixed(2)})
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '10px', color: '#10b981', fontWeight: '600' }}>
                             Net: ₹{item.effectivePrice.toFixed(2)}
                           </span>
                         </div>
@@ -1586,7 +1645,7 @@ export default function App() {
                           onClick={() => executeGrabDealTracked(activeComparisonDeal, item)}
                           style={{
                             flex: 1,
-                            backgroundColor: isBestValue ? 'var(--secondary)' : 'var(--primary)',
+                            backgroundColor: isBestValue ? '#10b981' : 'var(--primary)',
                             color: '#fff',
                             border: 'none',
                             padding: '10px',
@@ -1596,7 +1655,7 @@ export default function App() {
                             cursor: 'pointer',
                           }}
                         >
-                          Buy & Earn
+                          {isBestValue ? `Buy at Best Price (₹${item.dealPrice.toFixed(2)})` : `Shop at ${item.platform}`}
                         </button>
                         <button
                           onClick={() => handleReferLink(activeComparisonDeal, item)}
@@ -1848,7 +1907,7 @@ export default function App() {
             store={selectedStore}
             onBack={() => setView('home')}
             onAddNotification={addNotification}
-            deals={dynamicDeals.filter(d => {
+            deals={storeSpecificDeals.filter(d => {
               if (!selectedStore?.name) return false;
               const storeName = selectedStore.name.trim().toLowerCase();
 
@@ -1862,13 +1921,6 @@ export default function App() {
 
               // 2. Fallback for storeId matching if available
               if (d.storeId && (d.storeId === selectedStore.id || d.storeId === selectedStore._id)) return true;
-
-              // 3. Fallback for matching comparisons
-              if (d.comparisons && Array.isArray(d.comparisons)) {
-                if (d.comparisons.some(c => c.platform && (c.platform.toLowerCase() === storeName || c.platform.toLowerCase().includes(storeName) || storeName.includes(c.platform.toLowerCase())))) {
-                  return true;
-                }
-              }
 
               return false;
             })}
@@ -2039,38 +2091,56 @@ export default function App() {
                   };
                 })
                 .sort((a, b) => a.dealPrice - b.dealPrice)
-                .map((item, index) => {
+                .map((item, index, allArr) => {
                 const isBestValue = index === 0;
+                const lowestPrice = allArr[0]?.dealPrice || item.dealPrice;
+                const priceDiff = item.dealPrice - lowestPrice;
                 return (
                   <div
                     key={item.platform + index}
                     style={{
-                      border: isBestValue ? '2px solid var(--secondary)' : '1px solid var(--border)',
+                      border: isBestValue ? '2px solid #10b981' : '1px solid var(--border)',
                       borderRadius: '8px',
-                      padding: '14px 16px',
+                      padding: '16px 18px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       position: 'relative',
-                      backgroundColor: 'var(--card-bg)',
-                      boxShadow: isBestValue ? '0 4px 12px rgba(16, 185, 129, 0.1)' : 'none'
+                      backgroundColor: isBestValue ? 'rgba(16, 185, 129, 0.04)' : 'var(--card-bg)',
+                      boxShadow: isBestValue ? '0 4px 14px rgba(16, 185, 129, 0.15)' : 'none'
                     }}
                   >
-                    {isBestValue && (
+                    {isBestValue ? (
                       <span style={{
                         position: 'absolute',
-                        top: '-10px',
+                        top: '-11px',
                         left: '16px',
-                        backgroundColor: 'var(--secondary)',
+                        backgroundColor: '#10b981',
                         color: '#fff',
-                        fontSize: '9px',
+                        fontSize: '10px',
                         fontWeight: '800',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
+                        padding: '3px 10px',
+                        borderRadius: '12px',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
+                        letterSpacing: '0.5px',
+                        boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)'
                       }}>
-                        🏆 Best Value Deal (Lowest Price)
+                        🏆 Best Price (Lowest Price)
+                      </span>
+                    ) : (
+                      <span style={{
+                        position: 'absolute',
+                        top: '-9px',
+                        left: '16px',
+                        backgroundColor: 'var(--border)',
+                        color: 'var(--text)',
+                        fontSize: '9px',
+                        fontWeight: '700',
+                        padding: '2px 8px',
+                        borderRadius: '8px',
+                        textTransform: 'uppercase'
+                      }}>
+                        #{index + 1}
                       </span>
                     )}
 
@@ -2080,56 +2150,66 @@ export default function App() {
                         src={item.logo}
                         alt={item.platform}
                         style={{
-                          height: '24px',
+                          height: '26px',
                           width: 'auto',
-                          maxWidth: '70px',
+                          maxWidth: '75px',
                           objectFit: 'contain'
                         }}
                       />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-bold)' }}>
+                          {item.platform}
+                        </span>
                         {item.retailPrice > item.dealPrice && (
                           <span style={{ fontSize: '11px', color: 'var(--text)', textDecoration: 'line-through' }}>
                             MRP: ₹{item.retailPrice.toFixed(2)}
                           </span>
                         )}
-                        <span style={{ fontSize: '12px', color: 'var(--secondary)', fontWeight: '600' }}>
+                        <span style={{ fontSize: '12px', color: '#10b981', fontWeight: '600' }}>
                           -{item.cashbackPercent}% Commission (-₹{item.cashbackEarned.toFixed(2)})
                         </span>
                       </div>
                     </div>
 
                     {/* Right Price & CTA */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginTop: '4px' }}>
-                        <span style={{ fontSize: '11px', color: 'var(--text)' }}>Deal Price:</span>
-                        <span style={{ fontSize: '18px', fontWeight: '800', color: isBestValue ? 'var(--secondary)' : 'var(--text-bold)' }}>
-                          ₹{item.dealPrice.toFixed(2)}
-                        </span>
-                        <span style={{ fontSize: '11px', color: 'var(--secondary)', fontWeight: '600' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '19px', fontWeight: '800', color: isBestValue ? '#10b981' : 'var(--text-bold)' }}>
+                            ₹{item.dealPrice.toFixed(2)}
+                          </span>
+                          {priceDiff > 0 && (
+                            <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: '700' }}>
+                              (+₹{priceDiff.toFixed(2)})
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '600' }}>
                           Net: ₹{item.effectivePrice.toFixed(2)}
                         </span>
                       </div>
                       
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         <button
                           onClick={() => executeGrabDealTracked(activeComparisonDeal, item)}
                           style={{
-                            backgroundColor: isBestValue ? 'var(--secondary)' : 'var(--primary)',
+                            backgroundColor: isBestValue ? '#10b981' : 'var(--primary)',
                             color: '#fff',
                             border: 'none',
                             padding: '8px 14px',
                             borderRadius: '6px',
-                            fontWeight: '600',
-                            fontSize: '13px',
+                            fontWeight: '700',
+                            fontSize: '12px',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '6px',
                             width: '100%',
+                            whiteSpace: 'nowrap'
                           }}
                         >
-                          Buy & Earn
+                          {isBestValue ? `Buy at Best Price` : `Shop at ${item.platform}`}
                         </button>
                         <button
                           onClick={() => handleReferLink(activeComparisonDeal, item)}

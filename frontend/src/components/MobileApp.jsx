@@ -118,8 +118,11 @@ const generatePriceComparisons = (deal) => {
     }];
   }
 
-  // Sort them by effectivePrice so the lowest price is always first
-  comps.sort((a, b) => a.effectivePrice - b.effectivePrice);
+  // Sort them strictly by dealPrice so the lowest price shop is always first
+  comps.sort((a, b) => a.dealPrice - b.dealPrice);
+  if (comps.length > 0) {
+    comps[0].isBestPrice = true;
+  }
   return comps;
 };
 
@@ -965,8 +968,10 @@ export default function MobileApp({
 
             {/* Platform Comparison List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', paddingBottom: '20px' }}>
-              {generatePriceComparisons(comparisonDeal).map((item, index) => {
+              {generatePriceComparisons(comparisonDeal).map((item, index, allComps) => {
                 const isBestValue = index === 0;
+                const lowestPrice = allComps[0]?.dealPrice || item.dealPrice;
+                const priceDiff = item.dealPrice - lowestPrice;
                 return (
                   <div
                     key={item.platform}
@@ -978,29 +983,45 @@ export default function MobileApp({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       position: 'relative',
-                      backgroundColor: 'var(--card-bg)'
+                      backgroundColor: isBestValue ? 'rgba(16, 185, 129, 0.05)' : 'var(--card-bg)'
                     }}
                   >
-                    {isBestValue && (
+                    {isBestValue ? (
                       <span style={{
                         position: 'absolute',
                         top: '-7px',
                         left: '8px',
                         backgroundColor: '#10b981',
                         color: '#fff',
-                        fontSize: '6px',
+                        fontSize: '7px',
                         fontWeight: '800',
-                        padding: '1px 5px',
+                        padding: '1px 6px',
                         borderRadius: '6px',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.4px'
+                      }}>
+                        🏆 Best Price
+                      </span>
+                    ) : (
+                      <span style={{
+                        position: 'absolute',
+                        top: '-7px',
+                        left: '8px',
+                        backgroundColor: 'var(--border)',
+                        color: 'var(--text)',
+                        fontSize: '6px',
+                        fontWeight: '700',
+                        padding: '1px 4px',
+                        borderRadius: '4px',
                         textTransform: 'uppercase'
                       }}>
-                        🏆 Best Value
+                        #{index + 1}
                       </span>
                     )}
 
                     {/* Left side info */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-bold)' }}>{item.platform}</span>
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-bold)' }}>{item.platform}</span>
                       {item.retailPrice > item.dealPrice && (
                         <span style={{ fontSize: '8px', color: 'var(--text)', textDecoration: 'line-through' }}>
                           MRP: ₹{item.retailPrice.toFixed(2)}
@@ -1014,10 +1035,16 @@ export default function MobileApp({
                     {/* Right side Price & CTA */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        <span style={{ fontSize: '8px', color: 'var(--text)' }}>Deal Price:</span>
-                        <span style={{ fontSize: '12px', fontWeight: '800', color: isBestValue ? '#10b981' : 'var(--text-bold)' }}>
-                          ₹{item.dealPrice.toFixed(2)}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '800', color: isBestValue ? '#10b981' : 'var(--text-bold)' }}>
+                            ₹{item.dealPrice.toFixed(2)}
+                          </span>
+                          {priceDiff > 0 && (
+                            <span style={{ fontSize: '8px', color: '#ef4444', fontWeight: '700' }}>
+                              (+₹{priceDiff.toFixed(2)})
+                            </span>
+                          )}
+                        </div>
                         <span style={{ fontSize: '8px', color: '#10b981', fontWeight: '600' }}>
                           Net: ₹{item.effectivePrice.toFixed(2)}
                         </span>
@@ -1026,17 +1053,18 @@ export default function MobileApp({
                       <button
                         onClick={() => executeSimulatorGrabDeal(comparisonDeal, item)}
                         style={{
-                          backgroundColor: '#ff4f2f',
+                          backgroundColor: isBestValue ? '#10b981' : '#ff4f2f',
                           color: '#fff',
                           border: 'none',
-                          padding: '4px 8px',
+                          padding: '5px 10px',
                           borderRadius: '4px',
-                          fontWeight: '600',
-                          fontSize: '9px',
-                          cursor: 'pointer'
+                          fontWeight: '700',
+                          fontSize: '10px',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
                         }}
                       >
-                        Shop
+                        {isBestValue ? 'Best Price' : 'Shop'}
                       </button>
                     </div>
                   </div>

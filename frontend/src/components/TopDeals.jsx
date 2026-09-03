@@ -51,6 +51,23 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                   onClick={() => onGrabDeal(deal)}
                 >
                   <span className="deal-badge">{discountPercent > 0 ? `${discountPercent}% OFF` : 'SPECIAL'}</span>
+                  {deal.comparisons && deal.comparisons.length > 1 && (
+                    <span style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      backgroundColor: '#10b981',
+                      color: '#ffffff',
+                      fontSize: '10px',
+                      fontWeight: '800',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      zIndex: 2,
+                      boxShadow: '0 2px 6px rgba(16, 185, 129, 0.4)'
+                    }}>
+                      🏆 Best Price ({deal.comparisons.length} Shops)
+                    </span>
+                  )}
 
                   <div className="deal-image-box">
                     <img 
@@ -79,6 +96,18 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                     </div>
 
                     <h4 className="deal-title">{deal.title}</h4>
+
+                    {deal.comparisons && deal.comparisons.length > 1 && (
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#10b981',
+                        fontWeight: '700',
+                        marginTop: '-2px',
+                        marginBottom: '6px'
+                      }}>
+                        Lowest at {deal.platform}: ₹{(deal.dealPrice || 0).toFixed(2)}
+                      </div>
+                    )}
 
                     <div className="deal-price-section">
                       <div className="deal-retail-row">
@@ -113,17 +142,17 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                           }}
                           style={{
                             flex: 1,
-                            padding: '8px 10px',
-                            fontSize: '12px',
+                            padding: '8px 8px',
+                            fontSize: '11px',
                             fontWeight: 'bold',
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            color: '#6366f1',
-                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
                             borderRadius: '6px',
                             cursor: 'pointer'
                           }}
                         >
-                          Compare
+                          Compare ({deal.comparisons.length})
                         </button>
                       )}
 
