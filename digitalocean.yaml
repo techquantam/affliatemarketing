@@ -1,101 +1,132 @@
-name: cyvanta-app
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
 domains:
-  - domain: liomart.co.in
-    type: PRIMARY
-  - domain: api.liomart.co.in
-    type: ALIAS
-
-services:
-  - name: cyvanta-backend
-    github:
-      repo: techquantam/affliatemarketing
-      branch: main
-      deploy_on_push: true
-    dockerfile_path: backend/Dockerfile
-    source_dir: backend
-    http_port: 8080
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    envs:
-      - key: MONGODB_URI
-        scope: RUN_AND_BUILD_TIME
-        value: "mongodb+srv://shailavisrivastava977_db_user:Matra04@cluster0.usvsonz.mongodb.net/affiliate-app?retryWrites=true&w=majority&appName=Cluster0"
-      - key: MONGODB_DATABASE
-        scope: RUN_AND_BUILD_TIME
-        value: "affiliate-app"
-      - key: JWT_SECRET
-        scope: RUN_AND_BUILD_TIME
-        value: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2"
-      - key: JWT_EXPIRATION
-        scope: RUN_AND_BUILD_TIME
-        value: "86400000"
-      - key: APP_CORS_ORIGINS
-        scope: RUN_AND_BUILD_TIME
-        value: "*"
-      - key: FRONTEND_URL
-        scope: RUN_AND_BUILD_TIME
-        value: "https://liomart.co.in"
-      - key: CLOUDINARY_CLOUD_NAME
-        scope: RUN_AND_BUILD_TIME
-        value: "dvbcueu9t"
-      - key: CLOUDINARY_API_KEY
-        scope: RUN_AND_BUILD_TIME
-        value: "618716833945923"
-      - key: CLOUDINARY_API_SECRET
-        scope: RUN_AND_BUILD_TIME
-        value: "PaqMktEl6X276Bt1m_Csat-Rzac"
-      - key: CLOUDINARY_FOLDER
-        scope: RUN_AND_BUILD_TIME
-        value: "affiliate-app"
-      - key: MAIL_HOST
-        scope: RUN_AND_BUILD_TIME
-        value: "smtp.gmail.com"
-      - key: MAIL_PORT
-        scope: RUN_AND_BUILD_TIME
-        value: "587"
-      - key: MAIL_USERNAME
-        scope: RUN_AND_BUILD_TIME
-        value: "shailavisrivastava977@gmail.com"
-      - key: MAIL_PASSWORD
-        scope: RUN_AND_BUILD_TIME
-        value: "jcgtvfrieisllidj"
-      - key: SMS_PROVIDER
-        scope: RUN_AND_BUILD_TIME
-        value: "messagecentral"
-      - key: MESSAGECENTRAL_CUSTOMER_ID
-        scope: RUN_AND_BUILD_TIME
-        value: "C-2A0C7B9C9D93415"
-      - key: MESSAGECENTRAL_AUTH_TOKEN
-        scope: RUN_AND_BUILD_TIME
-        value: "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJDLTJBMEM3QjlDOUQ5MzQxNSIsImlhdCI6MTc4MzMxMDY1MSwiZXhwIjoxOTQwOTkwNjUxfQ.iS3a3GBoH9ZKTUdF8yRPpa89MvcHOov72JNaaaiEgzh_IL2SDDg9QzM5QQzbhq3Do7XsKrS9Bfx9nIPdbSOlKg"
-      - key: MESSAGECENTRAL_COUNTRY_CODE
-        scope: RUN_AND_BUILD_TIME
-        value: "91"
-
-static_sites:
-  - name: cyvanta-frontend
-    github:
-      repo: techquantam/affliatemarketing
-      branch: main
-      deploy_on_push: true
-    source_dir: frontend
-    build_command: npm run build
-    output_dir: dist
-    catchall_document: index.html
-    envs:
-      - key: VITE_API_URL
-        scope: BUILD_TIME
-        value: "https://api.liomart.co.in/api"
-
+- domain: liomart.co.in
+  type: PRIMARY
+- domain: api.liomart.co.in
+  type: ALIAS
+features:
+- buildpack-stack=ubuntu-22
 ingress:
   rules:
-    - component:
-        name: cyvanta-backend
-      match:
-        path:
-          prefix: /api
-    - component:
-        name: cyvanta-frontend
-      match:
-        path:
-          prefix: /
+  - component:
+      name: affliatemarketing
+    match:
+      authority:
+        exact: api.liomart.co.in
+      path:
+        prefix: /
+  - component:
+      name: affliatemarketing
+    match:
+      path:
+        prefix: /api
+  - component:
+      name: cyvanta-frontend
+    match:
+      path:
+        prefix: /
+name: walrus-app
+region: blr
+services:
+- dockerfile_path: backend/Dockerfile
+  envs:
+  - key: MONGODB_URI
+    scope: RUN_AND_BUILD_TIME
+    value: mongodb+srv://shailavisrivastava977_db_user:Matra04@cluster0.usvsonz.mongodb.net/affiliate-app?retryWrites=true&w=majority&appName=Cluster0
+  - key: MONGO_URI
+    scope: RUN_AND_BUILD_TIME
+    value: mongodb+srv://shailavisrivastava977_db_user:Matra04@cluster0.usvsonz.mongodb.net/affiliate-app?retryWrites=true&w=majority&appName=Cluster0
+  - key: MONGODB_DATABASE
+    scope: RUN_AND_BUILD_TIME
+    value: affiliate-app
+  - key: JWT_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2
+  - key: JWT_EXPIRATION
+    scope: RUN_AND_BUILD_TIME
+    value: "86400000"
+  - key: CLOUDINARY_CLOUD_NAME
+    scope: RUN_AND_BUILD_TIME
+    value: dvbcueu9t
+  - key: CLOUDINARY_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    value: "618716833945923"
+  - key: CLOUDINARY_API_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: PaqMktEl6X276Bt1m_Csat-Rzac
+  - key: CLOUDINARY_FOLDER
+    scope: RUN_AND_BUILD_TIME
+    value: affiliate-app
+  - key: GOOGLE_CLIENT_ID
+    scope: RUN_AND_BUILD_TIME
+    value: 529939641675-5i885kveccv2fqk5r2a2d1pkib09hevi.apps.googleusercontent.com
+  - key: GOOGLE_CLIENT_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: $2a$10$S22vcFfRjRq5Qm4QeU69YOVELI66sM5i1Ro69bF5Gy/mpVG6cb0bi
+  - key: APP_CORS_ORIGINS
+    scope: RUN_AND_BUILD_TIME
+    value: '*'
+  - key: FRONTEND_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://liomart.co.in
+  - key: SERVER_PORT
+    scope: RUN_AND_BUILD_TIME
+    value: "8080"
+  - key: ADMITAD_CLIENT_ID
+    scope: RUN_AND_BUILD_TIME
+    value: 4JUuahbjlPSpibjw0ShidvbIDp6jVq
+  - key: ADMITAD_CLIENT_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: Qpo1JMBsEvEgsyslxD4fTYaVJz7vVP
+  - key: ADMITAD_BASE64_HEADER
+    scope: RUN_AND_BUILD_TIME
+    value: NEpVdWFoYmpsUFNwaWJqdzBTaGlkdmJJRHA2alZxOlFwbzFKTUJzRXZFZ3N5c2x4RDRmVFlhVkp6N3ZWUA==
+  - key: MAIL_HOST
+    scope: RUN_AND_BUILD_TIME
+    value: smtp.gmail.com
+  - key: MAIL_PORT
+    scope: RUN_AND_BUILD_TIME
+    value: "587"
+  - key: MAIL_USERNAME
+    scope: RUN_AND_BUILD_TIME
+    value: shailavisrivastava977@gmail.com
+  - key: MAIL_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    value: jcgtvfrieisllidj
+  - key: SMS_PROVIDER
+    scope: RUN_AND_BUILD_TIME
+    value: messagecentral
+  - key: MESSAGECENTRAL_CUSTOMER_ID
+    scope: RUN_AND_BUILD_TIME
+    value: C-2A0C7B9C9D93415
+  - key: MESSAGECENTRAL_AUTH_TOKEN
+    scope: RUN_AND_BUILD_TIME
+    value: eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJDLTJBMEM3QjlDOUQ5MzQxNSIsImlhdCI6MTc4MzMxMDY1MSwiZXhwIjoxOTQwOTkwNjUxfQ.iS3a3GBoH9ZKTUdF8yRPpa89MvcHOov72JNaaaiEgzh_IL2SDDg9QzM5QQzbhq3Do7XsKrS9Bfx9nIPdbSOlKg
+  - key: MESSAGECENTRAL_COUNTRY_CODE
+    scope: RUN_AND_BUILD_TIME
+    value: "91"
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: techquantam/affliatemarketing
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  name: affliatemarketing
+  source_dir: /backend
+static_sites:
+- build_command: npm run build
+  catchall_document: index.html
+  envs:
+  - key: VITE_API_URL
+    scope: BUILD_TIME
+    value: https://api.liomart.co.in/api
+  github:
+    branch: main
+    deploy_on_push: true
+    repo: techquantam/affliatemarketing
+  name: cyvanta-frontend
+  output_dir: dist
+  source_dir: /frontend
