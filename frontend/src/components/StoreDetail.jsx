@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Clock, Copy, Check, Info, ShieldAlert, Sparkles, ExternalLink, ShoppingBag, Search, X } from 'lucide-react';
+import { ArrowLeft, Clock, Copy, Check, Info, ShieldAlert, Sparkles, ExternalLink, ShoppingBag, Search, X, MapPin, Phone } from 'lucide-react';
 import TopDeals from './TopDeals';
 import { openExternalUrl, getStoreUrl } from '../utils/openUrl';
 
@@ -90,6 +90,21 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
         )}
       </div>
 
+      {/* Custom Shop Banner (if provided) */}
+      {store.banner && (
+        <div style={{
+          width: '100%',
+          height: '180px',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          marginBottom: '16px',
+          border: '1px solid var(--border)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}>
+          <img src={store.banner} alt={`${store.name} Banner`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      )}
+
       {/* Store Detailed Banner */}
       <div className="store-detail-header" style={{ position: 'relative' }}>
         <div className="store-detail-logo-wrapper">
@@ -119,6 +134,16 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
           </div>
           <p className="store-detail-desc" style={{ marginTop: '10px' }}>{store.description}</p>
           <div className="store-detail-meta-pills">
+            {(store.address || store.location) && (
+              <span className="store-detail-pill">
+                <MapPin size={14} style={{ color: '#ef4444' }} /> {store.address || store.location}
+              </span>
+            )}
+            {store.ownerPhone && (
+              <span className="store-detail-pill">
+                <Phone size={14} style={{ color: '#10b981' }} /> {store.ownerPhone}
+              </span>
+            )}
             <span className="store-detail-pill">
               <Clock size={14} /> Tracking: 24 - 48 Hours
             </span>

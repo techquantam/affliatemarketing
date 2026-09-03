@@ -21,9 +21,23 @@ public class Store {
     
     private String name;
     private String logo;
+    private String banner;
     private String cashbackRate;
     private String description;
     private String category;
+    
+    // Owner Details
+    private String ownerName;
+    private String ownerPhone;
+    private String ownerEmail;
+    
+    // Address / Location
+    private String address;
+    private String location;
+    
+    // Target URL / Affiliate Link
+    private String link;
+    private String affiliateUrl;
     
     @Builder.Default
     private Boolean isPopular = false;

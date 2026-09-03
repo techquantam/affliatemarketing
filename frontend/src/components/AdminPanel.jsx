@@ -377,7 +377,7 @@ export default function AdminPanel({
     { id: 'shared-commissions', label: 'Shared Commissions', icon: Share2 },
     { id: 'referrals', label: 'Referrals', icon: Share2 },
     { id: 'banners', label: 'Banners', icon: LayoutDashboard },
-    { id: 'stores', label: 'Stores', icon: ShoppingBag },
+    { id: 'stores', label: 'Shop Management', icon: ShoppingBag },
     { id: 'categories', label: 'Categories', icon: ShoppingBag },
     { id: 'deals', label: 'Deals', icon: Gift },
     { id: 'affiliate-network', label: 'Affiliate Network', icon: Globe },
@@ -800,6 +800,21 @@ export default function AdminPanel({
     }
   };
 
+  const toggleStoreStatus = async (id) => {
+    try {
+      const updatedStore = await apiStores.toggleStatus(id);
+      setStoresData((prev) => prev.map((s) => (s.id === updatedStore.id ? updatedStore : s)));
+      if (onUpdateStores) {
+        onUpdateStores((prev) => prev.map((s) => (s.id === updatedStore.id ? updatedStore : s)));
+      }
+      if (onRefreshCatalog) onRefreshCatalog();
+      onAddNotification(`Shop is now ${updatedStore.status === 'active' ? 'Enabled' : 'Disabled'}.`, 'success');
+    } catch (err) {
+      console.error(err);
+      onAddNotification('Failed to toggle shop status.', 'error');
+    }
+  };
+
   const addBanner = async (banner) => {
     try {
       const newBanner = await apiBanners.create(banner);
@@ -1045,6 +1060,7 @@ export default function AdminPanel({
             stores={storesData}
             onAddStore={addStore}
             onEditStore={editStore}
+            onToggleStatus={toggleStoreStatus}
             onDeleteStore={deleteStore}
             onAddNotification={onAddNotification}
           />

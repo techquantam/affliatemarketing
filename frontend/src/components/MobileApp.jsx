@@ -141,7 +141,9 @@ export default function MobileApp({
   setView
 }) {
   const sanitizedStores = React.useMemo(() => {
-    return (storesData || []).filter(s => !isBlacklistedBrand(s?.name) && !isBlacklistedBrand(s?.description));
+    return (storesData || [])
+      .filter(s => s.status === 'active' || s.status === 'ACTIVE' || !s.status)
+      .filter(s => !isBlacklistedBrand(s?.name) && !isBlacklistedBrand(s?.description));
   }, [storesData]);
 
   const sanitizedDeals = React.useMemo(() => {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share, Linking, TextInput } from 'react-native';
-import { ArrowLeft, Clock, Copy, Check, ShieldAlert, Sparkles, ExternalLink, Search, X } from 'lucide-react-native';
+import { ArrowLeft, Clock, Copy, Check, ShieldAlert, Sparkles, ExternalLink, Search, X, MapPin } from 'lucide-react-native';
 import { getStoreUrl } from '../utils/openUrl';
 
 export default function StoreDetail({ store, onBack, onAddNotification, theme, deals = [], onGrabDeal }) {
@@ -100,6 +100,13 @@ export default function StoreDetail({ store, onBack, onAddNotification, theme, d
         </TouchableOpacity>
       </View>
 
+      {/* Custom Store Banner */}
+      {store.banner ? (
+        <View style={{ width: '100%', height: 130, borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
+          <Image source={{ uri: store.banner }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        </View>
+      ) : null}
+
       {/* Store Detailed Banner */}
       <View style={[styles.headerCard, themeStyles.card]}>
         <View style={styles.logoWrapper}>
@@ -114,6 +121,14 @@ export default function StoreDetail({ store, onBack, onAddNotification, theme, d
         <Text style={[styles.storeDesc, themeStyles.textMuted]}>{store.description}</Text>
         
         <View style={[styles.metaRow, themeStyles.borderTop]}>
+          {(store.address || store.location) && (
+            <View style={styles.metaItem}>
+              <MapPin size={12} color="#ef4444" />
+              <Text style={[styles.metaText, themeStyles.textMuted]} numberOfLines={1}>
+                {store.address || store.location}
+              </Text>
+            </View>
+          )}
           <View style={styles.metaItem}>
             <Clock size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
             <Text style={[styles.metaText, themeStyles.textMuted]}>Tracks: 24 - 48 Hours</Text>

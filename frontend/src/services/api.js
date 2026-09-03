@@ -78,6 +78,7 @@ export const apiStores = {
   getAll: () => request('/stores'),
   create: (store) => request('/stores', { method: 'POST', body: JSON.stringify(store) }),
   update: (id, store) => request(`/stores/${id}`, { method: 'PUT', body: JSON.stringify(store) }),
+  toggleStatus: (id) => request(`/stores/${id}/toggle-status`, { method: 'PATCH' }),
   delete: (id) => request(`/stores/${id}`, { method: 'DELETE' })
 };
 

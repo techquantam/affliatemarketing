@@ -30,12 +30,29 @@ public class StoreController {
         return storeRepository.findById(id).map(store -> {
             store.setName(storeDetails.getName());
             store.setLogo(storeDetails.getLogo());
+            store.setBanner(storeDetails.getBanner());
             store.setCashbackRate(storeDetails.getCashbackRate());
             store.setDescription(storeDetails.getDescription());
             store.setCategory(storeDetails.getCategory());
+            store.setOwnerName(storeDetails.getOwnerName());
+            store.setOwnerPhone(storeDetails.getOwnerPhone());
+            store.setOwnerEmail(storeDetails.getOwnerEmail());
+            store.setAddress(storeDetails.getAddress());
+            store.setLocation(storeDetails.getLocation());
+            store.setLink(storeDetails.getLink());
+            store.setAffiliateUrl(storeDetails.getAffiliateUrl());
             store.setIsPopular(storeDetails.getIsPopular());
             store.setStatus(storeDetails.getStatus());
             store.setCoupons(storeDetails.getCoupons());
+            return ResponseEntity.ok(storeRepository.save(store));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PatchMapping("/{id}/toggle-status")
+    public ResponseEntity<Store> toggleStoreStatus(@PathVariable String id) {
+        return storeRepository.findById(id).map(store -> {
+            String currentStatus = store.getStatus();
+            store.setStatus("active".equalsIgnoreCase(currentStatus) ? "inactive" : "active");
             return ResponseEntity.ok(storeRepository.save(store));
         }).orElse(ResponseEntity.notFound().build());
     }

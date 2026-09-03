@@ -908,10 +908,14 @@ export default function App() {
     addNotification('Logged out successfully. See you again!', 'info');
   };
 
-  // Filter stores by category
+  // Filter stores by category & active status for public display
+  const activeStores = React.useMemo(() => {
+    return storesData.filter(s => s.status === 'active' || s.status === 'ACTIVE' || !s.status);
+  }, [storesData]);
+
   const filteredStores = activeCategory === 'all'
-    ? storesData
-    : storesData.filter((s) => s.category === activeCategory);
+    ? activeStores
+    : activeStores.filter((s) => s.category === activeCategory);
 
   const selectedStore = storesData.find((s) => s.id === selectedStoreId);
 
@@ -1192,7 +1196,7 @@ export default function App() {
     const query = homeSearchQuery.trim();
     const queryIdentifier = getCleanedUrlIdentifier(query);
     
-    return storesData.filter(store => {
+    return activeStores.filter(store => {
       if (queryIdentifier) {
         try {
           let normalizedUrlStr = query;
@@ -1214,7 +1218,7 @@ export default function App() {
         (store.category || '').toLowerCase().includes(query.toLowerCase())
       );
     });
-  }, [homeSearchQuery, storesData]);
+  }, [homeSearchQuery, activeStores]);
 
   const searchedCategories = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];

@@ -53,7 +53,7 @@ export default function Header({
     };
 
     const matchedStores = (storesData || [])
-      .filter(store => !isBlacklisted(store.name) && (store.name || '').toLowerCase().includes(query))
+      .filter(store => (store.status === 'active' || store.status === 'ACTIVE' || !store.status) && !isBlacklisted(store.name) && (store.name || '').toLowerCase().includes(query))
       .slice(0, 4)
       .map(store => ({
         type: 'store',
