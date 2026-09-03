@@ -46,8 +46,14 @@ export default function Header({
     if (!searchQuery.trim()) return [];
     const query = searchQuery.toLowerCase();
     
+    const isBlacklisted = (str) => {
+      if (!str || typeof str !== 'string') return false;
+      const s = str.toLowerCase().replace(/[\s_\-]+/g, '');
+      return s.includes('shopsy') || s.includes('shopysy') || s.includes('smartmart');
+    };
+
     const matchedStores = (storesData || [])
-      .filter(store => (store.name || '').toLowerCase().includes(query))
+      .filter(store => !isBlacklisted(store.name) && (store.name || '').toLowerCase().includes(query))
       .slice(0, 4)
       .map(store => ({
         type: 'store',
@@ -70,8 +76,11 @@ export default function Header({
       
     const matchedDeals = (dealsData || [])
       .filter(deal => 
-        (deal.title || '').toLowerCase().includes(query) ||
-        (deal.name || '').toLowerCase().includes(query)
+        !isBlacklisted(deal.title) &&
+        !isBlacklisted(deal.name) &&
+        !isBlacklisted(deal.platform) &&
+        ((deal.title || '').toLowerCase().includes(query) ||
+        (deal.name || '').toLowerCase().includes(query))
       )
       .slice(0, 4)
       .map(deal => {

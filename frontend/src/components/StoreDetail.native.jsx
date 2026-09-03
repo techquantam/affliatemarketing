@@ -1,13 +1,28 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share, Linking } from 'react-native';
-import { ArrowLeft, Clock, Copy, Check, ShieldAlert, Sparkles, ExternalLink } from 'lucide-react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Share, Linking, TextInput } from 'react-native';
+import { ArrowLeft, Clock, Copy, Check, ShieldAlert, Sparkles, ExternalLink, Search, X } from 'lucide-react-native';
 import { getStoreUrl } from '../utils/openUrl';
 
 export default function StoreDetail({ store, onBack, onAddNotification, theme, deals = [], onGrabDeal }) {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
   const [activatingDealId, setActivatingDealId] = useState(null);
+  const [storeSearchQuery, setStoreSearchQuery] = useState('');
 
   const isDark = theme === 'dark';
+
+  const filteredDeals = useMemo(() => {
+    if (!deals) return [];
+    if (!storeSearchQuery.trim()) return deals;
+    const query = storeSearchQuery.toLowerCase().trim();
+    return deals.filter(deal => {
+      const title = (deal.title || deal.name || '').toLowerCase();
+      const desc = (deal.description || '').toLowerCase();
+      const cat = (deal.category || '').toLowerCase();
+      const brand = (deal.brand || '').toLowerCase();
+      const platform = (deal.platform || '').toLowerCase();
+      return title.includes(query) || desc.includes(query) || cat.includes(query) || brand.includes(query) || platform.includes(query);
+    });
+  }, [deals, storeSearchQuery]);
   const themeStyles = {
     container: {
       backgroundColor: isDark ? '#090d16' : '#f8fafc',
@@ -110,6 +125,40 @@ export default function StoreDetail({ store, onBack, onAddNotification, theme, d
         </View>
       </View>
 
+      {/* Search Bar on Store Page */}
+      <View style={[
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: isDark ? '#1f2937' : '#e5e7eb',
+          backgroundColor: isDark ? '#111827' : '#ffffff',
+          marginBottom: 16
+        }
+      ]}>
+        <Search size={16} color="#ff4f2f" style={{ marginRight: 8 }} />
+        <TextInput
+          value={storeSearchQuery}
+          onChangeText={setStoreSearchQuery}
+          placeholder={`Search products in ${store.name}...`}
+          placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+          style={{
+            flex: 1,
+            fontSize: 13,
+            color: isDark ? '#f3f4f6' : '#111827',
+            padding: 0
+          }}
+        />
+        {storeSearchQuery ? (
+          <TouchableOpacity onPress={() => setStoreSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <X size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
       {/* Coupons Header */}
       <Text style={[styles.sectionTitle, themeStyles.text]}>Active Coupons & Deals ({store.coupons ? store.coupons.length : 0})</Text>
 
@@ -157,11 +206,13 @@ export default function StoreDetail({ store, onBack, onAddNotification, theme, d
       </View>
 
       {/* Deals Section */}
-      {deals && deals.length > 0 && (
-        <View style={{ marginBottom: 20 }}>
-          <Text style={[styles.sectionTitle, themeStyles.text, { marginBottom: 12 }]}>Featured Products & Deals</Text>
+      <View style={{ marginBottom: 20 }}>
+        <Text style={[styles.sectionTitle, themeStyles.text, { marginBottom: 12 }]}>
+          {storeSearchQuery ? `Search Results in ${store.name}` : 'Featured Products & Deals'} ({filteredDeals.length})
+        </Text>
+        {filteredDeals.length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dealsScroll}>
-            {deals.map((deal) => {
+            {filteredDeals.map((deal) => {
               const discountPercent = Math.round(((deal.retailPrice - deal.dealPrice) / deal.retailPrice) * 100) || 33;
               const finalEffectivePrice = (deal.dealPrice - deal.cashbackEarned).toFixed(2);
               return (
@@ -189,8 +240,14 @@ export default function StoreDetail({ store, onBack, onAddNotification, theme, d
               );
             })}
           </ScrollView>
-        </View>
-      )}
+        ) : (
+          <View style={[styles.homeDealCard, themeStyles.card, { padding: 16, alignItems: 'center', width: '100%' }]}>
+            <Text style={[styles.metaText, themeStyles.textMuted]}>
+              No products found {storeSearchQuery ? `matching "${storeSearchQuery}"` : `for ${store.name}`}.
+            </Text>
+          </View>
+        )}
+      </View>
 
       {/* Guidelines Card */}
       <View style={[styles.guidelinesCard, themeStyles.card]}>

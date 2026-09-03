@@ -58,6 +58,12 @@ const AdBanners = ({ banners }) => {
   );
 };
 
+export const isBlacklistedBrand = (str) => {
+  if (!str || typeof str !== 'string') return false;
+  const s = str.toLowerCase().replace(/[\s_\-]+/g, '');
+  return s.includes('shopsy') || s.includes('shopysy') || s.includes('smartmart');
+};
+
 const DEFAULT_STORES = [
   {
     id: 'amazon',
@@ -486,13 +492,22 @@ export default function App() {
         }
       });
 
-      setProducts(allMerged);
+      // Filter out any blacklisted branding (Shopsy/Shopysy/Smart Mart)
+      const cleanedProducts = allMerged.filter(p => 
+        !isBlacklistedBrand(p.name) && 
+        !isBlacklistedBrand(p.title) && 
+        !isBlacklistedBrand(p.platform) && 
+        !isBlacklistedBrand(p.sourcePlatform)
+      );
+      setProducts(cleanedProducts);
 
       if (dbDeals && Array.isArray(dbDeals) && dbDeals.length > 0) {
-        setDealsData(dbDeals);
+        const cleanedDeals = dbDeals.filter(d => !isBlacklistedBrand(d.name) && !isBlacklistedBrand(d.platform));
+        setDealsData(cleanedDeals);
       }
       if (storesRes && Array.isArray(storesRes) && storesRes.length > 0) {
-        setStoresData(storesRes);
+        const cleanedStores = storesRes.filter(s => !isBlacklistedBrand(s.name) && !isBlacklistedBrand(s.description));
+        setStoresData(cleanedStores);
       }
       if (activeBanners && Array.isArray(activeBanners) && activeBanners.length > 0) {
         setBannersData(activeBanners);
@@ -1329,7 +1344,14 @@ export default function App() {
                 }
 
                 // 2. Fallback for storeId matching if available
-                if (d.storeId && d.storeId === selectedStore.id) return true;
+                if (d.storeId && (d.storeId === selectedStore.id || d.storeId === selectedStore._id)) return true;
+
+                // 3. Fallback for matching comparisons
+                if (d.comparisons && Array.isArray(d.comparisons)) {
+                  if (d.comparisons.some(c => c.platform && (c.platform.toLowerCase() === storeName || c.platform.toLowerCase().includes(storeName) || storeName.includes(c.platform.toLowerCase())))) {
+                    return true;
+                  }
+                }
 
                 return false;
               })}
@@ -1835,7 +1857,14 @@ export default function App() {
               }
 
               // 2. Fallback for storeId matching if available
-              if (d.storeId && d.storeId === selectedStore.id) return true;
+              if (d.storeId && (d.storeId === selectedStore.id || d.storeId === selectedStore._id)) return true;
+
+              // 3. Fallback for matching comparisons
+              if (d.comparisons && Array.isArray(d.comparisons)) {
+                if (d.comparisons.some(c => c.platform && (c.platform.toLowerCase() === storeName || c.platform.toLowerCase().includes(storeName) || storeName.includes(c.platform.toLowerCase())))) {
+                  return true;
+                }
+              }
 
               return false;
             })}

@@ -54,6 +54,12 @@ const STORES_INFO = [
   { platform: 'MakeMyTrip', logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fb/MakeMyTrip_Logo.svg', cashbackPercent: 9.0 }
 ];
 
+const isBlacklistedBrand = (str) => {
+  if (!str || typeof str !== 'string') return false;
+  const s = str.toLowerCase().replace(/[\s_\-]+/g, '');
+  return s.includes('shopsy') || s.includes('shopysy') || s.includes('smartmart');
+};
+
 const generatePriceComparisons = (deal) => {
   if (!deal) return [];
   
@@ -134,6 +140,14 @@ export default function MobileApp({
   onStoreSelect,
   setView
 }) {
+  const sanitizedStores = React.useMemo(() => {
+    return (storesData || []).filter(s => !isBlacklistedBrand(s?.name) && !isBlacklistedBrand(s?.description));
+  }, [storesData]);
+
+  const sanitizedDeals = React.useMemo(() => {
+    return (dealsData || []).filter(d => !isBlacklistedBrand(d?.title) && !isBlacklistedBrand(d?.name) && !isBlacklistedBrand(d?.platform));
+  }, [dealsData]);
+
   const [activeTab, setActiveTab] = useState('home');
   const [copiedLink, setCopiedLink] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -283,7 +297,7 @@ export default function MobileApp({
     const query = homeSearchQuery.trim();
     const queryIdentifier = getCleanedUrlIdentifier(query);
     
-    return storesData.filter(store => {
+    return sanitizedStores.filter(store => {
       if (queryIdentifier) {
         try {
           let normalizedUrlStr = query;
@@ -305,7 +319,7 @@ export default function MobileApp({
         (store.category || '').toLowerCase().includes(query.toLowerCase())
       );
     });
-  }, [homeSearchQuery, storesData]);
+  }, [homeSearchQuery, sanitizedStores]);
 
   const searchedCategories = React.useMemo(() => {
     if (!homeSearchQuery.trim()) return [];
@@ -321,7 +335,7 @@ export default function MobileApp({
     const query = homeSearchQuery.trim();
     const queryIdentifier = getCleanedUrlIdentifier(query);
     
-    return dealsData.filter(deal => {
+    return sanitizedDeals.filter(deal => {
       if (queryIdentifier) {
         const dealUrlIdentifier = getCleanedUrlIdentifier(deal.affiliateUrl);
         if (dealUrlIdentifier && dealUrlIdentifier === queryIdentifier) {
@@ -336,7 +350,7 @@ export default function MobileApp({
         (deal.affiliateUrl || '').toLowerCase().includes(query.toLowerCase())
       );
     });
-  }, [homeSearchQuery, dealsData]);
+  }, [homeSearchQuery, sanitizedDeals]);
 
   useEffect(() => {
     if (activeTab === 'home') {
@@ -1371,7 +1385,7 @@ export default function MobileApp({
                         </span>
                       </div>
                       <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '6px', scrollbarWidth: 'none' }}>
-                        {storesData
+                        {sanitizedStores
                           .filter(s => selectedCategory === 'all' || s.category === selectedCategory)
                           .slice(0, 6)
                           .map((store) => (
@@ -1428,7 +1442,7 @@ export default function MobileApp({
                         </h3>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                        {dealsData
+                        {sanitizedDeals
                           .filter(d => {
                             if (!selectedCategory || selectedCategory === 'all') return true;
                             const normSelected = selectedCategory.toLowerCase();
@@ -1561,7 +1575,7 @@ export default function MobileApp({
 
             <h3 style={{ margin: '14px 0 8px', fontSize: '15px', color: 'var(--text-bold)', fontWeight: '700' }}>Cashback Partners</h3>
             <div className="app-stores-list">
-              {storesData
+              {sanitizedStores
                 .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
                 .map(store => (
                   <div key={store.id} className="app-store-row" onClick={() => handleStoreClick(store)}>

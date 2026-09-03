@@ -1,11 +1,27 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Clock, Copy, Check, Info, ShieldAlert, Sparkles, ExternalLink, ShoppingBag } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ArrowLeft, Clock, Copy, Check, Info, ShieldAlert, Sparkles, ExternalLink, ShoppingBag, Search, X } from 'lucide-react';
 import TopDeals from './TopDeals';
 import { openExternalUrl, getStoreUrl } from '../utils/openUrl';
 
 export default function StoreDetail({ store, onBack, onAddNotification, deals, onGrabDeal, onShareDeal, currentUser, openAuthModal }) {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
   const [activatingDealId, setActivatingDealId] = useState(null);
+  const [storeProductSearch, setStoreProductSearch] = useState('');
+
+  // Filter products for this specific store based on search input
+  const filteredDeals = useMemo(() => {
+    if (!deals) return [];
+    if (!storeProductSearch.trim()) return deals;
+    const query = storeProductSearch.toLowerCase().trim();
+    return deals.filter(deal => {
+      const title = (deal.title || deal.name || '').toLowerCase();
+      const desc = (deal.description || '').toLowerCase();
+      const cat = (deal.category || '').toLowerCase();
+      const brand = (deal.brand || '').toLowerCase();
+      const platform = (deal.platform || '').toLowerCase();
+      return title.includes(query) || desc.includes(query) || cat.includes(query) || brand.includes(query) || platform.includes(query);
+    });
+  }, [deals, storeProductSearch]);
 
   const handleVisitStore = async () => {
     if (!currentUser) {
@@ -113,6 +129,56 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
         </div>
       </div>
 
+      {/* Store Level Products Search Bar */}
+      <div className="store-products-search-container" style={{ margin: '18px 0 16px' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          backgroundColor: 'var(--card-bg, #ffffff)',
+          border: '1.5px solid var(--border)',
+          borderRadius: '12px',
+          padding: '10px 16px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          transition: 'all 0.2s ease'
+        }}>
+          <Search size={18} style={{ color: 'var(--primary, #ff4f2f)', flexShrink: 0 }} />
+          <input
+            type="text"
+            value={storeProductSearch}
+            onChange={(e) => setStoreProductSearch(e.target.value)}
+            placeholder={`Search products in ${store.name} only...`}
+            style={{
+              flex: 1,
+              border: 'none',
+              outline: 'none',
+              backgroundColor: 'transparent',
+              fontSize: '14px',
+              color: 'var(--text-bold, #0f172a)'
+            }}
+          />
+          {storeProductSearch && (
+            <button
+              type="button"
+              onClick={() => setStoreProductSearch('')}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text, #64748b)',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: '50%'
+              }}
+              title="Clear search"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Grid: Coupons left, Sidebar right */}
       <div className="store-detail-grid">
         <div className="coupons-list">
@@ -206,15 +272,50 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
         </div>
       </div>
       
-      {/* Related Products/Deals */}
-      {deals && deals.length > 0 && (
-        <div style={{ marginTop: '40px' }}>
-          <h3 className="section-title" style={{ fontSize: '22px', marginBottom: '16px', paddingLeft: '16px' }}>
-            Top Products on {store.name}
-          </h3>
-          <TopDeals deals={deals} onGrabDeal={onGrabDeal} onShareDeal={onShareDeal} />
+      {/* Related Products/Deals of this Store */}
+      <div style={{ marginTop: '36px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', padding: '0 8px', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            <h3 className="section-title" style={{ fontSize: '22px', margin: 0 }}>
+              {storeProductSearch ? `Search Results in ${store.name}` : `Top Products on ${store.name}`}
+            </h3>
+            {storeProductSearch && (
+              <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text)' }}>
+                Showing products matching &ldquo;<strong>{storeProductSearch}</strong>&rdquo;
+              </p>
+            )}
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '12px', backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-bold)' }}>
+            {filteredDeals.length} {filteredDeals.length === 1 ? 'Product' : 'Products'}
+          </span>
         </div>
-      )}
+
+        {filteredDeals.length > 0 ? (
+          <TopDeals deals={filteredDeals} onGrabDeal={onGrabDeal} onShareDeal={onShareDeal} />
+        ) : (
+          <div style={{
+            textAlign: 'center',
+            padding: '36px 16px',
+            backgroundColor: 'var(--card-bg, #ffffff)',
+            borderRadius: '12px',
+            border: '1px dashed var(--border)',
+            margin: '0 8px'
+          }}>
+            <p style={{ margin: '0 0 10px', fontSize: '15px', fontWeight: 600, color: 'var(--text-bold)' }}>
+              No products found {storeProductSearch ? `matching "${storeProductSearch}"` : `for ${store.name}`}.
+            </p>
+            {storeProductSearch && (
+              <button
+                className="btn-secondary"
+                onClick={() => setStoreProductSearch('')}
+                style={{ padding: '6px 16px', fontSize: '13px' }}
+              >
+                Clear Search
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
