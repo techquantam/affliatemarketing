@@ -3,7 +3,7 @@ import { Search, X, ShoppingBag, Layers, Tag } from 'lucide-react';
 
 export default function SearchBar({ placeholder, onSearch, value, onChange }) {
   return (
-    <div className="home-search-wrapper animate-fade">
+    <div className="home-search-wrapper">
       <div className="home-search-container">
         <Search size={18} className="home-search-icon" />
         <input

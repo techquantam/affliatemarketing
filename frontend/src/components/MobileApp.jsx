@@ -206,6 +206,7 @@ export default function MobileApp({
   const [selfie, setSelfie] = useState(currentUser?.selfieUrl || '');
   const [uploadingField, setUploadingField] = useState(null);
   const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
+  const [isMobileScrolled, setIsMobileScrolled] = useState(false);
 
   // Synchronize state when currentUser updates or loads
   useEffect(() => {
@@ -966,10 +967,16 @@ export default function MobileApp({
       </div>
 
       {/* Main Screen Content Frame */}
-      <div className="mobile-app-screen-content">
+      <div 
+        className="mobile-app-screen-content"
+        onScroll={(e) => {
+          const st = e.currentTarget.scrollTop;
+          setIsMobileScrolled(st > 35);
+        }}
+      >
         {/* TAB 1: HOME SCREEN */}
             {activeTab === 'home' && (
-              <div className="mobile-screen-tab-panel animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div className="mobile-screen-tab-panel animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: isMobileScrolled ? '12px' : '18px', transition: 'gap 0.3s ease' }}>
                 {/* Wallet Quick Summary */}
                 <div className="app-quick-wallet">
                   <div className="quick-wallet-header">
@@ -1061,7 +1068,7 @@ export default function MobileApp({
                 </div>
 
                 {/* Sticky Search & Categories Header */}
-                <div className="mobile-sticky-search-categories">
+                <div className={`mobile-sticky-search-categories ${isMobileScrolled ? 'is-scrolled' : ''}`}>
                   <SearchBar
                     placeholder="Search products, brands, categories or stores..."
                     value={homeSearchQuery}
@@ -1069,8 +1076,8 @@ export default function MobileApp({
                   />
 
                   {!homeSearchQuery && (
-                    <div className="mobile-sticky-categories-bar" style={{ width: '100%', marginTop: '4px' }}>
-                      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
+                    <div className="mobile-sticky-categories-bar" style={{ width: '100%', marginTop: isMobileScrolled ? '2px' : '4px', transition: 'all 0.25s ease' }}>
+                      <div style={{ display: 'flex', gap: isMobileScrolled ? '5px' : '8px', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none', transition: 'all 0.25s ease' }}>
                         {CATEGORIES.map((cat) => {
                           const isActive = selectedCategory === cat.id || 
                             (selectedCategory && cat.slug && selectedCategory.toLowerCase() === cat.slug.toLowerCase()) ||
@@ -1082,18 +1089,19 @@ export default function MobileApp({
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '6px',
-                                padding: '6px 12px',
+                                gap: isMobileScrolled ? '4px' : '5px',
+                                padding: isMobileScrolled ? '3px 8px' : '5px 10px',
                                 borderRadius: '99px',
                                 backgroundColor: isActive ? 'var(--primary)' : 'var(--card-bg)',
                                 color: isActive ? '#fff' : 'var(--text)',
                                 border: isActive ? '1px solid var(--primary)' : '1px solid var(--border)',
-                                fontSize: '11px',
+                                fontSize: isMobileScrolled ? '10px' : '11px',
                                 fontWeight: '700',
                                 whiteSpace: 'nowrap',
                                 cursor: 'pointer',
                                 flexShrink: 0,
-                                boxShadow: isActive ? '0 4px 10px rgba(255, 79, 47, 0.2)' : 'none'
+                                boxShadow: isActive ? '0 3px 8px rgba(255, 79, 47, 0.25)' : 'none',
+                                transition: 'all 0.25s ease'
                               }}
                             >
                               <CategoryIcon
@@ -1101,7 +1109,7 @@ export default function MobileApp({
                                 iconType={cat.iconType}
                                 customIconUrl={cat.customIconUrl}
                                 color={isActive ? '#fff' : (cat.badgeColor || 'var(--primary)')}
-                                size={13}
+                                size={isMobileScrolled ? 9 : 11}
                               />
                               <span>{cat.name}</span>
                             </div>
@@ -1727,7 +1735,7 @@ export default function MobileApp({
             </div>
 
             {/* Personal Details Form */}
-            {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
+            {currentUser?.kycStatus !== 'approved' ? (
               <form onSubmit={handleSaveProfile} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Personal Details</h4>
                 
@@ -1768,12 +1776,24 @@ export default function MobileApp({
                   {isSavingProfile ? 'Saving...' : 'Save Details'}
                 </button>
               </form>
+            ) : (
+              <div className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={14} style={{ color: '#10b981' }} /> Personal Details (Verified)
+                </h4>
+                <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div><span style={{ opacity: 0.6 }}>Name: </span><strong>{currentUser.name}</strong></div>
+                  <div><span style={{ opacity: 0.6 }}>Address: </span><strong>{currentUser.address || 'N/A'}, {currentUser.city || ''}</strong></div>
+                </div>
+              </div>
             )}
 
             {/* E-KYC Upload Form */}
-            {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
+            {currentUser?.kycStatus !== 'approved' ? (
               <form onSubmit={handleSubmitKyc} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Identity Documents</h4>
+                <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>
+                  Identity Documents {currentUser?.kycStatus === 'pending' ? '(Pending Review)' : ''}
+                </h4>
 
                 <div className="app-input-group">
                   <label>Aadhaar Card Number</label>
@@ -1819,10 +1839,20 @@ export default function MobileApp({
                   </div>
                 </div>
 
-                <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px', marginTop: '6px', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
-                  {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit E-KYC'}
+                <button type="submit" disabled={isSubmittingKyc} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px', marginTop: '6px' }}>
+                  {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'pending' ? 'Update & Re-Submit KYC' : 'Submit E-KYC'}
                 </button>
               </form>
+            ) : (
+              <div className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={14} style={{ color: '#10b981' }} /> E-KYC Documents (Verified & Locked)
+                </h4>
+                <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div><span style={{ opacity: 0.6 }}>Aadhaar: </span><strong>XXXX-XXXX-{currentUser.aadhaarNumber ? currentUser.aadhaarNumber.slice(-4) : '****'}</strong></div>
+                  <div><span style={{ opacity: 0.6 }}>PAN: </span><strong>XXXXXX{currentUser.panNumber ? currentUser.panNumber.slice(-4) : '****'}</strong></div>
+                </div>
+              </div>
             )}
 
             {/* Payment Details / Bank Account Card (Mobile) */}
@@ -1836,6 +1866,18 @@ export default function MobileApp({
                   {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
                 </span>
               </div>
+
+              {currentUser?.paymentDetailsStatus === 'pending' && (
+                <div style={{ padding: '8px 10px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#d97706', borderRadius: '6px', fontSize: '11px', border: '1px solid #f59e0b' }}>
+                  <strong>Status: Pending Admin Approval</strong>. You can still update details below.
+                </div>
+              )}
+
+              {currentUser?.paymentDetailsRemarks && currentUser?.paymentDetailsStatus === 'rejected' && (
+                <div style={{ padding: '8px 10px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '6px', fontSize: '11px', border: '1px solid #ef4444' }}>
+                  <strong>Rejection:</strong> {currentUser.paymentDetailsRemarks} (Please edit and re-submit)
+                </div>
+              )}
 
               {!isEditingPayment && (currentUser?.upiId || currentUser?.bankAccountNumber) ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -1856,14 +1898,21 @@ export default function MobileApp({
                       </span>
                     </div>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingPayment(true)}
-                    className="app-withdraw-submit-btn"
-                    style={{ padding: '8px', fontSize: '12px', marginTop: '4px' }}
-                  >
-                    Edit / Update Payment Details
-                  </button>
+                  {currentUser?.paymentDetailsStatus === 'approved' ? (
+                    <div style={{ padding: '8px 10px', borderRadius: '6px', backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid #10b981', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                      <ShieldCheck size={14} style={{ color: '#10b981' }} />
+                      <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>Payment details are verified & locked. Contact support to update.</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingPayment(true)}
+                      className="app-withdraw-submit-btn"
+                      style={{ padding: '8px', fontSize: '12px', marginTop: '4px' }}
+                    >
+                      Edit / Update Payment Details
+                    </button>
+                  )}
                 </div>
               ) : (
                 <form onSubmit={handleSavePaymentDetails} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

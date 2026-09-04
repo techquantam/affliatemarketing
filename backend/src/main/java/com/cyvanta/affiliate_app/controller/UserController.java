@@ -106,7 +106,7 @@ public class UserController {
             if (updatedUser.getSelfieUrl() != null) user.setSelfieUrl(updatedUser.getSelfieUrl());
             if (updatedUser.getKycStatus() != null) {
                 user.setKycStatus(updatedUser.getKycStatus());
-            } else {
+            } else if (!"approved".equalsIgnoreCase(user.getKycStatus())) {
                 // Auto-submit KYC to pending if all mandatory docs are provided
                 if (user.getAadhaarNumber() != null && !user.getAadhaarNumber().trim().isEmpty() &&
                     user.getPanNumber() != null && !user.getPanNumber().trim().isEmpty() &&
@@ -114,6 +114,7 @@ public class UserController {
                     user.getPanCardUrl() != null && !user.getPanCardUrl().trim().isEmpty() &&
                     user.getSelfieUrl() != null && !user.getSelfieUrl().trim().isEmpty()) {
                     user.setKycStatus("pending");
+                    user.setKycRemarks(null);
                 }
             }
             if (updatedUser.getKycRemarks() != null) user.setKycRemarks(updatedUser.getKycRemarks());
@@ -867,11 +868,14 @@ public class UserController {
                 user.setBankName(null);
             }
 
-            // Auto-approve payment details so users can immediately use them for withdrawals
-            String currentStatus = user.getPaymentDetailsStatus();
-            if (currentStatus == null || "not_submitted".equalsIgnoreCase(currentStatus) || "rejected".equalsIgnoreCase(currentStatus) || "pending".equalsIgnoreCase(currentStatus)) {
-                user.setPaymentDetailsStatus("approved");
+            // Requirement 3: Once approved, details are locked and cannot be edited by user
+            if ("approved".equalsIgnoreCase(user.getPaymentDetailsStatus())) {
+                return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Payment details are already approved and locked. Please contact support or admin to request changes."));
             }
+
+            // Status is set to 'pending' for Admin approval from Admin Panel > KYC Requests
+            user.setPaymentDetailsStatus("pending");
             user.setPaymentDetailsRemarks(null);
             
             User saved = userRepository.save(user);

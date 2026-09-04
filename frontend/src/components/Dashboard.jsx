@@ -39,6 +39,7 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   const [profileCity, setProfileCity] = useState(currentUser?.city || '');
   const [profileState, setProfileState] = useState(currentUser?.state || '');
   const [profilePincode, setProfilePincode] = useState(currentUser?.pincode || '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // --- PAYMENT DETAILS STATES ---
   const [upiId, setUpiId] = useState(currentUser?.upiId || '');
@@ -51,7 +52,17 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   );
   const [isSavingPayment, setIsSavingPayment] = useState(false);
 
-  // Keep payment details and profile states in sync with latest currentUser from DB
+  // --- KYC STATES ---
+  const [kycAadhaar, setKycAadhaar] = useState(currentUser?.aadhaarNumber || '');
+  const [kycPan, setKycPan] = useState(currentUser?.panNumber || '');
+  const [aadhaarFront, setAadhaarFront] = useState(currentUser?.aadhaarFrontUrl || '');
+  const [aadhaarBack, setAadhaarBack] = useState(currentUser?.aadhaarBackUrl || '');
+  const [panCard, setPanCard] = useState(currentUser?.panCardUrl || '');
+  const [selfie, setSelfie] = useState(currentUser?.selfieUrl || '');
+  const [uploadingField, setUploadingField] = useState(null);
+  const [isSubmittingKyc, setIsSubmittingKyc] = useState(false);
+
+  // Keep payment details, profile, and KYC states in sync with latest currentUser from DB
   useEffect(() => {
     if (currentUser) {
       setUpiId(currentUser.upiId || '');
@@ -79,15 +90,6 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
       setSelfie(currentUser.selfieUrl || '');
     }
   }, [currentUser]);
-
-  // --- KYC STATES ---
-  const [kycAadhaar, setKycAadhaar] = useState(currentUser?.aadhaarNumber || '');
-  const [kycPan, setKycPan] = useState(currentUser?.panNumber || '');
-  const [aadhaarFront, setAadhaarFront] = useState(currentUser?.aadhaarFrontUrl || '');
-  const [aadhaarBack, setAadhaarBack] = useState(currentUser?.aadhaarBackUrl || '');
-  const [panCard, setPanCard] = useState(currentUser?.panCardUrl || '');
-  const [selfie, setSelfie] = useState(currentUser?.selfieUrl || '');
-  const [uploadingField, setUploadingField] = useState(null);
 
   // --- CONVERTER STATES ---
   const [convertInputUrl, setConvertInputUrl] = useState('');
@@ -496,9 +498,16 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
         </span>
       </div>
 
+      {currentUser?.paymentDetailsStatus === 'pending' && (
+        <div style={{ padding: '10px 14px', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#d97706', borderRadius: '8px', fontSize: '13px', border: '1px solid #f59e0b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ShieldAlert size={16} />
+          <span>Payment & Bank details are <strong>PENDING ADMIN APPROVAL</strong>. Withdrawals will activate once approved. You can still edit details below if needed.</span>
+        </div>
+      )}
+
       {currentUser?.paymentDetailsRemarks && currentUser?.paymentDetailsStatus === 'rejected' && (
-        <div style={{ padding: '10px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '6px', fontSize: '13px' }}>
-          <strong>Rejection Reason:</strong> {currentUser.paymentDetailsRemarks}
+        <div style={{ padding: '10px 14px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '8px', fontSize: '13px', border: '1px solid #ef4444' }}>
+          <strong>Rejection Reason:</strong> {currentUser.paymentDetailsRemarks} (Please edit and re-submit your details)
         </div>
       )}
 
@@ -539,14 +548,32 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
             )}
           </div>
           
-          <button 
-            type="button" 
-            onClick={() => setIsEditingPayment(true)} 
-            className="btn-primary" 
-            style={{ alignSelf: 'flex-start', padding: '8px 20px', fontSize: '13px' }}
-          >
-            Edit / Update Details
-          </button>
+          {currentUser?.paymentDetailsStatus === 'approved' ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid #10b981',
+              color: '#059669',
+              fontSize: '13px',
+              fontWeight: '600'
+            }}>
+              <ShieldCheck size={18} style={{ color: '#10b981' }} />
+              <span>Payment & Bank details are verified & approved (Locked). To request changes, please contact support.</span>
+            </div>
+          ) : (
+            <button 
+              type="button" 
+              onClick={() => setIsEditingPayment(true)} 
+              className="btn-primary" 
+              style={{ alignSelf: 'flex-start', padding: '8px 20px', fontSize: '13px' }}
+            >
+              Edit / Update Details
+            </button>
+          )}
         </div>
       ) : (
         <form onSubmit={handleSavePaymentDetails} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1133,7 +1160,7 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               {/* Personal Information Form */}
-              {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
+              {currentUser?.kycStatus !== 'approved' ? (
                 <form onSubmit={handleSaveProfile} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>Personal Information</h3>
                   
@@ -1190,11 +1217,29 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
                     </button>
                   </div>
                 </form>
+              ) : (
+                <div className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldCheck size={18} style={{ color: '#10b981' }} /> Personal Information (Verified & Locked)
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+                    <div><span style={{ opacity: 0.6, display: 'block', fontSize: '11px' }}>Full Name</span><strong>{currentUser.name}</strong></div>
+                    <div><span style={{ opacity: 0.6, display: 'block', fontSize: '11px' }}>Date of Birth</span><strong>{currentUser.dob || 'N/A'}</strong></div>
+                    <div><span style={{ opacity: 0.6, display: 'block', fontSize: '11px' }}>Gender</span><strong>{currentUser.gender || 'N/A'}</strong></div>
+                    <div><span style={{ opacity: 0.6, display: 'block', fontSize: '11px' }}>Address</span><strong>{currentUser.address || 'N/A'}, {currentUser.city || ''}</strong></div>
+                  </div>
+                  <div style={{ padding: '8px 12px', backgroundColor: 'rgba(16,185,129,0.1)', color: '#059669', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
+                    Profile details are verified. Contact admin to request profile updates.
+                  </div>
+                </div>
               )}
-               {/* KYC Document Upload Form */}
-              {currentUser?.kycStatus !== 'approved' && currentUser?.kycStatus !== 'pending' && (
+
+              {/* KYC Document Upload Form */}
+              {currentUser?.kycStatus !== 'approved' ? (
                 <form onSubmit={handleSubmitKyc} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>E-KYC Verification</h3>
+                  <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+                    E-KYC Verification {currentUser?.kycStatus === 'pending' ? '(Pending Review)' : ''}
+                  </h3>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)' }}>Aadhaar Card Number (12 Digits)</label>
@@ -1257,10 +1302,23 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
                     </div>
                   </div>
 
-                  <button type="submit" disabled={isSubmittingKyc || currentUser?.kycStatus === 'approved'} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold', backgroundColor: currentUser?.kycStatus === 'approved' ? '#10b981' : 'var(--primary)' }}>
-                    {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'approved' ? 'KYC Verification Approved' : 'Submit KYC for Verification'}
+                  <button type="submit" disabled={isSubmittingKyc} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold' }}>
+                    {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'pending' ? 'Update & Re-Submit KYC' : 'Submit KYC for Verification'}
                   </button>
                 </form>
+              ) : (
+                <div className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldCheck size={18} style={{ color: '#10b981' }} /> E-KYC Documents (Verified & Approved)
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
+                    <div><span style={{ opacity: 0.6, display: 'block', fontSize: '11px' }}>Aadhaar Number</span><strong>XXXX-XXXX-{currentUser.aadhaarNumber ? currentUser.aadhaarNumber.slice(-4) : '****'}</strong></div>
+                    <div><span style={{ opacity: 0.6, display: 'block', fontSize: '11px' }}>PAN Card</span><strong>XXXXXX{currentUser.panNumber ? currentUser.panNumber.slice(-4) : '****'}</strong></div>
+                  </div>
+                  <div style={{ padding: '8px 12px', backgroundColor: 'rgba(16,185,129,0.1)', color: '#059669', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
+                    Your E-KYC has been reviewed and verified by Admin. Document editing is locked.
+                  </div>
+                </div>
               )}
             </div>
 

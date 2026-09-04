@@ -446,6 +446,16 @@ export default function App() {
     }
   });
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [isHomeHeaderScrolled, setIsHomeHeaderScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleWindowScroll = () => {
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      setIsHomeHeaderScrolled(scrollY > 50);
+    };
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleWindowScroll);
+  }, []);
 
   useEffect(() => {
     try {
@@ -1540,7 +1550,7 @@ export default function App() {
             />
 
             {/* Sticky Search Bar & Categories Section */}
-            <div className="home-sticky-header">
+            <div className={`home-sticky-header ${isHomeHeaderScrolled ? 'is-scrolled' : ''}`}>
               <SearchBar
                 placeholder="Search products, brands, categories or stores..."
                 value={homeSearchQuery}
@@ -1552,6 +1562,7 @@ export default function App() {
                   activeCategory={activeCategory}
                   onCategoryChange={setActiveCategory}
                   categories={categoriesData}
+                  isScrolled={isHomeHeaderScrolled}
                 />
               )}
             </div>

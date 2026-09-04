@@ -11,7 +11,7 @@ const DEFAULT_CATEGORIES = [
   { id: 'travel', slug: 'travel', name: 'Travel & Flights', icon: 'Plane', badgeColor: '#8b5cf6' },
 ];
 
-export default function CategoryGrid({ activeCategory, onCategoryChange, categories = [] }) {
+export default function CategoryGrid({ activeCategory, onCategoryChange, categories = [], isScrolled = false }) {
   const mergedCategories = React.useMemo(() => {
     // If admin categories are provided from backend/admin state
     if (categories && Array.isArray(categories) && categories.length > 0) {
@@ -39,15 +39,17 @@ export default function CategoryGrid({ activeCategory, onCategoryChange, categor
   }, [categories]);
 
   return (
-    <div className="category-grid-sticky-wrapper" style={{ width: '100%' }}>
-      <div className="section-header category-sticky-header">
-        <div className="section-title-wrap">
-          <Layers className="section-icon" size={20} />
-          <h3 className="section-title">Shop by Category</h3>
+    <div className={`category-grid-sticky-wrapper ${isScrolled ? 'is-scrolled' : ''}`} style={{ width: '100%' }}>
+      {!isScrolled && (
+        <div className="section-header category-sticky-header">
+          <div className="section-title-wrap">
+            <Layers className="section-icon" size={16} />
+            <h3 className="section-title">Shop by Category</h3>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="categories-container">
+      <div className={`categories-container ${isScrolled ? 'is-scrolled' : ''}`}>
         {mergedCategories.map((cat) => {
           const isActive = activeCategory === cat.id || 
             (activeCategory && cat.slug && activeCategory.toLowerCase() === cat.slug.toLowerCase()) ||
@@ -56,11 +58,11 @@ export default function CategoryGrid({ activeCategory, onCategoryChange, categor
           return (
             <div
               key={cat.id || cat.slug || cat.name}
-              className={`category-card ${isActive ? 'active' : ''}`}
+              className={`category-card ${isActive ? 'active' : ''} ${isScrolled ? 'is-scrolled' : ''}`}
               onClick={() => onCategoryChange(cat.slug || cat.id)}
             >
               <div 
-                className="category-icon-box"
+                className={`category-icon-box ${isScrolled ? 'is-scrolled' : ''}`}
                 style={{
                   color: cat.badgeColor || 'var(--primary)',
                   borderColor: isActive ? (cat.badgeColor || 'var(--primary)') : undefined
@@ -70,8 +72,8 @@ export default function CategoryGrid({ activeCategory, onCategoryChange, categor
                   icon={cat.icon}
                   iconType={cat.iconType}
                   customIconUrl={cat.customIconUrl}
-                  color={cat.badgeColor || 'var(--primary)'}
-                  size={22}
+                  color={isActive ? '#fff' : (cat.badgeColor || 'var(--primary)')}
+                  size={isScrolled ? 11 : 14}
                 />
               </div>
               <span className="category-name">{cat.name}</span>
