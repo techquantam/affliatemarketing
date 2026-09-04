@@ -1545,6 +1545,20 @@ export default function App() {
         }}
       />
 
+      {/* Category Filter Bar (Directly below Header at top: 64px with 0 gap) */}
+      {currentView === 'home' && (
+        <div className="home-category-bar-sticky">
+          <CategoryGrid
+            activeCategory={activeCategory}
+            onCategoryChange={(catId) => {
+              setActiveCategory(catId);
+              setHomeSearchQuery('');
+            }}
+            categories={categoriesData}
+          />
+        </div>
+      )}
+
       <main className="main-container">
         {currentView === 'home' && (
           <>
@@ -1556,18 +1570,6 @@ export default function App() {
               currentUser={currentUser}
               openAuthModal={() => setIsAuthModalOpen(true)}
             />
-
-            {/* Category Filter Bar (Sticky below Header at top: 70px) */}
-            <div className="home-category-bar-sticky">
-              <CategoryGrid
-                activeCategory={activeCategory}
-                onCategoryChange={(catId) => {
-                  setActiveCategory(catId);
-                  setHomeSearchQuery('');
-                }}
-                categories={categoriesData}
-              />
-            </div>
 
             {homeSearchQuery ? (
               <div className="search-results-section animate-fade">
