@@ -5,17 +5,19 @@ const config: CapacitorConfig = {
   appName: 'LIO MART',
   webDir: 'dist',
   server: {
-    // Allow the Capacitor WebView to make requests to external APIs
+    // Live Server URL for instant OTA updates upon Git push
+    url: 'https://liomart.co.in',
+    cleartext: true,
+    androidScheme: 'https',
+    // Allow the Capacitor WebView to make requests to external APIs and domains
     allowNavigation: [
-      'api.liomart.co.in',
+      'liomart.co.in',
       '*.liomart.co.in',
+      'api.liomart.co.in',
       'walrus-app-memsh.ondigitalocean.app',
       '*.ondigitalocean.app',
-      '192.168.1.61',
       '*'
     ],
-    // Allow cleartext for local testing
-    cleartext: true,
   },
   android: {
     // Allow mixed content (HTTP resources on HTTPS pages)
