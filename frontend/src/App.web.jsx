@@ -974,9 +974,16 @@ export default function App() {
     return storesData.filter(s => s.status === 'active' || s.status === 'ACTIVE' || !s.status);
   }, [storesData]);
 
-  const filteredStores = activeCategory === 'all'
-    ? activeStores
-    : activeStores.filter((s) => s.category === activeCategory);
+  const filteredStores = React.useMemo(() => {
+    if (!activeCategory || activeCategory === 'all') return activeStores;
+    const norm = (s) => (s || '').toLowerCase().replace(/[\s_\-]+/g, '');
+    const activeNorm = norm(activeCategory);
+    return activeStores.filter((s) => {
+      if (!s.category) return false;
+      const sNorm = norm(s.category);
+      return sNorm === activeNorm || sNorm.includes(activeNorm) || activeNorm.includes(sNorm);
+    });
+  }, [activeCategory, activeStores]);
 
   const selectedStore = storesData.find((s) => s.id === selectedStoreId);
 
@@ -1519,6 +1526,7 @@ export default function App() {
         openAuthModal={() => setIsAuthModalOpen(true)}
         storesData={storesData}
         onStoreSelect={handleStoreSelect}
+        homeSearchQuery={homeSearchQuery}
         setHomeSearchQuery={setHomeSearchQuery}
         dealsData={dynamicDeals}
         categoriesData={categoriesData}
@@ -1549,22 +1557,16 @@ export default function App() {
               openAuthModal={() => setIsAuthModalOpen(true)}
             />
 
-            {/* Sticky Search Bar & Categories Section */}
-            <div className={`home-sticky-header ${isHomeHeaderScrolled ? 'is-scrolled' : ''}`}>
-              <SearchBar
-                placeholder="Search products, brands, categories or stores..."
-                value={homeSearchQuery}
-                onChange={setHomeSearchQuery}
+            {/* Category Filter Bar (Sticky below Header at top: 70px) */}
+            <div className="home-category-bar-sticky">
+              <CategoryGrid
+                activeCategory={activeCategory}
+                onCategoryChange={(catId) => {
+                  setActiveCategory(catId);
+                  setHomeSearchQuery('');
+                }}
+                categories={categoriesData}
               />
-
-              {!homeSearchQuery && (
-                <CategoryGrid
-                  activeCategory={activeCategory}
-                  onCategoryChange={setActiveCategory}
-                  categories={categoriesData}
-                  isScrolled={isHomeHeaderScrolled}
-                />
-              )}
             </div>
 
             {homeSearchQuery ? (

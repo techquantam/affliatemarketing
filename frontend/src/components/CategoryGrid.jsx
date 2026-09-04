@@ -1,83 +1,76 @@
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { 
+  Layers, Laptop, Smartphone, Shirt, ShoppingBag, 
+  Heart, Sparkles, BookOpen, Activity, Compass, Plane
+} from 'lucide-react';
 import CategoryIcon from './CategoryIcon';
 
 const DEFAULT_CATEGORIES = [
-  { id: 'all', slug: 'all', name: 'All Stores', icon: 'Layers', badgeColor: '#3b82f6' },
-  { id: 'fashion', slug: 'fashion', name: 'Fashion', icon: 'Shirt', badgeColor: '#ec4899' },
-  { id: 'electronics', slug: 'electronics', name: 'Electronics', icon: 'Smartphone', badgeColor: '#3b82f6' },
-  { id: 'health', slug: 'health', name: 'Health & Beauty', icon: 'Heart', badgeColor: '#10b981' },
-  { id: 'grocery', slug: 'grocery', name: 'Food & Grocery', icon: 'ShoppingBag', badgeColor: '#f59e0b' },
-  { id: 'travel', slug: 'travel', name: 'Travel & Flights', icon: 'Plane', badgeColor: '#8b5cf6' },
+  { id: 'all', slug: 'all', name: 'All Stores', icon: 'Layers' },
+  { id: 'digital-product', slug: 'digital-product', name: 'Digital product', icon: 'Laptop' },
+  { id: 'electronics', slug: 'electronics', name: 'Electronics', icon: 'Smartphone' },
+  { id: 'fashion', slug: 'fashion', name: 'Fashion', icon: 'Shirt' },
+  { id: 'groceries', slug: 'groceries', name: 'Groceries', icon: 'ShoppingBag' },
+  { id: 'health-beauty', slug: 'health-beauty', name: 'Health & Beauty', icon: 'Heart' },
+  { id: 'smart-fashion', slug: 'smart-fashion', name: 'Smart fashion', icon: 'Sparkles' },
+  { id: 'beauty', slug: 'beauty', name: 'Beauty', icon: 'Sparkles' },
+  { id: 'books', slug: 'books', name: 'Books', icon: 'BookOpen' },
+  { id: 'sports', slug: 'sports', name: 'Sports', icon: 'Activity' },
 ];
 
-export default function CategoryGrid({ activeCategory, onCategoryChange, categories = [], isScrolled = false }) {
+export default function CategoryGrid({ activeCategory, onCategoryChange, categories = [] }) {
   const mergedCategories = React.useMemo(() => {
     // If admin categories are provided from backend/admin state
     if (categories && Array.isArray(categories) && categories.length > 0) {
       const activeOnly = categories.filter(c => c && (c.status === 'active' || c.status === undefined));
-      
-      const adminList = activeOnly.map(c => ({
-        id: (c.slug || c.id || c.name).toLowerCase().replace(/\s+/g, '-'),
-        slug: c.slug || c.id || c.name,
-        name: c.name,
-        icon: c.icon,
-        iconType: c.iconType,
-        customIconUrl: c.customIconUrl,
-        badgeColor: c.badgeColor || '#3b82f6',
-        displayOrder: c.displayOrder ?? 0,
-        featured: c.featured
-      })).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+      if (activeOnly.length > 0) {
+        const adminList = activeOnly.map(c => ({
+          id: (c.slug || c.id || c.name).toLowerCase().replace(/\s+/g, '-'),
+          slug: c.slug || c.id || c.name,
+          name: c.name,
+          icon: c.icon || 'Sparkles',
+          iconType: c.iconType,
+          customIconUrl: c.customIconUrl,
+          displayOrder: c.displayOrder ?? 0
+        })).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
 
-      return [
-        { id: 'all', slug: 'all', name: 'All Stores', icon: 'Layers', badgeColor: 'var(--primary)' },
-        ...adminList
-      ];
+        return [
+          { id: 'all', slug: 'all', name: 'All Stores', icon: 'Layers' },
+          ...adminList
+        ];
+      }
     }
 
     return DEFAULT_CATEGORIES;
   }, [categories]);
 
   return (
-    <div className={`category-grid-sticky-wrapper ${isScrolled ? 'is-scrolled' : ''}`} style={{ width: '100%' }}>
-      {!isScrolled && (
-        <div className="section-header category-sticky-header">
-          <div className="section-title-wrap">
-            <Layers className="section-icon" size={16} />
-            <h3 className="section-title">Shop by Category</h3>
-          </div>
-        </div>
-      )}
-
-      <div className={`categories-container ${isScrolled ? 'is-scrolled' : ''}`}>
+    <div className="category-filter-bar-container">
+      <div className="category-filter-scroll">
         {mergedCategories.map((cat) => {
-          const isActive = activeCategory === cat.id || 
+          const isActive = (!activeCategory && (cat.id === 'all' || cat.slug === 'all')) ||
+            activeCategory === cat.id || 
             (activeCategory && cat.slug && activeCategory.toLowerCase() === cat.slug.toLowerCase()) ||
             (activeCategory && activeCategory.toLowerCase() === cat.name.toLowerCase());
 
           return (
-            <div
+            <button
               key={cat.id || cat.slug || cat.name}
-              className={`category-card ${isActive ? 'active' : ''} ${isScrolled ? 'is-scrolled' : ''}`}
+              type="button"
+              className={`category-filter-chip ${isActive ? 'active' : ''}`}
               onClick={() => onCategoryChange(cat.slug || cat.id)}
             >
-              <div 
-                className={`category-icon-box ${isScrolled ? 'is-scrolled' : ''}`}
-                style={{
-                  color: cat.badgeColor || 'var(--primary)',
-                  borderColor: isActive ? (cat.badgeColor || 'var(--primary)') : undefined
-                }}
-              >
+              <span className="category-chip-icon">
                 <CategoryIcon
                   icon={cat.icon}
                   iconType={cat.iconType}
                   customIconUrl={cat.customIconUrl}
-                  color={isActive ? '#fff' : (cat.badgeColor || 'var(--primary)')}
-                  size={isScrolled ? 11 : 14}
+                  color={isActive ? '#FF4D00' : 'currentColor'}
+                  size={15}
                 />
-              </div>
-              <span className="category-name">{cat.name}</span>
-            </div>
+              </span>
+              <span className="category-chip-label">{cat.name}</span>
+            </button>
           );
         })}
       </div>

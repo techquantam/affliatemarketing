@@ -19,6 +19,7 @@ export default function Header({
   openAuthModal,
   storesData,
   onStoreSelect,
+  homeSearchQuery = '',
   setHomeSearchQuery,
   dealsData = [],
   categoriesData = [],
@@ -30,11 +31,16 @@ export default function Header({
   onMarkAllNotificationsRead,
   onMarkNotificationRead,
 }) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(homeSearchQuery || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const searchRef = useRef(null);
+
+  // Sync internal search query if homeSearchQuery changes from external action
+  useEffect(() => {
+    setSearchQuery(homeSearchQuery || '');
+  }, [homeSearchQuery]);
 
   // Active categories list
   const activeCategories = (categoriesData && categoriesData.length > 0)
@@ -132,31 +138,49 @@ export default function Header({
       }
     }
     setSearchQuery('');
+    if (setHomeSearchQuery) setHomeSearchQuery('');
     setShowSuggestions(false);
   };
 
   return (
     <header className="header-wrapper">
       <div className="header-container">
-        {/* Logo */}
-        <div className="logo-section" onClick={() => setView('home')}>
-          <img src="/logo.webp" alt="Lio Mart Logo" className="logo-img" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+        {/* Logo: LIO in Black, MART in Orange #FF4D00 with small square icon */}
+        <div 
+          className="logo-section" 
+          onClick={() => {
+            setView('home');
+            if (setHomeSearchQuery) setHomeSearchQuery('');
+          }}
+        >
+          <div className="logo-square-icon">
+            <img 
+              src="/logo.webp" 
+              alt="Lio Mart Logo" 
+              className="logo-img" 
+              onError={(e) => { 
+                e.currentTarget.style.display = 'none'; 
+              }} 
+            />
+          </div>
           <h1 className="logo-text">
-            LIO<span> MART</span>
+            <span className="logo-lio">LIO</span><span className="logo-mart"> MART</span>
           </h1>
         </div>
 
-        {/* Search bar */}
+        {/* Single Header Search Bar */}
         <div className="search-bar-container" ref={searchRef}>
           <div className="search-input-wrapper">
             <Search size={18} className="search-icon" />
             <input
               type="text"
-              placeholder="Search products, brands, categories or stores..."
+              placeholder="Search products, brands, categories or stores.."
               className="search-input"
               value={searchQuery}
               onChange={(e) => {
-                setSearchQuery(e.target.value);
+                const val = e.target.value;
+                setSearchQuery(val);
+                if (setHomeSearchQuery) setHomeSearchQuery(val);
                 setShowSuggestions(true);
               }}
               onFocus={() => setShowSuggestions(true)}

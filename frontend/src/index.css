@@ -1,13 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* Color Palette (HSL for high control) */
-  --primary-hue: 12;
-  --primary-sat: 100%;
-  --primary-lightness: 55%;
-  --primary: hsl(var(--primary-hue), var(--primary-sat), var(--primary-lightness));
-  --primary-hover: hsl(var(--primary-hue), var(--primary-sat), calc(var(--primary-lightness) - 6%));
-  --primary-rgb: 255, 79, 47;
+  /* Color Palette */
+  --primary: #FF4D00;
+  --primary-hover: #e04400;
+  --primary-rgb: 255, 77, 0;
   
   --secondary: #10b981; /* Premium Cashback Green */
   --secondary-hover: #059669;
