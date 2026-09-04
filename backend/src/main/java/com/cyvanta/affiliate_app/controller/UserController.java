@@ -44,8 +44,14 @@ public class UserController {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(userRepository.findAll());
+    public ResponseEntity<?> getAllUsers() {
+        List<Map<String, Object>> response = userRepository.findAll().stream()
+                .map(user -> {
+                    Wallet wallet = walletService.getOrCreateWallet(user.getId());
+                    return buildUserResponse(user, wallet);
+                })
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/health")
@@ -682,10 +688,15 @@ public class UserController {
         response.put("paymentDetailsRemarks", user.getPaymentDetailsRemarks());
 
         Map<String, Double> walletData = new HashMap<>();
-        walletData.put("confirmed", wallet.getApprovedBalance());
-        walletData.put("pending", wallet.getPendingBalance());
+        Double approved = wallet != null && wallet.getApprovedBalance() != null ? wallet.getApprovedBalance() : 0.0;
+        Double pending = wallet != null && wallet.getPendingBalance() != null ? wallet.getPendingBalance() : 0.0;
+        walletData.put("confirmed", approved);
+        walletData.put("pending", pending);
+        walletData.put("balance", approved);
         walletData.put("referral", 0.0); // Can be computed from referral transactions later
         response.put("wallet", walletData);
+        response.put("walletBalance", approved);
+        response.put("balance", approved);
 
         return response;
     }

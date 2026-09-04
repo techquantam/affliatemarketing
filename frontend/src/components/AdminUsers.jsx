@@ -147,14 +147,21 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
   });
 
   const exportColumns = [
-    { header: 'ID', dataKey: 'id' },
-    { header: 'Name', dataKey: 'name' },
-    { header: 'Email', dataKey: 'email' },
-    { header: 'Phone', dataKey: 'phone' },
-    { header: 'Role', dataKey: 'role' },
-    { header: 'Status', dataKey: 'status' },
-    { header: 'Wallet Balance (₹)', dataKey: 'walletBalance' },
-    { header: 'Referral Code', dataKey: 'referralCode' }
+    { header: 'ID', dataKey: 'id', accessor: (u) => u.id || '' },
+    { header: 'Name', dataKey: 'name', accessor: (u) => u.name || '' },
+    { header: 'Email', dataKey: 'email', accessor: (u) => u.email || `${(u.name || 'user').toLowerCase().replace(/\s+/g, '')}@gmail.com` },
+    { header: 'Mobile', dataKey: 'phone', accessor: (u) => u.phone || '' },
+    { header: 'Referral Code', dataKey: 'referralCode', accessor: (u) => u.referralCode || u.referral_code || '' },
+    { 
+      header: 'Wallet Balance', 
+      dataKey: 'walletBalance', 
+      accessor: (u) => {
+        const bal = u.wallet?.balance ?? u.wallet?.confirmed ?? u.walletBalance ?? u.balance ?? 0;
+        return Number(bal).toFixed(2);
+      } 
+    },
+    { header: 'Status', dataKey: 'status', accessor: (u) => u.status || 'active' },
+    { header: 'Joined Date', dataKey: 'joinDate', accessor: (u) => u.joinDate || (u.createdAt ? String(u.createdAt).slice(0, 10) : '') }
   ];
 
   const headers = ['User Name', 'Email', 'Mobile', 'Referral Code', 'Join Date', 'Status', 'KYC Status', 'Actions'];
