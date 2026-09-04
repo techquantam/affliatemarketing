@@ -29,7 +29,7 @@ import java.util.Optional;
 import java.util.Random;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping({"/api/users", "/api/user"})
 @Slf4j
 @RequiredArgsConstructor
 public class UserController {
@@ -51,6 +51,27 @@ public class UserController {
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> healthCheck() {
         return ResponseEntity.ok(Map.of("status", "UP", "message", "User Controller is reachable"));
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String phone) {
+        Optional<User> userOpt = Optional.empty();
+        if (id != null && !id.trim().isEmpty()) {
+            userOpt = userRepository.findById(id.trim());
+        } else if (email != null && !email.trim().isEmpty()) {
+            userOpt = userRepository.findByEmail(email.trim().toLowerCase());
+        } else if (phone != null && !phone.trim().isEmpty()) {
+            userOpt = findUserByPhone(phone.trim());
+        }
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+        }
+        User user = userOpt.get();
+        Wallet wallet = walletService.getOrCreateWallet(user.getId());
+        return ResponseEntity.ok(buildUserResponse(user, wallet));
     }
 
     @GetMapping("/{id}")
@@ -224,7 +245,14 @@ public class UserController {
 
         // Generate a unique referral code
         String referralCode = generateReferralCode(name);
-        String referredBy = body.getOrDefault("referredBy", null);
+        String referredBy = body.get("referredBy");
+        if (referredBy == null || referredBy.trim().isEmpty()) {
+            referredBy = body.get("referralCode");
+        }
+        if (referredBy == null || referredBy.trim().isEmpty()) {
+            referredBy = body.get("ref");
+        }
+        if (referredBy != null) referredBy = referredBy.trim();
         String otp = String.format("%06d", new Random().nextInt(999999));
 
         User user = User.builder()
@@ -607,7 +635,16 @@ public class UserController {
         response.put("name", user.getName());
         response.put("email", user.getEmail());
         response.put("phone", user.getPhone());
-        response.put("referralCode", user.getReferralCode());
+        if (user.getReferralCode() == null || user.getReferralCode().trim().isEmpty()) {
+            user.setReferralCode(generateReferralCode(user.getName()));
+            user = userRepository.save(user);
+        }
+        String refCode = user.getReferralCode();
+        String refLink = "https://liomart.co.in/signup?ref=" + refCode;
+        response.put("referralCode", refCode);
+        response.put("referral_code", refCode);
+        response.put("referralLink", refLink);
+        response.put("referral_link", refLink);
         response.put("referredBy", user.getReferredBy());
         response.put("status", user.getStatus());
         response.put("joinDate", user.getJoinDate());
@@ -730,11 +767,17 @@ public class UserController {
 
     // --- Helper: Generate referral code ---
     private String generateReferralCode(String name) {
-        String prefix = (name != null && name.length() >= 3)
-                ? name.substring(0, 3).toUpperCase()
-                : "USR";
-        String suffix = UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        return prefix + suffix;
+        String cleanName = name != null ? name.replaceAll("[^a-zA-Z]", "").toUpperCase() : "";
+        String prefix = cleanName.length() >= 3 ? cleanName.substring(0, 3) : "LIO";
+        Random random = new Random();
+        for (int i = 0; i < 20; i++) {
+            int num = 10000 + random.nextInt(90000);
+            String candidate = prefix + num;
+            if (userRepository.findByReferralCode(candidate).isEmpty()) {
+                return candidate;
+            }
+        }
+        return "LIO" + (10000 + random.nextInt(90000));
     }
 
     @PostMapping("/forgot-password")

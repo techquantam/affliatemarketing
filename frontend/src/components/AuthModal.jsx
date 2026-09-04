@@ -1,17 +1,26 @@
-import React, { useState } from 'react';
-import { X, Lock, Mail, User, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Lock, Mail, User, ShieldCheck, Gift } from 'lucide-react';
 import { apiUsers } from '../services/api';
 
-export default function AuthModal({ isOpen, onClose, onLogin }) {
-  const [activeTab, setActiveTab] = useState('login');
+export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'login' }) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [authStep, setAuthStep] = useState('details'); // 'details', 'otp', 'forgot-request', 'forgot-reset'
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [referralCode, setReferralCode] = useState(() => localStorage.getItem('lio_referral_code') || '');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+      const savedRef = localStorage.getItem('lio_referral_code') || '';
+      if (savedRef) setReferralCode(savedRef);
+    }
+  }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
@@ -84,7 +93,8 @@ export default function AuthModal({ isOpen, onClose, onLogin }) {
         return;
       }
       
-      apiUsers.register(name, identifier, password)
+      const refCodeToUse = (referralCode && referralCode.trim()) || localStorage.getItem('lio_referral_code') || null;
+      apiUsers.register(name, identifier, password, refCodeToUse)
         .then((res) => {
           if (res.requireOtp) {
             setAuthStep('otp');
@@ -341,6 +351,34 @@ export default function AuthModal({ isOpen, onClose, onLogin }) {
                 </div>
               )}
             </div>
+
+            {activeTab === 'register' && (
+              <div className="form-group">
+                <label>Referral Code (Optional)</label>
+                <div style={{ position: 'relative' }}>
+                  <Gift
+                    size={16}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      opacity: 0.5,
+                      color: 'var(--primary)',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Enter referral code (e.g. LIO12345)"
+                    className="form-input"
+                    style={{ paddingLeft: '36px', width: '100%', textTransform: 'uppercase' }}
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            )}
 
             <button type="submit" className="btn-auth-submit" disabled={loading}>
               {loading ? (

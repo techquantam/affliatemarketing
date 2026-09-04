@@ -3,7 +3,9 @@ import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Sh
 import { apiSharedLinks, apiSharedCommissions, apiSettings, apiUsers, apiUpload } from '../services/api';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
+import ReferralShareModal from './ReferralShareModal';
 import { buildAffiliateTrackingUrl } from '../services/affiliateNetworks';
+import { copyToClipboard, getReferralDetails } from '../utils/clipboard';
 
 const DUMMY_CLICKS = [];
 
@@ -197,20 +199,54 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
     }
   };
 
-  const handleCopySharedLink = (linkUrl, linkId) => {
-    navigator.clipboard.writeText(linkUrl);
-    setCopiedSharedId(linkId);
-    onAddNotification('Shared link copied to clipboard!', 'success');
-    setTimeout(() => setCopiedSharedId(null), 2000);
+  const handleCopySharedLink = async (linkUrl, linkId) => {
+    const ok = await copyToClipboard(linkUrl);
+    if (ok) {
+      setCopiedSharedId(linkId);
+      onAddNotification('Shared link copied to clipboard!', 'success');
+      setTimeout(() => setCopiedSharedId(null), 2000);
+    }
   };
 
-  const refLink = `${window.location.origin}/join?ref=${currentUser.name.toLowerCase()}`;
+  const { code: refCode, link: refLink, shareText: refShareText } = getReferralDetails(currentUser);
+  const [copiedRefCode, setCopiedRefCode] = useState(false);
+  const [isReferralShareOpen, setIsReferralShareOpen] = useState(false);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(refLink);
-    setCopiedLink(true);
-    onAddNotification('Referral link copied to clipboard!', 'success');
-    setTimeout(() => setCopiedLink(false), 2000);
+  const handleCopyCode = async () => {
+    const ok = await copyToClipboard(refCode);
+    if (ok) {
+      setCopiedRefCode(true);
+      onAddNotification('Referral code copied to clipboard!', 'success');
+      setTimeout(() => setCopiedRefCode(false), 2000);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const ok = await copyToClipboard(refLink);
+    if (ok) {
+      setCopiedLink(true);
+      onAddNotification('Referral link copied to clipboard!', 'success');
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleShareReferral = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join LIO MART & Earn Cashback',
+          text: refShareText,
+          url: refLink,
+        });
+        onAddNotification('Shared successfully!', 'success');
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('Native share failed:', err);
+        }
+      }
+    }
+    setIsReferralShareOpen(true);
   };
 
   // --- WITHDRAWAL SUBMISSION ---
@@ -805,34 +841,68 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
             )}
 
             {/* Referral Info Card */}
-            <div className="referral-card">
-              <div className="referral-info">
-                <h3 className="referral-title">Invite friends, get 10% of their earnings for life!</h3>
-                <p style={{ fontSize: '14px', color: 'var(--text)' }}>
-                  When your friends register via your unique referral link and share deals, you receive a flat
-                  10% lifetime referral bonus on all commissions they earn!
-                </p>
-                <div className="referral-link-box">
-                  <input type="text" readOnly value={refLink} className="referral-link-input" />
+            <div className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', backgroundColor: 'var(--card-bg)' }}>
+              <div className="referral-info" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h3 className="referral-title" style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-bold)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Gift size={20} style={{ color: 'var(--primary)' }} />
+                      Invite Friends & Earn 10% For Life!
+                    </h3>
+                    <p style={{ fontSize: '13.5px', color: 'var(--text)', margin: '4px 0 0 0' }}>
+                      When friends register with your code or link, you earn a flat 10% lifetime referral bonus on all their cashback.
+                    </p>
+                  </div>
                   <button
+                    type="button"
+                    onClick={handleShareReferral}
                     className="btn-primary"
-                    onClick={handleCopyLink}
-                    style={{
-                      padding: '8px 16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                    }}
+                    style={{ padding: '8px 18px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', borderRadius: '8px', fontWeight: '600' }}
                   >
-                    {copiedLink ? <Check size={16} /> : <Copy size={16} />}
-                    {copiedLink ? 'Copied' : 'Copy'}
+                    <Share2 size={16} /> Share Referral
                   </button>
                 </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <Gift size={80} style={{ color: 'var(--primary)', opacity: 0.8 }} />
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '4px' }}>
+                  {/* Referral Code Box */}
+                  <div style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', borderRadius: '10px', border: '1.5px dashed var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text)', textTransform: 'uppercase', display: 'block' }}>Your Referral Code</span>
+                      <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '1px' }}>{refCode}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyCode}
+                      className="btn-primary"
+                      style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      {copiedRefCode ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedRefCode ? 'Copied' : 'Copy Code'}
+                    </button>
+                  </div>
+
+                  {/* Referral Link Box */}
+                  <div style={{ backgroundColor: 'var(--bg)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text)', textTransform: 'uppercase', display: 'block' }}>Your Referral Link</span>
+                      <input
+                        type="text"
+                        readOnly
+                        value={refLink}
+                        style={{ width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: '12.5px', color: 'var(--text-bold)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', padding: 0 }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyLink}
+                      className="btn-primary"
+                      style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                    >
+                      {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedLink ? 'Copied' : 'Copy Link'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1396,34 +1466,113 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
 
         {activeTab === 'refer' && (
           <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <h2 className="section-title">Refer & Earn Program</h2>
-            <div className="referral-card" style={{ gridTemplateColumns: '1fr' }}>
-              <h3 className="referral-title" style={{ color: 'var(--primary)', fontSize: '24px' }}>
-                Flat 10% Lifetime Commission
-              </h3>
-              <p style={{ color: 'var(--text)', fontSize: '15px', lineHeight: 1.6 }}>
-                Share your personalized referral code with your audience, friends, or family. As soon
-                as they register, their profiles are permanently tagged under your account. Whenever
-                they claim cashback on any deal, 10% of their cashback rate is automatically credited
-                into your referral balance!
+            <div className="admin-page-header" style={{ marginBottom: 0, paddingBottom: 0 }}>
+              <h2 className="section-title" style={{ margin: 0 }}>Refer & Earn Program</h2>
+              <p style={{ fontSize: '14px', color: 'var(--text)', marginTop: '4px' }}>
+                Invite your friends and earn a flat 10% commission on every cashback they receive, forever!
               </p>
+            </div>
 
-              <div className="referral-link-box" style={{ maxWidth: '600px', marginTop: '16px' }}>
-                <input type="text" readOnly value={refLink} className="referral-link-input" style={{ fontSize: '15px', padding: '12px' }} />
+            {/* Banner Card */}
+            <div className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '28px', borderRadius: '16px', border: '1px solid var(--border)', backgroundColor: 'var(--card-bg)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ maxWidth: '650px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '20px', backgroundColor: 'rgba(255, 77, 0, 0.1)', color: 'var(--primary)', fontSize: '12px', fontWeight: '700', marginBottom: '10px' }}>
+                    <Gift size={14} /> LIFETIME REFERRAL PROGRAM
+                  </span>
+                  <h3 className="referral-title" style={{ color: 'var(--primary)', fontSize: '24px', fontWeight: '800', margin: '0 0 8px 0' }}>
+                    Flat 10% Lifetime Bonus on Every Order
+                  </h3>
+                  <p style={{ color: 'var(--text)', fontSize: '14.5px', lineHeight: 1.6, margin: 0 }}>
+                    Share your personalized referral code or invitation link with your audience, friends, or family. As soon as they register, their profiles are permanently linked to your account. Whenever they earn cashback, 10% bonus is automatically credited into your wallet!
+                  </p>
+                </div>
+
                 <button
+                  type="button"
+                  onClick={handleShareReferral}
                   className="btn-primary"
-                  onClick={handleCopyLink}
-                  style={{ padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  style={{ padding: '12px 24px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '700', boxShadow: '0 4px 14px rgba(255, 77, 0, 0.3)' }}
                 >
-                  {copiedLink ? <Check size={18} /> : <Copy size={18} />}
-                  {copiedLink ? 'Link Copied!' : 'Copy Invitation Link'}
+                  <Share2 size={18} /> Share With Friends
                 </button>
+              </div>
+
+              {/* Code & Link Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginTop: '24px' }}>
+                {/* Referral Code */}
+                <div style={{ backgroundColor: 'var(--bg)', padding: '16px 20px', borderRadius: '12px', border: '1.5px dashed var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>Your Referral Code</span>
+                    <span style={{ fontSize: '22px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '1.5px' }}>{refCode}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    className="btn-primary"
+                    style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600' }}
+                  >
+                    {copiedRefCode ? <Check size={16} /> : <Copy size={16} />}
+                    {copiedRefCode ? 'Copied' : 'Copy Code'}
+                  </button>
+                </div>
+
+                {/* Referral Link */}
+                <div style={{ backgroundColor: 'var(--bg)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>Your Referral Link</span>
+                    <input
+                      type="text"
+                      readOnly
+                      value={refLink}
+                      style={{ width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: '13px', color: 'var(--text-bold)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', padding: 0, fontFamily: 'monospace' }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="btn-primary"
+                    style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '600', whiteSpace: 'nowrap' }}
+                  >
+                    {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+                    {copiedLink ? 'Copied' : 'Copy Link'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* How it works 3-step grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <div style={{ padding: '20px', backgroundColor: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255, 77, 0, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '16px' }}>1</div>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-bold)' }}>Invite Friends</h4>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)', lineHeight: 1.5 }}>Share your unique referral code or link with friends via WhatsApp, Telegram, or social media.</p>
+              </div>
+
+              <div style={{ padding: '20px', backgroundColor: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255, 77, 0, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '16px' }}>2</div>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-bold)' }}>They Join & Shop</h4>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)', lineHeight: 1.5 }}>Your friends sign up and start claiming cashback on 100+ top online stores like Amazon and Flipkart.</p>
+              </div>
+
+              <div style={{ padding: '20px', backgroundColor: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: 'rgba(255, 77, 0, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '16px' }}>3</div>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-bold)' }}>You Earn 10% For Life</h4>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)', lineHeight: 1.5 }}>Every time they earn cashback, a flat 10% referral commission is credited to your wallet balance automatically.</p>
               </div>
             </div>
           </div>
         )}
 
       </div>
+
+      <ReferralShareModal
+        isOpen={isReferralShareOpen}
+        onClose={() => setIsReferralShareOpen(false)}
+        referralCode={refCode}
+        referralLink={refLink}
+        onNotification={onAddNotification}
+      />
     </div>
   );
 }

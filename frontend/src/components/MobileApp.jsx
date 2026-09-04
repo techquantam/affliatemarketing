@@ -36,16 +36,19 @@ import {
   Bell,
   CreditCard,
   Landmark,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Share2
 } from 'lucide-react';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
 import CategoryIcon from './CategoryIcon';
 import PriceComparisonModal from './PriceComparisonModal';
+import ReferralShareModal from './ReferralShareModal';
 import { apiUsers, apiUpload, apiSharedLinks, apiNotifications } from '../services/api';
 import { apiAffiliate } from '../services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from '../utils/openUrl';
 import { getCleanedUrlIdentifier } from '../utils/urlMatcher';
+import { copyToClipboard, getReferralDetails } from '../utils/clipboard';
 
 const STORES_INFO = [
   { platform: 'Amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg', cashbackPercent: 10.0 },
@@ -419,16 +422,63 @@ export default function MobileApp({
     wallet: { confirmed: 0.00, pending: 0.00, referral: 0.00 }
   };
 
-  const refLink = `${window.location.origin}/join?ref=${user.name.toLowerCase().replace(' ', '')}`;
+  const { code: refCode, link: refLink, shareText: refShareText } = getReferralDetails(currentUser);
+  const [copiedRefCode, setCopiedRefCode] = useState(false);
+  const [isReferralShareOpen, setIsReferralShareOpen] = useState(false);
 
   // Filter tracked orders for the logged-in user
   const userTrackedOrders = trackedOrders.filter(o => o.userName === user.name);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(refLink);
-    setCopiedLink(true);
-    onAddNotification('Referral link copied!', 'success');
-    setTimeout(() => setCopiedLink(false), 2000);
+  const handleCopyCode = async () => {
+    if (isGuest) {
+      onAddNotification('Please Login / Sign Up first to get your referral code!', 'info');
+      openAuthModal();
+      return;
+    }
+    const ok = await copyToClipboard(refCode);
+    if (ok) {
+      setCopiedRefCode(true);
+      onAddNotification('Referral code copied to clipboard!', 'success');
+      setTimeout(() => setCopiedRefCode(false), 2000);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (isGuest) {
+      onAddNotification('Please Login / Sign Up first to get your referral link!', 'info');
+      openAuthModal();
+      return;
+    }
+    const ok = await copyToClipboard(refLink);
+    if (ok) {
+      setCopiedLink(true);
+      onAddNotification('Referral link copied to clipboard!', 'success');
+      setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleShareReferral = async () => {
+    if (isGuest) {
+      onAddNotification('Please Login / Sign Up first to invite friends!', 'info');
+      openAuthModal();
+      return;
+    }
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join LIO MART & Earn Cashback',
+          text: refShareText,
+          url: refLink,
+        });
+        onAddNotification('Shared successfully!', 'success');
+        return;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.warn('Native share error:', err);
+        }
+      }
+    }
+    setIsReferralShareOpen(true);
   };
 
   const handleGrabDeal = (deal) => {
@@ -1681,16 +1731,93 @@ export default function MobileApp({
             </div>
 
             {/* Invite link share */}
-            <div className="app-invite-card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <Gift size={16} style={{ color: 'var(--primary)' }} />
-                <h3>Your Referral Code</h3>
+            <div className="app-invite-card" style={{ padding: '16px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Gift size={18} style={{ color: 'var(--primary)' }} />
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: 'var(--text-bold)' }}>Refer & Earn 10% For Life</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleShareReferral}
+                  style={{
+                    backgroundColor: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Share2 size={13} /> Share
+                </button>
               </div>
-              <p>Share this link to claim lifetime 10% commission on referrals.</p>
-              <div className="app-referral-copy-box">
-                <input type="text" readOnly value={refLink} />
-                <button onClick={handleCopyLink}>
-                  {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text)', lineHeight: 1.4 }}>
+                Invite friends with your referral code or link. Earn flat 10% lifetime commission on all their cashback earnings!
+              </p>
+
+              {/* Referral Code Box */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: 'var(--bg)', border: '1.5px dashed var(--primary)', borderRadius: '8px' }}>
+                <div>
+                  <span style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text)', textTransform: 'uppercase', display: 'block' }}>Referral Code</span>
+                  <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '1px' }}>{refCode}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  style={{
+                    backgroundColor: copiedRefCode ? '#10b981' : 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {copiedRefCode ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedRefCode ? 'Copied' : 'Copy Code'}
+                </button>
+              </div>
+
+              {/* Referral Link Box */}
+              <div className="app-referral-copy-box" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--bg)', padding: '6px 8px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={refLink}
+                  style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: '11.5px', color: 'var(--text-bold)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden', padding: 0 }}
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  style={{
+                    backgroundColor: copiedLink ? '#10b981' : 'var(--text-bold)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {copiedLink ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedLink ? 'Copied' : 'Copy Link'}
                 </button>
               </div>
             </div>
@@ -2302,6 +2429,14 @@ export default function MobileApp({
         onBuyAndEarn={executeSimulatorGrabDeal}
         onReferLink={handleMobileReferLink}
         storesData={storesData}
+      />
+
+      <ReferralShareModal
+        isOpen={isReferralShareOpen}
+        onClose={() => setIsReferralShareOpen(false)}
+        referralCode={refCode}
+        referralLink={refLink}
+        onNotification={onAddNotification}
       />
     </div>
   );

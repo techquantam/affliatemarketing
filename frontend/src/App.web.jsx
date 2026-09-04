@@ -396,8 +396,26 @@ export default function App() {
   const [searchFilter, setSearchFilter] = useState('all');
   const [theme, setTheme] = useState('light');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState('login');
   const [notifications, setNotifications] = useState([]);
   const [userNotifications, setUserNotifications] = useState([]);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const refParam = params.get('ref') || params.get('referral') || params.get('referralCode');
+      if (refParam) {
+        localStorage.setItem('lio_referral_code', refParam.trim().toUpperCase());
+      }
+      const isSignupPath = window.location.pathname === '/signup' || window.location.pathname === '/join' || params.get('signup') === 'true';
+      if ((refParam || isSignupPath) && !localStorage.getItem('user_session')) {
+        setAuthInitialTab('register');
+        setIsAuthModalOpen(true);
+      }
+    } catch (e) {
+      console.warn('Error processing referral URL:', e);
+    }
+  }, []);
 
   // Simulator and state sync variables
   const isCapacitorNative = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
@@ -1399,6 +1417,7 @@ export default function App() {
         />
         <AuthModal
           isOpen={isAuthModalOpen}
+          initialTab={authInitialTab}
           onClose={() => setIsAuthModalOpen(false)}
           onLogin={handleLogin}
         />
@@ -1494,6 +1513,7 @@ export default function App() {
 
         <AuthModal
           isOpen={isAuthModalOpen}
+          initialTab={authInitialTab}
           onClose={() => setIsAuthModalOpen(false)}
           onLogin={handleLogin}
         />
@@ -1761,6 +1781,7 @@ export default function App() {
       {/* Login / Registration overlay sheet */}
       <AuthModal
         isOpen={isAuthModalOpen}
+        initialTab={authInitialTab}
         onClose={() => setIsAuthModalOpen(false)}
         onLogin={handleLogin}
       />
