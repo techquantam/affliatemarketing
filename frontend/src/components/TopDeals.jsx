@@ -112,18 +112,19 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
 
                     <div className="deal-price-section">
                       <div className="deal-retail-row">
-                        <span>Retail Price:</span>
+                        <span className="deal-price-label">Retail Price:</span>
                         <span className="deal-retail-price">₹{(deal.retailPrice || 0).toFixed(2)}</span>
                       </div>
 
                       <div className="deal-discounted-row">
-                        <span>Special Price:</span>
-                        <span>₹{(deal.dealPrice || 0).toFixed(2)}</span>
+                        <span className="deal-price-label">Special Price:</span>
+                        <span className="deal-deal-price">₹{(deal.dealPrice || 0).toFixed(2)}</span>
                       </div>
                     </div>
 
                     <div className="deal-actions-row">
                       <button
+                        type="button"
                         className="btn-card-primary"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -134,6 +135,7 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                       </button>
 
                       <button
+                        type="button"
                         className={`btn-deal-compare ${isInCompare ? 'in-compare' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -151,6 +153,7 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                       </button>
 
                       <button
+                        type="button"
                         className="btn-deal-share"
                         onClick={(e) => {
                           e.stopPropagation();

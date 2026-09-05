@@ -852,6 +852,32 @@
   width: 100%;
 }
 
+.btn-card-primary {
+  background-color: var(--primary, #FF4D00);
+  background: var(--gradient-primary, linear-gradient(135deg, #FF4D00 0%, #ff7e40 100%));
+  color: #ffffff !important;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(255, 77, 0, 0.25);
+  transition: all 0.2s ease;
+  text-decoration: none;
+  outline: none;
+}
+
+.btn-card-primary:hover {
+  background: linear-gradient(135deg, #e04400 0%, #ff6a20 100%);
+  box-shadow: 0 4px 10px rgba(255, 77, 0, 0.35);
+  transform: translateY(-1px);
+  color: #ffffff !important;
+}
+
 .btn-card-primary.store-btn-compact,
 .store-btn-compact {
   background-color: #FF4D00;
@@ -994,26 +1020,58 @@
   flex-direction: column;
   background-color: var(--bg);
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   gap: 4px;
+  margin-top: auto;
 }
 
 .deal-retail-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text);
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.deal-retail-row .deal-price-label,
+.deal-retail-row span:first-child {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
 }
 
 .deal-retail-price {
+  font-size: 11px;
   text-decoration: line-through;
+  white-space: nowrap;
 }
 
 .deal-discounted-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   font-weight: 700;
   color: var(--text-bold);
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.deal-discounted-row .deal-price-label,
+.deal-discounted-row span:first-child {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text, #374151);
+  white-space: nowrap;
+}
+
+.deal-discounted-row .deal-deal-price,
+.deal-discounted-row span:last-child {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--primary, #FF4D00);
+  white-space: nowrap;
 }
 
 .deal-cashback-row {
@@ -1038,13 +1096,16 @@
 .deal-actions-row {
   display: flex;
   gap: 6px;
-  margin-top: 8px;
-  align-items: stretch;
+  margin-top: 10px;
+  align-items: center;
+  width: 100%;
 }
 
 .deal-actions-row .btn-card-primary {
   flex: 1;
-  padding: 6px 10px;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
   font-size: 12px;
   font-weight: 700;
   border-radius: 6px;
@@ -1052,12 +1113,32 @@
   align-items: center;
   justify-content: center;
   white-space: nowrap;
+  background-color: var(--primary, #FF4D00);
+  background: var(--gradient-primary, linear-gradient(135deg, #FF4D00 0%, #ff7e40 100%));
+  color: #ffffff !important;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(255, 77, 0, 0.25);
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.deal-actions-row .btn-card-primary:hover {
+  background: linear-gradient(135deg, #e04400 0%, #ff6a20 100%);
+  box-shadow: 0 4px 10px rgba(255, 77, 0, 0.35);
+  transform: translateY(-1px);
+  color: #ffffff !important;
+}
+
+.deal-actions-row .btn-card-primary:active {
+  transform: translateY(0);
 }
 
 .btn-deal-compare {
   flex: 0 0 auto;
-  min-width: 48px;
-  padding: 4px 6px;
+  min-width: 50px;
+  height: 36px;
+  padding: 2px 6px;
   font-size: 10px;
   font-weight: 700;
   background-color: rgba(16, 185, 129, 0.08);
@@ -1073,6 +1154,7 @@
   line-height: 1;
   transition: all 0.2s ease;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .btn-deal-compare:hover {
@@ -1089,8 +1171,9 @@
 
 .btn-deal-share {
   flex: 0 0 auto;
-  min-width: 36px;
-  padding: 6px 8px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1100,12 +1183,14 @@
   color: var(--text-bold);
   cursor: pointer;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .btn-deal-share:hover {
   border-color: var(--primary, #FF4D00);
   color: var(--primary, #FF4D00);
   background-color: rgba(255, 77, 0, 0.05);
+  transform: translateY(-1px);
 }
 
 /* --- INTERACTIVE CASHBACK CALCULATOR --- */
@@ -3369,17 +3454,41 @@
   .deal-discounted-row {
     font-size: 10px !important;
     line-height: 1.2;
+    white-space: nowrap !important;
   }
   
+  .deal-retail-row span:first-child,
+  .deal-discounted-row span:first-child {
+    font-size: 9px !important;
+    white-space: nowrap !important;
+  }
+
   .deal-discounted-row span:last-child {
-    font-size: 12px !important;
+    font-size: 11px !important;
     font-weight: 800;
+    white-space: nowrap !important;
   }
   
+  .deal-actions-row .btn-card-primary,
   .deal-info .btn-card-primary {
-    padding: 8px 10px !important;
-    font-size: 12px !important;
-    margin-top: 4px;
+    height: 32px !important;
+    padding: 0 6px !important;
+    font-size: 11px !important;
+    margin: 0 !important;
+  }
+
+  .deal-actions-row .btn-deal-compare {
+    height: 32px !important;
+    min-width: 44px !important;
+    font-size: 9px !important;
+    padding: 2px 4px !important;
+  }
+
+  .deal-actions-row .btn-deal-share {
+    height: 32px !important;
+    width: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
   }
   
   .deal-info .btn-secondary {
