@@ -90,9 +90,10 @@ public class WalletController {
         // 2. SharedCommissions (earnings from share & earn)
         List<SharedCommission> commissions = sharedCommissionRepository.findByUserId(userId);
         for (SharedCommission sc : commissions) {
-            // Skip if already tracked as a wallet transaction
+            // Skip if already tracked as a wallet transaction (match by sc.id or sc.clickId)
             boolean alreadyTracked = walletTxns.stream()
-                .anyMatch(wt -> wt.getTrackingId() != null && wt.getTrackingId().equals(sc.getId()));
+                .anyMatch(wt -> wt.getTrackingId() != null && 
+                    (wt.getTrackingId().equals(sc.getId()) || (sc.getClickId() != null && wt.getTrackingId().equals(sc.getClickId()))));
             if (alreadyTracked) continue;
 
             Map<String, Object> entry = new LinkedHashMap<>();
@@ -106,7 +107,7 @@ public class WalletController {
             entry.put("description", desc);
             entry.put("type", "CREDIT");
             entry.put("category", "SHARED_COMMISSION");
-            Double amount = sc.getUserCommissionAmount() != null ? sc.getUserCommissionAmount() : sc.getCommissionAmount();
+            Double amount = sc.getUserCommissionAmount() != null ? sc.getUserCommissionAmount() : (sc.getCommissionAmount() != null ? sc.getCommissionAmount() : 0.0);
             entry.put("amount", amount);
             String scStatus = sc.getStatus() != null ? sc.getStatus().toUpperCase() : "PENDING";
             entry.put("status", scStatus);

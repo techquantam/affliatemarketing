@@ -282,14 +282,20 @@ export const apiSharedLinks = {
   getByUser: (userId) => request(`/shared-links/user/${userId}`),
   create: (linkData) => request('/shared-links', { method: 'POST', body: JSON.stringify(linkData) }),
   delete: (id) => request(`/shared-links/${id}`, { method: 'DELETE' }),
-  incrementClicks: (id) => request(`/shared-links/${id}/click`, { method: 'POST' })
+  incrementClicks: (id) => request(`/shared-links/${id}/click`, { method: 'POST' }),
+  simulate: (id) => request(`/shared-links/${id}/simulate`, { method: 'POST' })
 };
 
 export const apiSharedCommissions = {
   getAll: () => request('/shared-commissions'),
   getByUser: (userId) => request(`/shared-commissions/user/${userId}`),
   create: (commData) => request('/shared-commissions', { method: 'POST', body: JSON.stringify(commData) }),
-  updateStatus: (id, status, amount) => request(`/shared-commissions/${id}/status`, { method: 'PUT', body: JSON.stringify({ status, amount }) })
+  updateStatus: (id, statusOrData, amount) => {
+    const body = typeof statusOrData === 'object' && statusOrData !== null
+      ? statusOrData
+      : { status: statusOrData, amount };
+    return request(`/shared-commissions/${id}/status`, { method: 'PUT', body: JSON.stringify(body) });
+  }
 };
 
 export const apiAdmin = {

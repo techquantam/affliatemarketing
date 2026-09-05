@@ -193,16 +193,26 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   const handleSimulateClick = async (id) => {
     try {
       onAddNotification('Simulating user click & potential purchase...', 'info');
-      const updated = await apiSharedLinks.incrementClicks(id);
+      const updated = await apiSharedLinks.simulate(id);
       
       // Update link list
-      setSharedLinks(prev => prev.map(l => l.id === id ? { ...l, clicksCount: updated.clicksCount, conversionsCount: updated.conversionsCount } : l));
+      setSharedLinks(prev => prev.map(l => l.id === id ? { 
+        ...l, 
+        clicksCount: updated.clicksCount, 
+        conversionsCount: updated.conversionsCount,
+        totalEarnings: updated.totalEarnings !== undefined ? updated.totalEarnings : l.totalEarnings 
+      } : l));
       
       // Re-fetch commissions & sync
-      const comms = await apiSharedCommissions.getByUser(currentUser.id);
-      setSharedCommissions(comms);
+      const userId = currentUser.id || currentUser._id;
+      const comms = await apiSharedCommissions.getByUser(userId);
+      setSharedCommissions(comms || []);
       
-      onAddNotification('Simulation completed! Conversions and clicks updated.', 'success');
+      if (onRefreshProfile) {
+        onRefreshProfile();
+      }
+
+      onAddNotification('Simulation completed! Conversions, clicks, and pending commission updated.', 'success');
     } catch (err) {
       console.error(err);
       onAddNotification('Simulation error.', 'error');
@@ -955,25 +965,31 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
               <div className="wallet-stat" style={{ padding: '20px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <span className="wallet-stat-label" style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500 }}>Total Shared Clicks</span>
                 <span className="wallet-stat-val" style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-bold)' }}>
-                  {sharedLinks.reduce((sum, l) => sum + l.clicksCount, 0)}
+                  {sharedLinks.reduce((sum, l) => sum + (l.clicksCount || 0), 0)}
                 </span>
               </div>
               <div className="wallet-stat" style={{ padding: '20px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <span className="wallet-stat-label" style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500 }}>Total Conversions</span>
                 <span className="wallet-stat-val" style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-bold)' }}>
-                  {sharedLinks.reduce((sum, l) => sum + l.conversionsCount, 0)}
+                  {sharedLinks.reduce((sum, l) => sum + (l.conversionsCount || 0), 0)}
                 </span>
               </div>
               <div className="wallet-stat" style={{ padding: '20px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <span className="wallet-stat-label" style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500 }}>Pending Commission</span>
                 <span className="wallet-stat-val" style={{ fontSize: '24px', fontWeight: 700, color: '#f59e0b' }}>
-                  ₹{sharedCommissions.filter(c => c.status === 'pending').reduce((sum, c) => sum + c.commissionAmount, 0).toFixed(2)}
+                  ₹{sharedCommissions
+                    .filter(c => (c.status || '').toLowerCase() === 'pending')
+                    .reduce((sum, c) => sum + parseFloat(c.userCommissionAmount != null ? c.userCommissionAmount : (c.commissionAmount || 0)), 0)
+                    .toFixed(2)}
                 </span>
               </div>
               <div className="wallet-stat" style={{ padding: '20px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <span className="wallet-stat-label" style={{ fontSize: '12px', color: 'var(--text)', fontWeight: 500 }}>Approved Earnings</span>
                 <span className="wallet-stat-val" style={{ fontSize: '24px', fontWeight: 700, color: '#10b981' }}>
-                  ₹{sharedCommissions.filter(c => c.status === 'approved').reduce((sum, c) => sum + c.commissionAmount, 0).toFixed(2)}
+                  ₹{sharedCommissions
+                    .filter(c => (c.status || '').toLowerCase() === 'approved')
+                    .reduce((sum, c) => sum + parseFloat(c.userCommissionAmount != null ? c.userCommissionAmount : (c.commissionAmount || 0)), 0)
+                    .toFixed(2)}
                 </span>
               </div>
               <div className="wallet-stat" style={{ padding: '20px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1178,18 +1194,18 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
                               <span style={{ fontSize: '10px', color: 'var(--text)' }}>{comm.store}</span>
                             </div>
                           </td>
-                          <td style={{ fontWeight: 500 }}>₹{comm.purchaseAmount.toFixed(2)}</td>
-                          <td style={{ fontWeight: 500 }}>{comm.commissionRate}%</td>
+                          <td style={{ fontWeight: 500 }}>₹{parseFloat(comm.purchaseAmount || 0).toFixed(2)}</td>
+                          <td style={{ fontWeight: 500 }}>{comm.commissionRate != null ? comm.commissionRate : globalShareRate}%</td>
                           <td>
                             <div>
-                              <div style={{ fontWeight: 700, color: comm.status === 'approved' ? '#10b981' : 'var(--text-bold)' }}>
-                                ₹{comm.userCommissionAmount !== undefined ? comm.userCommissionAmount.toFixed(2) : comm.commissionAmount.toFixed(2)}
+                              <div style={{ fontWeight: 700, color: (comm.status || '').toLowerCase() === 'approved' ? '#10b981' : 'var(--text-bold)' }}>
+                                ₹{parseFloat(comm.userCommissionAmount != null ? comm.userCommissionAmount : (comm.commissionAmount || 0)).toFixed(2)}
                               </div>
                             </div>
                           </td>
                           <td>
-                            <span className={`history-status ${comm.status.toLowerCase()}`}>
-                              {comm.status.toUpperCase()}
+                            <span className={`history-status ${(comm.status || 'pending').toLowerCase()}`}>
+                              {(comm.status || 'pending').toUpperCase()}
                             </span>
                           </td>
                         </tr>

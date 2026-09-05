@@ -5,6 +5,8 @@ import com.cyvanta.affiliate_app.model.Product;
 import com.cyvanta.affiliate_app.model.ShareAction;
 import com.cyvanta.affiliate_app.model.SharedCommission;
 import com.cyvanta.affiliate_app.model.User;
+import com.cyvanta.affiliate_app.model.SharedLink;
+import com.cyvanta.affiliate_app.model.Settings;
 import com.cyvanta.affiliate_app.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,9 +24,11 @@ public class MockAmazonService {
 
     private final AffiliateClickRepository affiliateClickRepository;
     private final ShareActionRepository shareActionRepository;
+    private final SharedLinkRepository sharedLinkRepository;
     private final ProductRepository productRepository;
     private final SharedCommissionRepository sharedCommissionRepository;
     private final UserRepository userRepository;
+    private final SettingsRepository settingsRepository;
     private final WalletService walletService;
 
     @Async
@@ -53,29 +57,62 @@ public class MockAmazonService {
 
     private void createPendingCommission(AffiliateClick click) {
         try {
-            // Resolve referrer
+            // Resolve referrer (check click, ShareAction, then SharedLink)
             String referrerId = click.getReferrerId();
             if (referrerId == null && click.getShareId() != null) {
                 referrerId = shareActionRepository.findByShareId(click.getShareId())
                         .map(ShareAction::getReferrerId).orElse(null);
+                if (referrerId == null) {
+                    referrerId = sharedLinkRepository.findById(click.getShareId())
+                            .map(SharedLink::getUserId).orElse(null);
+                }
             }
             if (referrerId == null) {
                 log.info("[MOCK-MERCHANT] No referrer for trackingId={}, skipping commission", click.getTrackingId());
                 return;
             }
 
-            // Get product info
-            Optional<Product> productOpt = click.getProductId() != null
-                    ? productRepository.findById(click.getProductId())
+            // Get product and store info
+            String productName = "Product";
+            String platform = "Amazon";
+            Double productPrice = 500.0;
+            Double productCommPct = 10.0;
+
+            Optional<SharedLink> sharedLinkOpt = click.getShareId() != null
+                    ? sharedLinkRepository.findById(click.getShareId())
                     : Optional.empty();
 
-            Double productPrice = productOpt.map(Product::getPrice).orElse(500.0);
-            Double commissionPct = productOpt.map(Product::getCommissionPercentage).orElse(10.0);
-            Double totalCommission = productPrice * (commissionPct / 100.0);
-            Double userPayout = totalCommission; // 100% to sharer
-            String productName = productOpt.map(Product::getName).orElse("Product");
-            String platform = productOpt.map(Product::getPlatform).orElse("Amazon");
-            String referrerName = userRepository.findById(referrerId).map(User::getName).orElse("Affiliate");
+            if (sharedLinkOpt.isPresent()) {
+                SharedLink link = sharedLinkOpt.get();
+                if (link.getProductName() != null && !link.getProductName().trim().isEmpty()) {
+                    productName = link.getProductName();
+                }
+                if (link.getStore() != null && !link.getStore().trim().isEmpty()) {
+                    platform = link.getStore();
+                }
+                link.setConversionsCount((link.getConversionsCount() != null ? link.getConversionsCount() : 0) + 1);
+                sharedLinkRepository.save(link);
+            } else if (click.getProductId() != null) {
+                Optional<Product> prodOpt = productRepository.findById(click.getProductId());
+                if (prodOpt.isPresent()) {
+                    if (prodOpt.get().getName() != null) productName = prodOpt.get().getName();
+                    if (prodOpt.get().getPlatform() != null) platform = prodOpt.get().getPlatform();
+                    if (prodOpt.get().getPrice() != null) productPrice = prodOpt.get().getPrice();
+                    if (prodOpt.get().getCommissionPercentage() != null) productCommPct = prodOpt.get().getCommissionPercentage();
+                }
+            }
+
+            // Resolve user commission rate
+            User referrer = userRepository.findById(referrerId).orElse(null);
+            String referrerName = referrer != null && referrer.getName() != null ? referrer.getName() : "Affiliate";
+            Double userRate = referrer != null && referrer.getSharedCommissionRate() != null
+                    ? referrer.getSharedCommissionRate()
+                    : settingsRepository.findAll().stream().findFirst()
+                            .map(Settings::getSharedCommissionPercent).orElse(5.0);
+
+            Double totalCommission = productPrice * (productCommPct / 100.0);
+            Double userPayout = (productPrice * userRate) / 100.0;
+            Double adminProfit = Math.max(0.0, totalCommission - userPayout);
 
             // Create pending SharedCommission
             SharedCommission sc = SharedCommission.builder()
@@ -88,12 +125,12 @@ public class MockAmazonService {
                     .productName(productName)
                     .store(platform)
                     .purchaseAmount(productPrice)
-                    .commissionRate(commissionPct)
+                    .commissionRate(userRate)
                     .commissionAmount(totalCommission)
-                    .userSharePercent(100.0)
+                    .userSharePercent(totalCommission > 0 ? (userPayout / totalCommission) * 100.0 : 100.0)
                     .userCommissionAmount(userPayout)
-                    .adminCommissionPercent(0.0)
-                    .adminCommissionAmount(0.0)
+                    .adminCommissionPercent(totalCommission > 0 ? (adminProfit / totalCommission) * 100.0 : 0.0)
+                    .adminCommissionAmount(adminProfit)
                     .status("pending")
                     .date(LocalDate.now())
                     .build();
@@ -101,11 +138,20 @@ public class MockAmazonService {
 
             // Add to pending wallet
             walletService.processPendingCommission(referrerId, userPayout);
+            walletService.recordTransaction(
+                    referrerId,
+                    userPayout,
+                    "CREDIT",
+                    "COMMISSION",
+                    "Pending commission for " + productName,
+                    click.getTrackingId(),
+                    "PENDING"
+            );
 
-            log.info("[MOCK-MERCHANT] Pending commission ₹{} created for referrer {} (order {})",
-                    userPayout, referrerName, click.getOrderId());
+            log.info("[MOCK-MERCHANT] Pending commission ₹{} (rate {}%) created for referrer {} (order {})",
+                    userPayout, userRate, referrerName, click.getOrderId());
         } catch (Exception e) {
-            log.error("[MOCK-MERCHANT] Failed to create pending commission: {}", e.getMessage());
+            log.error("[MOCK-MERCHANT] Failed to create pending commission: {}", e.getMessage(), e);
         }
     }
 }

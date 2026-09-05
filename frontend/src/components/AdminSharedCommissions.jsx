@@ -22,14 +22,14 @@ export default function AdminSharedCommissions({
   const [adjustUserAmount, setAdjustUserAmount] = useState('');
 
   // Calculate statistics
-  const totalClicks = sharedLinks.reduce((sum, l) => sum + l.clicksCount, 0);
-  const totalConversions = sharedLinks.reduce((sum, l) => sum + l.conversionsCount, 0);
+  const totalClicks = sharedLinks.reduce((sum, l) => sum + (l.clicksCount || 0), 0);
+  const totalConversions = sharedLinks.reduce((sum, l) => sum + (l.conversionsCount || 0), 0);
   const approvedEarnings = sharedCommissions
-    .filter(c => c.status === 'approved')
-    .reduce((sum, c) => sum + c.commissionAmount, 0);
+    .filter(c => (c.status || '').toLowerCase() === 'approved')
+    .reduce((sum, c) => sum + parseFloat(c.userCommissionAmount != null ? c.userCommissionAmount : (c.commissionAmount || 0)), 0);
   const pendingEarnings = sharedCommissions
-    .filter(c => c.status === 'pending')
-    .reduce((sum, c) => sum + c.commissionAmount, 0);
+    .filter(c => (c.status || '').toLowerCase() === 'pending')
+    .reduce((sum, c) => sum + parseFloat(c.userCommissionAmount != null ? c.userCommissionAmount : (c.commissionAmount || 0)), 0);
 
   const handleOpenAdjustModal = (comm) => {
     setSelectedComm(comm);
@@ -73,7 +73,7 @@ export default function AdminSharedCommissions({
       (c.store || '').toLowerCase().includes(query) ||
       (c.id || '').toLowerCase().includes(query)
     );
-    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || (c.status || '').toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
@@ -93,20 +93,20 @@ export default function AdminSharedCommissions({
       <td style={{ fontWeight: '600', color: 'var(--primary)', fontSize: '11px' }}>₹{item.userCommissionAmount !== undefined ? (item.userCommissionAmount || 0).toFixed(2) : (item.commissionAmount || 0).toFixed(2)}</td>
       <td style={{ fontWeight: '600', color: '#10b981', fontSize: '11px' }}>₹{item.adminCommissionAmount !== undefined ? (item.adminCommissionAmount || 0).toFixed(2) : '0.00'}</td>
       <td>
-        <span className={`status-badge ${item.status === 'approved' ? 'active' : item.status === 'pending' ? 'pending' : 'inactive'}`}>
-          {item.status.toUpperCase()}
+        <span className={`status-badge ${(item.status || '').toLowerCase() === 'approved' ? 'active' : (item.status || '').toLowerCase() === 'pending' ? 'pending' : 'inactive'}`}>
+          {(item.status || 'pending').toUpperCase()}
         </span>
       </td>
       <td>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {item.status === 'pending' && (
+          {(item.status || '').toLowerCase() === 'pending' && (
             <>
               <button
                 className="admin-btn-icon edit"
                 onClick={() => {
-                  const amt = item.userCommissionAmount !== undefined ? item.userCommissionAmount : item.commissionAmount;
+                  const amt = item.userCommissionAmount !== undefined && item.userCommissionAmount !== null ? item.userCommissionAmount : (item.commissionAmount || 0);
                   if (window.confirm(`Are you sure you want to approve this payout of ₹${amt.toFixed(2)} for ${item.userName}?`)) {
-                    onApproveCommission(item.id, item.commissionAmount);
+                    onApproveCommission(item.id, amt);
                   }
                 }}
                 title="Approve Payout"
@@ -117,7 +117,7 @@ export default function AdminSharedCommissions({
               <button
                 className="admin-btn-icon delete"
                 onClick={() => {
-                  const amt = item.userCommissionAmount !== undefined ? item.userCommissionAmount : item.commissionAmount;
+                  const amt = item.userCommissionAmount !== undefined && item.userCommissionAmount !== null ? item.userCommissionAmount : (item.commissionAmount || 0);
                   if (window.confirm(`Are you sure you want to reject this payout of ₹${amt.toFixed(2)} for ${item.userName}?`)) {
                     onRejectCommission(item.id);
                   }

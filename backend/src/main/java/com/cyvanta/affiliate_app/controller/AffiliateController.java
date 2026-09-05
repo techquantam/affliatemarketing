@@ -3,9 +3,11 @@ package com.cyvanta.affiliate_app.controller;
 import com.cyvanta.affiliate_app.model.AffiliateClick;
 import com.cyvanta.affiliate_app.model.CommissionHistory;
 import com.cyvanta.affiliate_app.model.ShareAction;
+import com.cyvanta.affiliate_app.model.SharedLink;
 import com.cyvanta.affiliate_app.repository.AffiliateClickRepository;
 import com.cyvanta.affiliate_app.repository.CommissionHistoryRepository;
 import com.cyvanta.affiliate_app.repository.ShareActionRepository;
+import com.cyvanta.affiliate_app.repository.SharedLinkRepository;
 import com.cyvanta.affiliate_app.service.AffiliateNetworkService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ import java.util.UUID;
 public class AffiliateController {
 
     private final ShareActionRepository shareActionRepository;
+    private final SharedLinkRepository sharedLinkRepository;
     private final AffiliateClickRepository affiliateClickRepository;
     private final CommissionHistoryRepository commissionHistoryRepository;
     private final AffiliateNetworkService affiliateNetworkService;
@@ -62,11 +65,15 @@ public class AffiliateController {
 
         String trackingId = UUID.randomUUID().toString();
 
-        // Resolve referrerId from shareId
+        // Resolve referrerId from shareId (supporting both deal ShareAction and product SharedLink)
         String referrerId = null;
         if (shareId != null) {
             referrerId = shareActionRepository.findByShareId(shareId)
                     .map(ShareAction::getReferrerId).orElse(null);
+            if (referrerId == null) {
+                referrerId = sharedLinkRepository.findById(shareId)
+                        .map(SharedLink::getUserId).orElse(null);
+            }
         }
 
         AffiliateClick click = AffiliateClick.builder()

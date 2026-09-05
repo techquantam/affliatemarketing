@@ -29,32 +29,30 @@ public class WalletService {
     }
 
     public void processPendingCommission(String userId, Double amount) {
+        if (userId == null || amount == null || amount <= 0) return;
         Wallet wallet = getOrCreateWallet(userId);
-        wallet.setPendingBalance(wallet.getPendingBalance() + amount);
+        double currentPending = wallet.getPendingBalance() != null ? wallet.getPendingBalance() : 0.0;
+        wallet.setPendingBalance(currentPending + amount);
         wallet.setUpdatedAt(LocalDateTime.now());
         walletRepository.save(wallet);
     }
 
     public void processApprovedCommission(String userId, Double amount) {
+        if (userId == null || amount == null || amount <= 0) return;
         Wallet wallet = getOrCreateWallet(userId);
-        if (wallet.getPendingBalance() >= amount) {
-            wallet.setPendingBalance(wallet.getPendingBalance() - amount);
-        } else {
-            // Fallback if pending wasn't recorded correctly, still adjust pending if > 0
-            wallet.setPendingBalance(Math.max(0, wallet.getPendingBalance() - amount));
-        }
-        wallet.setApprovedBalance(wallet.getApprovedBalance() + amount);
+        double currentPending = wallet.getPendingBalance() != null ? wallet.getPendingBalance() : 0.0;
+        double currentApproved = wallet.getApprovedBalance() != null ? wallet.getApprovedBalance() : 0.0;
+        wallet.setPendingBalance(Math.max(0.0, currentPending - amount));
+        wallet.setApprovedBalance(currentApproved + amount);
         wallet.setUpdatedAt(LocalDateTime.now());
         walletRepository.save(wallet);
     }
 
     public void processRejectedCommission(String userId, Double amount) {
+        if (userId == null || amount == null || amount <= 0) return;
         Wallet wallet = getOrCreateWallet(userId);
-        if (wallet.getPendingBalance() >= amount) {
-            wallet.setPendingBalance(wallet.getPendingBalance() - amount);
-        } else {
-            wallet.setPendingBalance(Math.max(0, wallet.getPendingBalance() - amount));
-        }
+        double currentPending = wallet.getPendingBalance() != null ? wallet.getPendingBalance() : 0.0;
+        wallet.setPendingBalance(Math.max(0.0, currentPending - amount));
         wallet.setUpdatedAt(LocalDateTime.now());
         walletRepository.save(wallet);
     }
