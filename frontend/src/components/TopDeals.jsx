@@ -131,7 +131,7 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                           onGrabDeal(deal);
                         }}
                       >
-                        Buy Now
+                        Buy
                       </button>
 
                       <button
