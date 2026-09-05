@@ -359,6 +359,107 @@ export default function AdminPanel({
     return () => clearInterval(interval);
   }, [trackedOrders]);
 
+  // --- REAL-TIME LIVE WITHDRAWALS SYNC & POLLING ---
+  const [refreshingWithdrawals, setRefreshingWithdrawals] = useState(false);
+  const [lastWithdrawalsUpdated, setLastWithdrawalsUpdated] = useState(new Date());
+
+  const fetchWithdrawals = React.useCallback(async (silent = false) => {
+    try {
+      if (!silent) setRefreshingWithdrawals(true);
+      const data = await apiWithdrawals.getAll();
+      if (Array.isArray(data)) {
+        setWithdrawRequests((prev) => {
+          if (silent && prev.length > 0) {
+            const prevPendingIds = new Set(prev.filter((w) => w.status === 'pending').map((w) => w.id));
+            const newPending = data.filter((w) => w.status === 'pending' && !prevPendingIds.has(w.id));
+            if (newPending.length > 0) {
+              newPending.forEach((req) => {
+                onAddNotification(`🔔 New withdrawal request: ₹${req.amount} from ${req.userName || 'User'}!`, 'info');
+              });
+              try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+              } catch (e) {}
+            }
+          }
+          return data;
+        });
+        setLastWithdrawalsUpdated(new Date());
+      }
+    } catch (err) {
+      if (!silent) {
+        console.warn('Failed to refresh withdrawals:', err);
+        onAddNotification('Failed to refresh withdrawals.', 'error');
+      }
+    } finally {
+      if (!silent) setRefreshingWithdrawals(false);
+    }
+  }, [onAddNotification]);
+
+  // Periodic polling & cross-tab synchronization
+  React.useEffect(() => {
+    // 1. Poll every 8 seconds for live requests
+    const pollInterval = setInterval(() => {
+      fetchWithdrawals(true);
+    }, 8000);
+
+    // 2. In-tab custom event
+    const handleLocalWithdrawal = () => {
+      fetchWithdrawals(true);
+    };
+    window.addEventListener('withdrawal:created', handleLocalWithdrawal);
+
+    // 3. Cross-tab BroadcastChannel
+    let bc = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('affiliate_admin_sync');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'WITHDRAWAL_CREATED') {
+            fetchWithdrawals(true);
+          }
+        };
+      }
+    } catch (e) {}
+
+    // 4. Window focus and visibility revalidation
+    const handleFocus = () => {
+      fetchWithdrawals(true);
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchWithdrawals(true);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('withdrawal:created', handleLocalWithdrawal);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (bc) bc.close();
+    };
+  }, [fetchWithdrawals]);
+
+  // Immediately refresh when admin switches to withdrawals or dashboard tab
+  React.useEffect(() => {
+    if (activeTab === 'withdrawals' || activeTab === 'dashboard') {
+      fetchWithdrawals(true);
+    }
+  }, [activeTab, fetchWithdrawals]);
+
   const adminEmail = currentUser ? currentUser.email : "admin@liomart.com";
   const adminName = currentUser ? currentUser.name : "Administrator";
   const adminInitials = currentUser && currentUser.name ? currentUser.name.substring(0, 2).toUpperCase() : "AD";
@@ -633,7 +734,7 @@ export default function AdminPanel({
   const editUser = async (id, userData) => {
     try {
       const updatedUser = await apiUsers.update(id, userData);
-      setUsers((prev) => prev.map((u) => (u.id === id ? updatedUser : u)));
+      setUsers((prev) => prev.map((u) => ((u.id && u.id === id) || (u._id && u._id === id) ? { ...u, ...updatedUser } : u)));
       onAddNotification('User details updated successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -762,9 +863,19 @@ export default function AdminPanel({
   const addStore = async (store) => {
     try {
       const newStore = await apiStores.create(store);
-      setStoresData((prev) => [...prev, newStore]);
-      if (onUpdateStores) onUpdateStores((prev) => [...prev, newStore]);
-      if (onRefreshCatalog) onRefreshCatalog();
+      const sid = newStore.id || newStore._id;
+      setStoresData((prev) => {
+        const exists = prev.some((s) => (s.id && s.id === sid) || (s._id && s._id === sid));
+        return exists ? prev.map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? newStore : s)) : [newStore, ...prev];
+      });
+      if (onUpdateStores) {
+        onUpdateStores((prev) => {
+          const prevArr = Array.isArray(prev) ? prev : [];
+          const exists = prevArr.some((s) => (s.id && s.id === sid) || (s._id && s._id === sid));
+          return exists ? prevArr.map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? newStore : s)) : [newStore, ...prevArr];
+        });
+      }
+      if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification('Store added successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -774,12 +885,14 @@ export default function AdminPanel({
 
   const editStore = async (store) => {
     try {
-      const updatedStore = await apiStores.update(store.id, store);
-      setStoresData((prev) => prev.map((s) => (s.id === updatedStore.id ? updatedStore : s)));
+      const targetId = store.id || store._id;
+      const updatedStore = await apiStores.update(targetId, store);
+      const sid = updatedStore.id || updatedStore._id || targetId;
+      setStoresData((prev) => prev.map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? updatedStore : s)));
       if (onUpdateStores) {
-        onUpdateStores((prev) => prev.map((s) => (s.id === updatedStore.id ? updatedStore : s)));
+        onUpdateStores((prev) => (prev || []).map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? updatedStore : s)));
       }
-      if (onRefreshCatalog) onRefreshCatalog();
+      if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification('Store updated successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -790,9 +903,9 @@ export default function AdminPanel({
   const deleteStore = async (id) => {
     try {
       await apiStores.delete(id);
-      setStoresData((prev) => prev.filter((s) => s.id !== id));
-      if (onUpdateStores) onUpdateStores((prev) => prev.filter((s) => s.id !== id));
-      if (onRefreshCatalog) onRefreshCatalog();
+      setStoresData((prev) => prev.filter((s) => s.id !== id && s._id !== id));
+      if (onUpdateStores) onUpdateStores((prev) => (prev || []).filter((s) => s.id !== id && s._id !== id));
+      if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification('Store deleted successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -803,11 +916,12 @@ export default function AdminPanel({
   const toggleStoreStatus = async (id) => {
     try {
       const updatedStore = await apiStores.toggleStatus(id);
-      setStoresData((prev) => prev.map((s) => (s.id === updatedStore.id ? updatedStore : s)));
+      const sid = updatedStore.id || updatedStore._id || id;
+      setStoresData((prev) => prev.map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? updatedStore : s)));
       if (onUpdateStores) {
-        onUpdateStores((prev) => prev.map((s) => (s.id === updatedStore.id ? updatedStore : s)));
+        onUpdateStores((prev) => (prev || []).map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? updatedStore : s)));
       }
-      if (onRefreshCatalog) onRefreshCatalog();
+      if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification(`Shop is now ${updatedStore.status === 'active' ? 'Enabled' : 'Disabled'}.`, 'success');
     } catch (err) {
       console.error(err);
@@ -963,6 +1077,9 @@ export default function AdminPanel({
             withdrawRequests={withdrawRequests}
             onApprove={approveWithdrawal}
             onReject={rejectWithdrawal}
+            onRefresh={() => fetchWithdrawals(false)}
+            refreshing={refreshingWithdrawals}
+            lastUpdated={lastWithdrawalsUpdated}
           />
         );
       case 'click-logs':

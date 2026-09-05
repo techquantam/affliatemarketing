@@ -517,8 +517,13 @@ export default function AdminWalletModal({ isOpen, onClose, user, currentUser, o
                                 {isCredit ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
                                 {item.category === 'ADMIN_ADJUSTMENT' ? 'ADJUSTMENT' : item.type}
                               </span>
-                              <span style={{ fontSize: '10px', color: 'var(--text)', opacity: 0.6 }}>
-                                ({item.targetWallet || 'APPROVED'})
+                              <span style={{ 
+                                fontSize: '10px', 
+                                color: (item.targetWallet || '').toUpperCase() === 'PENDING' ? '#f59e0b' : 'var(--text)', 
+                                fontWeight: (item.targetWallet || '').toUpperCase() === 'PENDING' ? 600 : 400,
+                                opacity: 0.85 
+                              }}>
+                                ({item.targetWallet || (item.category && item.category.includes('PENDING') ? 'PENDING' : 'APPROVED')})
                               </span>
                             </div>
                           </td>

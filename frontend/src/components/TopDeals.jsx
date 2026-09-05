@@ -122,58 +122,46 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                    <div className="deal-actions-row">
                       <button
                         className="btn-card-primary"
                         onClick={(e) => {
                           e.stopPropagation();
                           onGrabDeal(deal);
                         }}
-                        style={{ flex: 1, padding: '8px 10px', fontSize: '12px', fontWeight: 'bold' }}
                       >
                         Buy Now
                       </button>
 
                       <button
-                        className="btn-secondary"
+                        className={`btn-deal-compare ${isInCompare ? 'in-compare' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          onGrabDeal(deal);
+                          if (onToggleCompare) {
+                            onToggleCompare(deal);
+                          } else {
+                            onGrabDeal(deal);
+                          }
                         }}
-                        style={{
-                          flex: 1,
-                          padding: '8px 6px',
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                          backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                          color: '#10b981',
-                          border: '1px solid rgba(16, 185, 129, 0.3)',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '4px',
-                          transition: 'all 0.2s ease',
-                          whiteSpace: 'nowrap'
-                        }}
-                        title="Compare prices across all shops"
+                        title={isInCompare ? "Remove from comparison" : "Compare prices across all shops"}
+                        aria-label="Compare prices"
                       >
-                        <ArrowLeftRight size={13} /> Compare
+                        {isInCompare ? <Check size={13} /> : <ArrowLeftRight size={13} />}
+                        <span>Compare</span>
                       </button>
 
                       <button
-                        className="btn-secondary"
+                        className="btn-deal-share"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onShareDeal) {
                             onShareDeal(deal);
                           }
                         }}
-                        style={{ padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}
                         title="Share Deal"
+                        aria-label="Share Deal"
                       >
-                        <Share2 size={15} />
+                        <Share2 size={16} />
                       </button>
                     </div>
                   </div>

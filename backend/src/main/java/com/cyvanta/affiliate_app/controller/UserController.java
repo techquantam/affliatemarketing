@@ -17,6 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,7 +52,11 @@ public class UserController {
                     return buildUserResponse(user, wallet);
                 })
                 .toList();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .header(HttpHeaders.EXPIRES, "0")
+                .body(response);
     }
 
     @GetMapping("/health")
@@ -76,6 +81,9 @@ public class UserController {
             return ResponseEntity.status(404).body(Map.of("error", "User not found"));
         }
         User user = userOpt.get();
+        if (Boolean.TRUE.equals(user.getIsBlocked()) || "blocked".equalsIgnoreCase(user.getStatus())) {
+            return ResponseEntity.status(403).body(Map.of("error", "Your account has been blocked by Admin", "isBlocked", true, "is_blocked", 1));
+        }
         Wallet wallet = walletService.getOrCreateWallet(user.getId());
         return ResponseEntity.ok(buildUserResponse(user, wallet));
     }
@@ -83,18 +91,84 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable String id) {
         return userRepository.findById(id).map(user -> {
+            if (Boolean.TRUE.equals(user.getIsBlocked()) || "blocked".equalsIgnoreCase(user.getStatus())) {
+                return ResponseEntity.status(403)
+                        .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                        .body(Map.of("error", "Your account has been blocked by Admin", "isBlocked", true, "is_blocked", 1));
+            }
             Wallet wallet = walletService.getOrCreateWallet(user.getId());
-            return ResponseEntity.ok(buildUserResponse(user, wallet));
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                    .header(HttpHeaders.PRAGMA, "no-cache")
+                    .header(HttpHeaders.EXPIRES, "0")
+                    .body(buildUserResponse(user, wallet));
         }).orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<User> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
+    public ResponseEntity<?> updateStatus(@PathVariable String id, @RequestBody Map<String, Object> body) {
         return userRepository.findById(id).map(user -> {
             if (body.containsKey("status")) {
-                user.setStatus(body.get("status"));
+                String st = String.valueOf(body.get("status"));
+                user.setStatus(st);
             }
-            return ResponseEntity.ok(userRepository.save(user));
+            if (body.containsKey("isBlocked") || body.containsKey("is_blocked")) {
+                Object b = body.containsKey("isBlocked") ? body.get("isBlocked") : body.get("is_blocked");
+                boolean blocked = Boolean.TRUE.equals(b) || "true".equalsIgnoreCase(String.valueOf(b)) || "1".equals(String.valueOf(b));
+                user.setIsBlocked(blocked);
+            }
+            User saved = userRepository.save(user);
+            Wallet wallet = walletService.getOrCreateWallet(saved.getId());
+            log.info("[Admin] User status updated: id={}, status={}, isBlocked={}", saved.getId(), saved.getStatus(), saved.getIsBlocked());
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                    .body(buildUserResponse(saved, wallet));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/block")
+    @PutMapping("/{id}/block")
+    public ResponseEntity<?> blockUser(@PathVariable String id) {
+        String targetId = id != null ? id.trim() : "";
+        Optional<User> userOpt = userRepository.findById(targetId);
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByEmail(targetId.toLowerCase());
+            if (userOpt.isEmpty()) {
+                userOpt = findUserByPhone(targetId);
+            }
+        }
+        return userOpt.map(user -> {
+            user.setStatus("blocked");
+            user.setIsBlocked(true);
+            User saved = userRepository.save(user);
+            Wallet wallet = walletService.getOrCreateWallet(saved.getId());
+            log.info("[Admin] User blocked: id={}, email={}", saved.getId(), saved.getEmail());
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                    .body(buildUserResponse(saved, wallet));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/unblock")
+    @PutMapping("/{id}/unblock")
+    public ResponseEntity<?> unblockUser(@PathVariable String id) {
+        String targetId = id != null ? id.trim() : "";
+        Optional<User> userOpt = userRepository.findById(targetId);
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByEmail(targetId.toLowerCase());
+            if (userOpt.isEmpty()) {
+                userOpt = findUserByPhone(targetId);
+            }
+        }
+        return userOpt.map(user -> {
+            user.setStatus("active");
+            user.setIsBlocked(false);
+            User saved = userRepository.save(user);
+            Wallet wallet = walletService.getOrCreateWallet(saved.getId());
+            log.info("[Admin] User unblocked: id={}, email={}", saved.getId(), saved.getEmail());
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                    .body(buildUserResponse(saved, wallet));
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -105,6 +179,7 @@ public class UserController {
             if (updatedUser.getEmail() != null) user.setEmail(updatedUser.getEmail());
             if (updatedUser.getPhone() != null) user.setPhone(updatedUser.getPhone());
             if (updatedUser.getStatus() != null) user.setStatus(updatedUser.getStatus());
+            if (updatedUser.getIsBlocked() != null) user.setIsBlocked(updatedUser.getIsBlocked());
             if (updatedUser.getRole() != null && updatedUser.getRole() != user.getRole()) {
                 user.setRole(updatedUser.getRole());
                 user.setPermissions(AdminPermissions.defaultForRole(updatedUser.getRole()));
@@ -195,7 +270,11 @@ public class UserController {
             }
 
             Wallet wallet = walletService.getOrCreateWallet(saved.getId());
-            return ResponseEntity.ok(buildUserResponse(saved, wallet));
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                    .header(HttpHeaders.PRAGMA, "no-cache")
+                    .header(HttpHeaders.EXPIRES, "0")
+                    .body(buildUserResponse(saved, wallet));
         }).orElse(ResponseEntity.notFound().build());
     }
 
@@ -322,6 +401,10 @@ public class UserController {
         Optional<User> userOpt = identifier.contains("@") ? userRepository.findByEmail(identifier) : findUserByPhone(identifier);
 
         return userOpt.map(user -> {
+            if (Boolean.TRUE.equals(user.getIsBlocked()) || "blocked".equalsIgnoreCase(user.getStatus())) {
+                return ResponseEntity.status(403).body((Object) Map.of("error", "Your account has been blocked by Admin", "isBlocked", true, "is_blocked", 1));
+            }
+
             if (Boolean.TRUE.equals(user.getIsVerified()) && !"pending".equals(user.getStatus())) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Account is already verified"));
             }
@@ -421,8 +504,8 @@ public class UserController {
                 return ResponseEntity.status(401).body((Object) Map.of("error", "Invalid credentials"));
             }
 
-            if ("blocked".equals(user.getStatus())) {
-                return ResponseEntity.status(403).body((Object) Map.of("error", "Account is blocked"));
+            if ("blocked".equalsIgnoreCase(user.getStatus()) || Boolean.TRUE.equals(user.getIsBlocked())) {
+                return ResponseEntity.status(403).body((Object) Map.of("error", "Your account has been blocked by Admin", "isBlocked", true, "is_blocked", 1));
             }
 
             if (Boolean.FALSE.equals(user.getIsVerified()) || "pending".equals(user.getStatus())) {
@@ -462,6 +545,11 @@ public class UserController {
         }
 
         User user = userOpt.get();
+
+        if ("blocked".equalsIgnoreCase(user.getStatus()) || Boolean.TRUE.equals(user.getIsBlocked())) {
+            recordAdminLoginHistory(user, identifier, user.getRole() != null ? user.getRole().toString() : null, false, request);
+            return ResponseEntity.status(403).body(Map.of("error", "Your account has been blocked by Admin", "isBlocked", true, "is_blocked", 1));
+        }
         
         // Auto-restore master admin role if it was accidentally downgraded
         if (("admin@cyvanta.com".equalsIgnoreCase(user.getEmail()) || "admin@affiliateapp.com".equalsIgnoreCase(user.getEmail())) 
@@ -633,11 +721,167 @@ public class UserController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    // --- Update Admin Details (SUPER_ADMIN or ADMIN) ---
+    @PutMapping("/admin/{id}")
+    public ResponseEntity<?> updateAdminDetails(
+            @PathVariable String id,
+            @RequestBody Map<String, Object> body,
+            @RequestHeader(value = "X-Admin-Id", required = false) String adminId) {
+        if (adminId == null || adminId.isEmpty()) {
+            return ResponseEntity.status(403).body(Map.of("error", "Admin authentication required"));
+        }
+        Optional<User> requesterOpt = userRepository.findById(adminId);
+        if (requesterOpt.isEmpty() || (requesterOpt.get().getRole() != User.Role.SUPER_ADMIN && requesterOpt.get().getRole() != User.Role.ADMIN)) {
+            return ResponseEntity.status(403).body(Map.of("error", "Only Super Admin or Admin can modify admin accounts"));
+        }
+
+        return userRepository.findById(id).map(admin -> {
+            if (body.containsKey("name")) {
+                String name = normalize((String) body.get("name"));
+                if (name != null && !name.isBlank()) admin.setName(name);
+            }
+            if (body.containsKey("email")) {
+                String email = normalizeEmail((String) body.get("email"));
+                if (email != null && !email.isBlank()) {
+                    if (!email.equalsIgnoreCase(admin.getEmail()) && userRepository.findByEmail(email).isPresent()) {
+                        return ResponseEntity.badRequest().body((Object) Map.of("error", "Email is already in use"));
+                    }
+                    admin.setEmail(email);
+                }
+            }
+            if (body.containsKey("phone")) {
+                String phone = normalizePhone((String) body.get("phone"));
+                if (phone != null && !phone.isBlank()) admin.setPhone(phone);
+            }
+            if (body.containsKey("status")) {
+                String st = (String) body.get("status");
+                admin.setStatus(st);
+            }
+            if (body.containsKey("isBlocked") || body.containsKey("is_blocked")) {
+                Object b = body.containsKey("isBlocked") ? body.get("isBlocked") : body.get("is_blocked");
+                boolean blocked = Boolean.TRUE.equals(b) || "true".equalsIgnoreCase(String.valueOf(b)) || "1".equals(String.valueOf(b));
+                admin.setIsBlocked(blocked);
+            }
+            if (body.containsKey("role")) {
+                String roleStr = (String) body.get("role");
+                if (roleStr != null && !roleStr.isBlank()) {
+                    try {
+                        admin.setRole(User.Role.valueOf(roleStr));
+                    } catch (Exception ignored) {}
+                }
+            }
+            if (body.containsKey("password")) {
+                String pwd = (String) body.get("password");
+                if (pwd != null && !pwd.isBlank() && pwd.trim().length() >= 4) {
+                    admin.setPasswordHash(passwordEncoder.encode(pwd.trim()));
+                }
+            }
+
+            User saved = userRepository.save(admin);
+            Wallet wallet = walletService.getOrCreateWallet(saved.getId());
+
+            adminActivityLogRepository.save(AdminActivityLog.builder()
+                    .adminId(adminId)
+                    .adminEmail(requesterOpt.get().getEmail())
+                    .adminRole(requesterOpt.get().getRole().toString())
+                    .action("UPDATE_ADMIN")
+                    .target(saved.getEmail())
+                    .details("Updated admin profile/permissions for id: " + saved.getId())
+                    .build());
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                    .body((Object) buildUserResponse(saved, wallet));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // --- Delete Admin (SUPER_ADMIN only) ---
+    @DeleteMapping({"/admin/{id}", "/admins/{id}"})
+    public ResponseEntity<?> deleteAdmin(
+            @PathVariable String id,
+            @RequestHeader(value = "X-Admin-Id", required = false) String adminId) {
+        if (adminId == null || adminId.isEmpty()) {
+            return ResponseEntity.status(403).body(Map.of("error", "Admin authentication required"));
+        }
+        Optional<User> requesterOpt = userRepository.findById(adminId);
+        if (requesterOpt.isEmpty() || requesterOpt.get().getRole() != User.Role.SUPER_ADMIN) {
+            return ResponseEntity.status(403).body(Map.of("error", "Only Super Admin can delete admin accounts"));
+        }
+
+        if (id.equals(adminId)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "You cannot delete your own account"));
+        }
+
+        Optional<User> adminOpt = userRepository.findById(id);
+        if (adminOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        User targetAdmin = adminOpt.get();
+        if ("admin@cyvanta.com".equalsIgnoreCase(targetAdmin.getEmail()) || "admin@affiliateapp.com".equalsIgnoreCase(targetAdmin.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "The primary system Super Admin account cannot be deleted"));
+        }
+
+        userRepository.deleteById(id);
+
+        adminActivityLogRepository.save(AdminActivityLog.builder()
+                .adminId(adminId)
+                .adminEmail(requesterOpt.get().getEmail())
+                .adminRole(requesterOpt.get().getRole().toString())
+                .action("DELETE_ADMIN")
+                .target(targetAdmin.getEmail())
+                .details("Deleted admin: " + targetAdmin.getName() + " (" + targetAdmin.getEmail() + ")")
+                .build());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                .body(Map.of("message", "Admin deleted successfully", "id", id));
+    }
+
+    // --- Direct Reset Admin Password (SUPER_ADMIN only) ---
+    @PostMapping("/admin/{id}/reset-password")
+    public ResponseEntity<?> resetAdminPasswordBySuperAdmin(
+            @PathVariable String id,
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "X-Admin-Id", required = false) String adminId) {
+        if (adminId == null || adminId.isEmpty()) {
+            return ResponseEntity.status(403).body(Map.of("error", "Admin authentication required"));
+        }
+        Optional<User> requesterOpt = userRepository.findById(adminId);
+        if (requesterOpt.isEmpty() || requesterOpt.get().getRole() != User.Role.SUPER_ADMIN) {
+            return ResponseEntity.status(403).body(Map.of("error", "Only Super Admin can reset admin passwords"));
+        }
+
+        String newPassword = body.get("password");
+        if (newPassword == null || newPassword.trim().length() < 4) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Password must be at least 4 characters"));
+        }
+
+        return userRepository.findById(id).map(admin -> {
+            admin.setPasswordHash(passwordEncoder.encode(newPassword.trim()));
+            User saved = userRepository.save(admin);
+
+            adminActivityLogRepository.save(AdminActivityLog.builder()
+                    .adminId(adminId)
+                    .adminEmail(requesterOpt.get().getEmail())
+                    .adminRole(requesterOpt.get().getRole().toString())
+                    .action("RESET_PASSWORD")
+                    .target(saved.getEmail())
+                    .details("Reset password for admin: " + saved.getEmail())
+                    .build());
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                    .body(Map.of("message", "Admin password reset successfully", "id", id));
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
     // --- Helper: Build user response with wallet data ---
 
     private Map<String, Object> buildUserResponse(User user, Wallet wallet) {
         Map<String, Object> response = new HashMap<>();
         response.put("id", user.getId());
+        response.put("_id", user.getId());
         response.put("name", user.getName());
         response.put("email", user.getEmail());
         response.put("phone", user.getPhone());
@@ -652,7 +896,10 @@ public class UserController {
         response.put("referralLink", refLink);
         response.put("referral_link", refLink);
         response.put("referredBy", user.getReferredBy());
-        response.put("status", user.getStatus());
+        boolean isBlocked = Boolean.TRUE.equals(user.getIsBlocked()) || "blocked".equalsIgnoreCase(user.getStatus());
+        response.put("status", isBlocked ? "blocked" : (user.getStatus() != null ? user.getStatus() : "active"));
+        response.put("isBlocked", isBlocked);
+        response.put("is_blocked", isBlocked ? 1 : 0);
         response.put("joinDate", user.getJoinDate());
         response.put("sharedCommissionRate", user.getSharedCommissionRate());
         response.put("role", user.getRole() != null ? user.getRole().toString() : User.Role.USER.toString());
@@ -973,7 +1220,11 @@ public class UserController {
             }
             
             Wallet wallet = walletService.getOrCreateWallet(saved.getId());
-            return ResponseEntity.ok(buildUserResponse(saved, wallet));
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+                    .header(HttpHeaders.PRAGMA, "no-cache")
+                    .header(HttpHeaders.EXPIRES, "0")
+                    .body(buildUserResponse(saved, wallet));
         }).orElse(ResponseEntity.notFound().build());
     }
 }

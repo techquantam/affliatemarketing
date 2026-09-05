@@ -459,9 +459,20 @@ export default function Header({
               <ChevronDown size={14} style={{ color: 'var(--text)', opacity: 0.5 }} />
             </div>
           ) : (
-            <button className="btn-primary" onClick={openAuthModal}>
-              Login / Sign Up
-            </button>
+            <div className="header-auth-buttons">
+              <button
+                className="btn-auth-header-login"
+                onClick={() => (typeof openAuthModal === 'function' ? openAuthModal('login') : null)}
+              >
+                Log In
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => (typeof openAuthModal === 'function' ? openAuthModal('signup') : null)}
+              >
+                Sign Up
+              </button>
+            </div>
           )}
 
           {currentUser && (

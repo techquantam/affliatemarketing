@@ -267,7 +267,8 @@ export default function MobileApp({
     wallet: { confirmed: 0.00, pending: 0.00, referral: 0.00 }
   };
 
-  const refLink = `${window.location.origin}/join?ref=${user.name.toLowerCase().replace(' ', '')}`;
+  const userRefCode = user.referralCode || user.referral_code || (user.name ? user.name.toLowerCase().replace(/\s+/g, '') : 'LIOMART');
+  const refLink = `${typeof window !== 'undefined' && window.location ? window.location.origin : 'https://liomart.co.in'}/signup?ref=${userRefCode}`;
   const userTrackedOrders = trackedOrders.filter(o => o.userName === user.name);
 
   const handleShareLink = async () => {

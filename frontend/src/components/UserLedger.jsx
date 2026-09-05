@@ -58,18 +58,47 @@ export default function UserLedger({ currentUser, onAddNotification }) {
     let totalCredits = 0, totalDebits = 0, pendingAmount = 0, approvedAmount = 0;
     entries.forEach(e => {
       const amt = e.amount || 0;
-      if (e.status === 'REJECTED' || e.status === 'rejected') {
+      const statusUpper = (e.status || '').toUpperCase();
+      if (statusUpper === 'REJECTED') {
         return; // Ignore rejected transactions from all summaries
       }
-      if (e.type === 'CREDIT') {
+
+      const typeUpper = (e.type || '').toUpperCase();
+      const targetWalletUpper = (e.targetWallet || '').toUpperCase();
+      const categoryUpper = (e.category || '').toUpperCase();
+
+      // Check if this transaction targets or affects the pending wallet
+      const isPendingTarget = targetWalletUpper === 'PENDING' || 
+                              categoryUpper.includes('PENDING') || 
+                              statusUpper === 'PENDING';
+
+      if (typeUpper === 'CREDIT') {
         totalCredits += amt;
-        if (e.status === 'PENDING' || e.status === 'pending') pendingAmount += amt;
-        if (e.status === 'APPROVED' || e.status === 'approved' || e.status === 'COMPLETED' || e.status === 'completed' || e.status === 'PAID' || e.status === 'paid') approvedAmount += amt;
-      } else {
+        if (isPendingTarget) {
+          pendingAmount += amt;
+        } else {
+          approvedAmount += amt;
+        }
+      } else if (typeUpper === 'DEBIT') {
         totalDebits += amt;
+        if (isPendingTarget) {
+          pendingAmount -= amt;
+        } else {
+          approvedAmount -= amt;
+        }
       }
     });
-    return { totalCredits, totalDebits, pendingAmount, approvedAmount, netBalance: totalCredits - totalDebits };
+
+    const finalPending = Math.max(0, pendingAmount);
+    const finalApproved = Math.max(0, approvedAmount);
+
+    return { 
+      totalCredits, 
+      totalDebits, 
+      pendingAmount: finalPending, 
+      approvedAmount: finalApproved, 
+      netBalance: totalCredits - totalDebits 
+    };
   }, [entries]);
 
   // Filtered entries
@@ -215,14 +244,14 @@ export default function UserLedger({ currentUser, onAddNotification }) {
         <StatCard
           icon={<Clock size={18} style={{ color: '#f59e0b' }} />}
           label="Pending"
-          value={`₹${summaries.pendingAmount.toFixed(2)}`}
+          value={`₹${(wallet?.pendingBalance !== undefined && wallet?.pendingBalance !== null ? wallet.pendingBalance : summaries.pendingAmount).toFixed(2)}`}
           color="#f59e0b"
           borderColor="#f59e0b"
         />
         <StatCard
           icon={<CheckCircle size={18} style={{ color: '#3b82f6' }} />}
           label="Wallet Balance"
-          value={`₹${(wallet?.approvedBalance || 0).toFixed(2)}`}
+          value={`₹${(wallet?.approvedBalance !== undefined && wallet?.approvedBalance !== null ? wallet.approvedBalance : summaries.approvedAmount).toFixed(2)}`}
           color="#3b82f6"
           borderColor="#3b82f6"
         />
@@ -334,6 +363,11 @@ export default function UserLedger({ currentUser, onAddNotification }) {
                         <div style={{ fontWeight: 500 }}>{entry.description || '—'}</div>
                         <div style={{ fontSize: '10px', color: 'var(--text)', marginTop: '3px', textTransform: 'capitalize' }}>
                           {(entry.category || '').replace(/_/g, ' ').toLowerCase()}
+                          {entry.targetWallet && (
+                            <span style={{ marginLeft: '6px', opacity: 0.85, fontWeight: 600, color: entry.targetWallet === 'PENDING' ? '#f59e0b' : 'inherit' }}>
+                              • {entry.targetWallet === 'PENDING' ? 'Pending Wallet' : 'Main Wallet'}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: '14px 16px' }}>

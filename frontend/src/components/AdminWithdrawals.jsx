@@ -1,8 +1,15 @@
 import React, { useState } from 'react';
-import { Check, X, Search, Filter, Eye } from 'lucide-react';
+import { Check, X, Search, Filter, Eye, RotateCw } from 'lucide-react';
 import { AdminTable, AdminModal, ExportDataButton } from './AdminComponents';
 
-export default function AdminWithdrawals({ withdrawRequests, onApprove, onReject }) {
+export default function AdminWithdrawals({
+  withdrawRequests = [],
+  onApprove,
+  onReject,
+  onRefresh,
+  refreshing = false,
+  lastUpdated = null,
+}) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -97,7 +104,43 @@ export default function AdminWithdrawals({ withdrawRequests, onApprove, onReject
           <h2>Withdrawal Management</h2>
           <p>Review and settle user cash-out claims to UPI bank handles</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '12px',
+            fontWeight: '600',
+            color: '#16a34a',
+            backgroundColor: '#dcfce7',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            border: '1px solid #86efac'
+          }}>
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: '#16a34a',
+              boxShadow: '0 0 6px #16a34a',
+              display: 'inline-block'
+            }} />
+            Live Sync (8s)
+          </div>
+
+          {onRefresh && (
+            <button
+              className="admin-btn admin-btn-secondary"
+              onClick={onRefresh}
+              disabled={refreshing}
+              title="Refresh Withdrawal Requests"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+            >
+              <RotateCw size={14} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          )}
+
           <ExportDataButton data={withdrawRequests} columns={exportColumns} filename="Withdrawals" />
         </div>
       </div>

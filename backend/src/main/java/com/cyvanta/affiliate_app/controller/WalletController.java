@@ -69,6 +69,17 @@ public class WalletController {
             entry.put("previousBalance", wt.getPreviousBalance());
             entry.put("newBalance", wt.getNewBalance());
             entry.put("reason", wt.getReason() != null ? wt.getReason() : wt.getDescription());
+            String targetWallet = wt.getTargetWallet();
+            if (targetWallet == null || targetWallet.trim().isEmpty()) {
+                if (wt.getCategory() != null && wt.getCategory().toUpperCase().contains("PENDING")) {
+                    targetWallet = "PENDING";
+                } else if ("PENDING".equalsIgnoreCase(wt.getStatus())) {
+                    targetWallet = "PENDING";
+                } else {
+                    targetWallet = "APPROVED";
+                }
+            }
+            entry.put("targetWallet", targetWallet);
             entry.put("updatedBy", wt.getUpdatedBy() != null ? wt.getUpdatedBy() : (wt.getAdminName() != null ? wt.getAdminName() : "System"));
             entry.put("adminName", wt.getAdminName());
             entry.put("status", wt.getStatus());
@@ -97,7 +108,9 @@ public class WalletController {
             entry.put("category", "SHARED_COMMISSION");
             Double amount = sc.getUserCommissionAmount() != null ? sc.getUserCommissionAmount() : sc.getCommissionAmount();
             entry.put("amount", amount);
-            entry.put("status", sc.getStatus() != null ? sc.getStatus().toUpperCase() : "PENDING");
+            String scStatus = sc.getStatus() != null ? sc.getStatus().toUpperCase() : "PENDING";
+            entry.put("status", scStatus);
+            entry.put("targetWallet", "PENDING".equalsIgnoreCase(scStatus) ? "PENDING" : "APPROVED");
             entry.put("source", "shared_commission");
             entries.add(entry);
         }
@@ -122,6 +135,7 @@ public class WalletController {
             entry.put("amount", wr.getAmount());
             String status = wr.getStatus() != null ? wr.getStatus().toUpperCase() : "PENDING";
             entry.put("status", status);
+            entry.put("targetWallet", "PENDING".equalsIgnoreCase(status) ? "PENDING" : "APPROVED");
             entry.put("source", "withdrawal");
             entries.add(entry);
         }

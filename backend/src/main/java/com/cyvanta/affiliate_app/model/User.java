@@ -1,5 +1,6 @@
 package com.cyvanta.affiliate_app.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
@@ -47,6 +48,11 @@ public class User {
     // Frontend-compatible status field ("active", "blocked")
     @Builder.Default
     private String status = "active";
+
+    @Builder.Default
+    @JsonProperty("isBlocked")
+    @JsonAlias({"is_blocked", "blocked"})
+    private Boolean isBlocked = false;
 
     // Custom shared commission rate for this user (null = use global default)
     private Double sharedCommissionRate;
@@ -107,6 +113,29 @@ public class User {
             return createdAt.format(DateTimeFormatter.ISO_LOCAL_DATE);
         }
         return null;
+    }
+
+    public Boolean getIsBlocked() {
+        if (isBlocked != null && isBlocked) return true;
+        return "blocked".equalsIgnoreCase(status);
+    }
+
+    public void setIsBlocked(Boolean blocked) {
+        this.isBlocked = blocked != null && blocked;
+        if (this.isBlocked) {
+            this.status = "blocked";
+        } else if ("blocked".equalsIgnoreCase(this.status)) {
+            this.status = "active";
+        }
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+        if ("blocked".equalsIgnoreCase(status)) {
+            this.isBlocked = true;
+        } else if ("active".equalsIgnoreCase(status)) {
+            this.isBlocked = false;
+        }
     }
 
     public enum Role {

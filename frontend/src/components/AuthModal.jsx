@@ -2,8 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { X, Lock, Mail, User, ShieldCheck, Gift } from 'lucide-react';
 import { apiUsers } from '../services/api';
 
+const normalizeTab = (tab) => {
+  if (tab === 'register' || tab === 'join') return 'signup';
+  if (tab === 'signup' || tab === 'login' || tab === 'forgot') return tab;
+  return 'login';
+};
+
 export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'login' }) {
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
   const [authStep, setAuthStep] = useState('details'); // 'details', 'otp', 'forgot-request', 'forgot-reset'
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -16,17 +22,18 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
 
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(initialTab);
+      setActiveTab(normalizeTab(initialTab));
       const savedRef = localStorage.getItem('lio_referral_code') || '';
-      if (savedRef) setReferralCode(savedRef);
+      if (savedRef) setReferralCode(savedRef.toUpperCase());
     }
   }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
   const resetState = (tab) => {
-    setActiveTab(tab);
-    if (tab === 'forgot') {
+    const targetTab = normalizeTab(tab);
+    setActiveTab(targetTab);
+    if (targetTab === 'forgot') {
       setAuthStep('forgot-request');
     } else {
       setAuthStep('details');
@@ -37,6 +44,10 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
     setIdentifier('');
     setPassword('');
     setName('');
+    if (targetTab === 'signup') {
+      const savedRef = localStorage.getItem('lio_referral_code') || '';
+      if (savedRef) setReferralCode(savedRef.toUpperCase());
+    }
   };
 
   const handleDetailsSubmit = (e) => {
@@ -209,18 +220,20 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
 
         {authStep === 'details' && (
           <div className="auth-tabs">
-            <div
+            <button
+              type="button"
               className={`auth-tab ${activeTab === 'login' ? 'active' : ''}`}
               onClick={() => resetState('login')}
             >
               Log In
-            </div>
-            <div
+            </button>
+            <button
+              type="button"
               className={`auth-tab ${activeTab === 'signup' ? 'active' : ''}`}
               onClick={() => resetState('signup')}
             >
               Sign Up
-            </div>
+            </button>
           </div>
         )}
 
@@ -352,7 +365,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
               )}
             </div>
 
-            {activeTab === 'register' && (
+            {activeTab === 'signup' && (
               <div className="form-group">
                 <label>Referral Code (Optional)</label>
                 <div style={{ position: 'relative' }}>
@@ -389,6 +402,14 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
               ) : (activeTab === 'login' ? 'Continue & Claim Cashback' : 'Join Now & Get ₹5.00 Bonus')}
             </button>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+            <div style={{ textAlign: 'center', marginTop: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>
+              {activeTab === 'login' ? (
+                <span>Don't have an account? <button type="button" onClick={() => resetState('signup')} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '600', cursor: 'pointer', padding: 0 }}>Sign Up</button></span>
+              ) : (
+                <span>Already have an account? <button type="button" onClick={() => resetState('login')} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '600', cursor: 'pointer', padding: 0 }}>Log In</button></span>
+              )}
+            </div>
 
             <p style={{ fontSize: '12px', textAlign: 'center', marginTop: '8px', color: 'var(--text)' }}>
               By continuing, you agree to our Terms of Service & Privacy Policy.

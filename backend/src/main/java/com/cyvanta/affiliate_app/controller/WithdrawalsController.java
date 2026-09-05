@@ -91,6 +91,9 @@ public class WithdrawalsController {
             withdrawalRepository.save(request);
 
             if (request.getUserId() != null && request.getAmount() != null) {
+                Wallet userWallet = walletService.getOrCreateWallet(request.getUserId());
+                Double prevApproved = userWallet.getApprovedBalance() != null ? userWallet.getApprovedBalance() : 0.0;
+
                 // Add to withdrawn amount (do not deduct from pending, as it wasn't added there)
                 walletService.addWithdrawnAmount(request.getUserId(), request.getAmount());
 
@@ -101,7 +104,12 @@ public class WithdrawalsController {
                         "WITHDRAWAL",
                         "Withdrawal payout approved for user " + request.getUserName(),
                         request.getId(),
-                        "APPROVED"
+                        "APPROVED",
+                        "APPROVED",
+                        prevApproved,
+                        prevApproved,
+                        null,
+                        "Admin"
                 );
 
                 // Generate user notification
@@ -136,17 +144,25 @@ public class WithdrawalsController {
             withdrawalRepository.save(request);
 
              if (request.getUserId() != null && request.getAmount() != null) {
+                Wallet userWallet = walletService.getOrCreateWallet(request.getUserId());
+                Double prevApproved = userWallet.getApprovedBalance() != null ? userWallet.getApprovedBalance() : 0.0;
+
                 // Refund back to approvedBalance (do not subtract from pending, as it wasn't added there)
                 walletService.refundApprovedBalance(request.getUserId(), request.getAmount()); // Adds to approvedBalance
 
                 walletService.recordTransaction(
                         request.getUserId(),
                         request.getAmount(),
-                        "DEBIT",
-                        "WITHDRAWAL",
-                        "Withdrawal request rejected for user " + request.getUserName(),
+                        "CREDIT",
+                        "REFUND",
+                        "Withdrawal request rejected and refunded for user " + request.getUserName(),
                         request.getId(),
-                        "REJECTED"
+                        "REJECTED",
+                        "APPROVED",
+                        prevApproved,
+                        prevApproved + request.getAmount(),
+                        null,
+                        "Admin"
                 );
 
                 // Generate user notification

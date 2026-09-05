@@ -1,12 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { X, Lock, Mail, User } from 'lucide-react-native';
 
-export default function AuthModal({ isOpen, onClose, onLogin, theme }) {
-  const [activeTab, setActiveTab] = useState('login');
+const normalizeTab = (tab) => {
+  if (tab === 'register' || tab === 'join' || tab === 'signup') return 'signup';
+  return 'login';
+};
+
+export default function AuthModal({ isOpen, onClose, onLogin, theme, initialTab = 'login' }) {
+  const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(normalizeTab(initialTab));
+    }
+  }, [isOpen, initialTab]);
 
   const isDark = theme === 'dark';
   const themeStyles = {

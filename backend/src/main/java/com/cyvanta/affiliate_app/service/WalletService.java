@@ -81,6 +81,16 @@ public class WalletService {
     }
 
     public WalletTransaction recordTransaction(String userId, Double amount, String type, String category, String description, String trackingId, String status) {
+        String defaultTarget = (category != null && category.toUpperCase().contains("PENDING")) || "PENDING".equalsIgnoreCase(status) ? "PENDING" : "APPROVED";
+        return recordTransaction(userId, amount, type, category, description, trackingId, status, defaultTarget, null, null, null, null);
+    }
+
+    public WalletTransaction recordTransaction(String userId, Double amount, String type, String category, String description, String trackingId, String status, String targetWallet) {
+        return recordTransaction(userId, amount, type, category, description, trackingId, status, targetWallet, null, null, null, null);
+    }
+
+    public WalletTransaction recordTransaction(String userId, Double amount, String type, String category, String description, String trackingId, String status, String targetWallet, Double previousBalance, Double newBalance, String adminId, String adminName) {
+        String normalizedTarget = targetWallet != null ? targetWallet.toUpperCase() : ("PENDING".equalsIgnoreCase(status) || (category != null && category.toUpperCase().contains("PENDING")) ? "PENDING" : "APPROVED");
         if (trackingId != null && !trackingId.trim().isEmpty()) {
             java.util.Optional<WalletTransaction> existing = walletTransactionRepository.findByTrackingId(trackingId);
             if (existing.isPresent()) {
@@ -90,6 +100,14 @@ public class WalletService {
                 txn.setCategory(category);
                 txn.setStatus(status);
                 txn.setDescription(description);
+                txn.setTargetWallet(normalizedTarget);
+                if (previousBalance != null) txn.setPreviousBalance(previousBalance);
+                if (newBalance != null) txn.setNewBalance(newBalance);
+                if (adminId != null) txn.setAdminId(adminId);
+                if (adminName != null) {
+                    txn.setAdminName(adminName);
+                    txn.setUpdatedBy(adminName);
+                }
                 return walletTransactionRepository.save(txn);
             }
         }
@@ -101,6 +119,13 @@ public class WalletService {
                 .category(category)
                 .status(status)
                 .description(description)
+                .targetWallet(normalizedTarget)
+                .previousBalance(previousBalance)
+                .newBalance(newBalance)
+                .adminId(adminId)
+                .adminName(adminName)
+                .updatedBy(adminName != null ? adminName : "System")
+                .createdAt(LocalDateTime.now())
                 .build();
         return walletTransactionRepository.save(transaction);
     }

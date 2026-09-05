@@ -216,6 +216,23 @@ public class FinanceController {
                     entry.put("category", tx.getCategory());
                     entry.put("status", tx.getStatus());
                     entry.put("description", tx.getDescription());
+                    entry.put("previousBalance", tx.getPreviousBalance());
+                    entry.put("newBalance", tx.getNewBalance());
+                    entry.put("reason", tx.getReason() != null ? tx.getReason() : tx.getDescription());
+                    String targetWallet = tx.getTargetWallet();
+                    if (targetWallet == null || targetWallet.trim().isEmpty()) {
+                        if (tx.getCategory() != null && tx.getCategory().toUpperCase().contains("PENDING")) {
+                            targetWallet = "PENDING";
+                        } else if ("PENDING".equalsIgnoreCase(tx.getStatus())) {
+                            targetWallet = "PENDING";
+                        } else {
+                            targetWallet = "APPROVED";
+                        }
+                    }
+                    entry.put("targetWallet", targetWallet);
+                    entry.put("adminId", tx.getAdminId());
+                    entry.put("adminName", tx.getAdminName());
+                    entry.put("updatedBy", tx.getUpdatedBy() != null ? tx.getUpdatedBy() : (tx.getAdminName() != null ? tx.getAdminName() : "System"));
                     entry.put("date", tx.getCreatedAt() != null
                             ? tx.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                             : null);

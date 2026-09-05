@@ -37,7 +37,8 @@ import {
   CreditCard,
   Landmark,
   ArrowLeftRight,
-  Share2
+  Share2,
+  RotateCw
 } from 'lucide-react';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
@@ -149,7 +150,8 @@ export default function MobileApp({
   setView,
   compareList = [],
   onToggleCompare,
-  onOpenCompare
+  onOpenCompare,
+  onRefreshProfile
 }) {
   const sanitizedStores = React.useMemo(() => {
     return (storesData || [])
@@ -241,6 +243,16 @@ export default function MobileApp({
       }
     }
   }, [currentUser]);
+
+  const [refreshingMobileProfile, setRefreshingMobileProfile] = useState(false);
+
+  const handleManualRefresh = async () => {
+    if (onRefreshProfile) {
+      setRefreshingMobileProfile(true);
+      await onRefreshProfile();
+      setTimeout(() => setRefreshingMobileProfile(false), 500);
+    }
+  };
 
   // Selected Order for tracking modal
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -1842,13 +1854,44 @@ export default function MobileApp({
               color: 'var(--text)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '4px'
+              gap: '6px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <ShieldCheck size={16} style={{ color: currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--text)' }} />
-                <strong style={{ color: 'var(--text-bold)' }}>
-                  KYC Status: {currentUser?.kycStatus ? currentUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
-                </strong>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={16} style={{ color: currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--text)' }} />
+                  <strong style={{ color: 'var(--text-bold)' }}>
+                    KYC Status: {currentUser?.kycStatus ? currentUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
+                  </strong>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '10px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 500 }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }}></span>
+                    Live
+                  </span>
+                  {onRefreshProfile && (
+                    <button
+                      type="button"
+                      onClick={handleManualRefresh}
+                      disabled={refreshingMobileProfile}
+                      title="Sync verification status live"
+                      style={{
+                        background: 'none',
+                        border: '1px solid var(--border)',
+                        borderRadius: '4px',
+                        padding: '2px 6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        fontSize: '10px',
+                        color: 'var(--text-bold)'
+                      }}
+                    >
+                      <RotateCw size={10} className={refreshingMobileProfile ? 'animate-spin' : ''} />
+                      Sync
+                    </button>
+                  )}
+                </div>
               </div>
               <span>
                 {currentUser?.kycStatus === 'approved' 
@@ -1989,9 +2032,33 @@ export default function MobileApp({
                   <CreditCard size={16} style={{ color: 'var(--primary)' }} />
                   <h4 style={{ margin: 0, fontSize: '13px', color: 'var(--text-bold)', fontWeight: 'bold' }}>Payment & Bank Details</h4>
                 </div>
-                <span className={`status-badge ${currentUser?.paymentDetailsStatus || 'not_submitted'}`} style={{ fontSize: '10px', textTransform: 'uppercase' }}>
-                  {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className={`status-badge ${currentUser?.paymentDetailsStatus || 'not_submitted'}`} style={{ fontSize: '10px', textTransform: 'uppercase' }}>
+                    {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
+                  </span>
+                  {onRefreshProfile && (
+                    <button
+                      type="button"
+                      onClick={handleManualRefresh}
+                      disabled={refreshingMobileProfile}
+                      title="Sync verification status"
+                      style={{
+                        background: 'none',
+                        border: '1px solid var(--border)',
+                        borderRadius: '4px',
+                        padding: '2px 6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        fontSize: '10px',
+                        color: 'var(--text-bold)'
+                      }}
+                    >
+                      <RotateCw size={10} className={refreshingMobileProfile ? 'animate-spin' : ''} />
+                    </button>
+                  )}
+                </div>
               </div>
 
               {currentUser?.paymentDetailsStatus === 'pending' && (

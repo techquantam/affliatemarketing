@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Share2, Percent, Trash2, Play, ExternalLink, Plus, BookOpen, HelpCircle, User, Camera, ArrowLeft, ShieldAlert, CreditCard, Landmark } from 'lucide-react';
+import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Share2, Percent, Trash2, Play, ExternalLink, Plus, BookOpen, HelpCircle, User, Camera, ArrowLeft, ShieldAlert, CreditCard, Landmark, RotateCw } from 'lucide-react';
 import { apiSharedLinks, apiSharedCommissions, apiSettings, apiUsers, apiUpload } from '../services/api';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
@@ -9,8 +9,18 @@ import { copyToClipboard, getReferralDetails } from '../utils/clipboard';
 
 const DUMMY_CLICKS = [];
 
-export default function Dashboard({ currentUser, onAddNotification, setView, onAddWithdrawalRequest, onUpdateUser, initialTab, setInitialTab }) {
+export default function Dashboard({ currentUser, onAddNotification, setView, onAddWithdrawalRequest, onUpdateUser, initialTab, setInitialTab, onRefreshProfile }) {
   const [activeTab, setActiveTabRaw] = useState(initialTab || 'overview');
+  const [refreshingProfile, setRefreshingProfile] = useState(false);
+
+  const handleManualRefresh = async () => {
+    if (refreshingProfile) return;
+    setRefreshingProfile(true);
+    if (onRefreshProfile) {
+      await onRefreshProfile();
+    }
+    setTimeout(() => setRefreshingProfile(false), 600);
+  };
 
   const setActiveTab = (tab) => {
     setActiveTabRaw(tab);
@@ -525,13 +535,36 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
 
   const renderPaymentDetailsCard = () => (
     <div id="payment-details-section" className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px', marginTop: activeTab === 'payment' ? '0' : '24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
         <h3 className="referral-title" style={{ fontSize: '17px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
           <CreditCard size={20} style={{ color: 'var(--primary)' }} /> Payment Details / Bank Account
         </h3>
-        <span className={`status-badge ${currentUser?.paymentDetailsStatus || 'not_submitted'}`} style={{ fontSize: '11px', textTransform: 'uppercase' }}>
-          {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={refreshingProfile}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              color: 'var(--text)',
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}
+            title="Check live approval status"
+          >
+            <RotateCw size={12} className={refreshingProfile ? 'animate-spin' : ''} />
+            Check Live Status
+          </button>
+          <span className={`status-badge ${currentUser?.paymentDetailsStatus || 'not_submitted'}`} style={{ fontSize: '11px', textTransform: 'uppercase' }}>
+            {(currentUser?.paymentDetailsStatus || 'not_submitted').replace('_', ' ')}
+          </span>
+        </div>
       </div>
 
       {currentUser?.paymentDetailsStatus === 'pending' && (
@@ -1193,19 +1226,60 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
               border: `1px solid ${currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--border)'}`,
               display: 'flex',
               flexDirection: 'column',
-              gap: '6px'
+              gap: '8px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldCheck size={20} style={{ color: currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--text)' }} />
-                <strong style={{ fontSize: '15px', color: 'var(--text-bold)' }}>
-                  KYC Status: {currentUser?.kycStatus ? currentUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
-                </strong>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldCheck size={20} style={{ color: currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--text)' }} />
+                  <strong style={{ fontSize: '15px', color: 'var(--text-bold)' }}>
+                    KYC Status: {currentUser?.kycStatus ? currentUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    color: '#16a34a',
+                    backgroundColor: '#dcfce7',
+                    padding: '3px 8px',
+                    borderRadius: '12px'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16a34a', display: 'inline-block' }} />
+                    Live Sync (5s)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleManualRefresh}
+                    disabled={refreshingProfile}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      color: 'var(--text)',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                    title="Check live approval status"
+                  >
+                    <RotateCw size={12} className={refreshingProfile ? 'animate-spin' : ''} />
+                    Check Live Status
+                  </button>
+                </div>
               </div>
+
               <span style={{ fontSize: '13px', color: 'var(--text)' }}>
                 {currentUser?.kycStatus === 'approved' 
                   ? 'Your E-KYC is approved! You can now request withdrawals.'
                   : currentUser?.kycStatus === 'pending'
-                  ? 'Your E-KYC verification is pending admin review. Withdrawals are temporarily blocked.'
+                  ? 'Your E-KYC verification is pending admin review. Withdrawals will unlock automatically once approved.'
                   : currentUser?.kycStatus === 'rejected'
                   ? `Your E-KYC was rejected. Reason: ${currentUser?.kycRemarks || 'Invalid documents'}. Please update and re-submit.`
                   : 'Please fill in your profile details and upload Aadhaar, PAN and Selfie to activate withdrawals.'}

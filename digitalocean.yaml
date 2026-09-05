@@ -32,6 +32,12 @@ region: blr
 services:
 - dockerfile_path: backend/Dockerfile
   envs:
+  - key: TZ
+    scope: RUN_AND_BUILD_TIME
+    value: Asia/Kolkata
+  - key: APP_TIMEZONE
+    scope: RUN_AND_BUILD_TIME
+    value: Asia/Kolkata
   - key: MONGODB_URI
     scope: RUN_AND_BUILD_TIME
     value: mongodb+srv://shailavisrivastava977_db_user:Matra04@cluster0.usvsonz.mongodb.net/affiliate-app?retryWrites=true&w=majority&appName=Cluster0

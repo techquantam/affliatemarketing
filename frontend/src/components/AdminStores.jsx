@@ -223,10 +223,14 @@ export default function AdminStores({
       setFormError('Shop Name is required.');
       return;
     }
+    const trimmedName = name.trim();
+    const fallbackLogo = logo.trim() || `https://placehold.co/120x60/f8fafc/64748b?text=${encodeURIComponent(trimmedName)}`;
+    const effectiveStatus = status || 'active';
+    const effectiveIsActive = effectiveStatus !== 'inactive' && effectiveStatus !== 'disabled';
 
     const shopData = {
-      name: name.trim(),
-      logo: logo.trim(),
+      name: trimmedName,
+      logo: fallbackLogo,
       banner: banner.trim(),
       cashbackRate: cashbackRate.trim() || '10%',
       description: description.trim(),
@@ -239,7 +243,8 @@ export default function AdminStores({
       link: link.trim(),
       affiliateUrl: link.trim(),
       isPopular: Boolean(isPopular),
-      status: status || 'active',
+      status: effectiveStatus,
+      isActive: effectiveIsActive,
       coupons: coupons || []
     };
 
@@ -255,10 +260,11 @@ export default function AdminStores({
   // Quick 1-click Enable/Disable toggle
   const handleToggleShopStatus = (item) => {
     if (onToggleStatus) {
-      onToggleStatus(item.id);
+      onToggleStatus(item.id || item._id);
     } else {
-      const newStatus = item.status === 'active' ? 'inactive' : 'active';
-      onEditStore({ ...item, status: newStatus });
+      const isNowActive = item.status === 'inactive' || item.isActive === false;
+      const newStatus = isNowActive ? 'active' : 'inactive';
+      onEditStore({ ...item, status: newStatus, isActive: isNowActive });
     }
   };
 
@@ -266,8 +272,9 @@ export default function AdminStores({
   const filteredStores = useMemo(() => {
     return stores.filter(store => {
       // Status filter
-      if (statusFilter === 'active' && store.status !== 'active') return false;
-      if (statusFilter === 'inactive' && store.status === 'active') return false;
+      const isAct = store.isActive !== false && store.status !== 'inactive' && store.status !== 'disabled';
+      if (statusFilter === 'active' && !isAct) return false;
+      if (statusFilter === 'inactive' && isAct) return false;
 
       // Category filter
       if (categoryFilter !== 'all' && store.category !== categoryFilter) return false;

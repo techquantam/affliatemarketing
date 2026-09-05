@@ -160,6 +160,7 @@ const mapProductsToDeals = (productsList, dbDealsList, storesData) => {
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authInitialTab, setAuthInitialTab] = useState('login');
   const [notifications, setNotifications] = useState([]);
   const [trackedOrders, setTrackedOrders] = useState([]);
   const [withdrawRequests, setWithdrawRequests] = useState([]);
@@ -169,6 +170,43 @@ export default function App() {
   const [currentView, setCurrentView] = useState('home');
   const [selectedStoreId, setSelectedStoreId] = useState(null);
   const [theme, setTheme] = useState('light');
+
+  const handleOpenAuthModal = (tab) => {
+    const hasReferral = typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('lio_referral_code'));
+    const defaultTab = hasReferral ? 'signup' : 'login';
+    const target = tab || defaultTab;
+    setAuthInitialTab(target === 'register' || target === 'join' ? 'signup' : target);
+    setIsAuthModalOpen(true);
+  };
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        let searchStr = window.location.search;
+        if (!searchStr && window.location.hash && window.location.hash.includes('?')) {
+          searchStr = window.location.hash.substring(window.location.hash.indexOf('?'));
+        }
+        const params = new URLSearchParams(searchStr);
+        const refParam = params.get('ref') || params.get('referral') || params.get('referralCode');
+        if (refParam && typeof localStorage !== 'undefined') {
+          localStorage.setItem('lio_referral_code', refParam.trim().toUpperCase());
+        }
+        const pathClean = (window.location.pathname || '').toLowerCase();
+        const hashClean = (window.location.hash || '').toLowerCase();
+        const isSignupPath = pathClean.includes('/signup') || pathClean.includes('/join') || pathClean.includes('/register') ||
+          hashClean.includes('/signup') || hashClean.includes('/join') || hashClean.includes('/register') ||
+          params.get('signup') === 'true' || params.get('register') === 'true';
+
+        const hasSession = typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_session'));
+        if ((refParam || isSignupPath) && !hasSession) {
+          setAuthInitialTab('signup');
+          setIsAuthModalOpen(true);
+        }
+      }
+    } catch (e) {
+      console.warn('Referral check error in App.jsx:', e);
+    }
+  }, []);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
@@ -296,6 +334,119 @@ export default function App() {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
+  // Live profile status synchronization for eKYC and Payment verification
+  const fetchFreshProfile = async (silent = true) => {
+    if (!currentUser?.id) return;
+    try {
+      const fresh = await apiUsers.getById(currentUser.id);
+      if (fresh && fresh.id) {
+        const oldKyc = currentUser.kycStatus;
+        const newKyc = fresh.kycStatus;
+        const oldPayment = currentUser.paymentDetailsStatus;
+        const newPayment = fresh.paymentDetailsStatus;
+
+        if (oldKyc !== newKyc) {
+          if (newKyc === 'approved') {
+            addNotification('🎉 Congratulations! Your E-KYC has been approved by the admin.', 'success');
+            try {
+              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+              audio.play().catch(() => {});
+            } catch (e) {}
+          } else if (newKyc === 'rejected') {
+            addNotification(`⚠️ Your E-KYC submission was rejected: ${fresh.kycRemarks || 'Please review documents.'}`, 'error');
+          }
+        }
+
+        if (oldPayment !== newPayment) {
+          if (newPayment === 'approved') {
+            addNotification('🎉 Your Bank/Payout details have been verified & approved!', 'success');
+            try {
+              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+              audio.play().catch(() => {});
+            } catch (e) {}
+          } else if (newPayment === 'rejected') {
+            addNotification(`⚠️ Your Bank/Payout details were rejected: ${fresh.paymentDetailsRemarks || 'Please check and re-submit.'}`, 'error');
+          }
+        }
+
+        setCurrentUser(prev => {
+          if (!prev) return null;
+          const merged = {
+            ...prev,
+            ...fresh,
+            wallet: {
+              ...(prev.wallet || {}),
+              ...(fresh.wallet || {})
+            }
+          };
+          localStorage.setItem('user_session', JSON.stringify(merged));
+          return merged;
+        });
+
+        if (!silent) {
+          addNotification('Account & verification status refreshed live!', 'info');
+        }
+      }
+    } catch (err) {
+      if (!silent) {
+        addNotification('Could not sync status with server.', 'error');
+      }
+      console.warn('Silent live profile sync error:', err);
+    }
+  };
+
+  // Real-time polling (5s) and cross-tab BroadcastChannel sync for user profile
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    fetchFreshProfile(true);
+
+    const intervalId = setInterval(() => {
+      fetchFreshProfile(true);
+    }, 5000);
+
+    const handleWindowFocus = () => {
+      fetchFreshProfile(true);
+    };
+
+    const handleKycOrPaymentEvent = (e) => {
+      const data = e?.detail;
+      if (!data || !data.userId || data.userId === currentUser.id) {
+        fetchFreshProfile(true);
+      }
+    };
+
+    let channel = null;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        channel = new BroadcastChannel('affiliate_admin_sync');
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'KYC_STATUS_UPDATED' || event.data?.type === 'PAYMENT_STATUS_UPDATED') {
+            if (!event.data.userId || event.data.userId === currentUser.id) {
+              fetchFreshProfile(true);
+            }
+          }
+        };
+      }
+    } catch (err) {
+      console.warn('BroadcastChannel not available:', err);
+    }
+
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('user:kyc_updated', handleKycOrPaymentEvent);
+    window.addEventListener('user:payment_updated', handleKycOrPaymentEvent);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('user:kyc_updated', handleKycOrPaymentEvent);
+      window.removeEventListener('user:payment_updated', handleKycOrPaymentEvent);
+      if (channel) {
+        channel.close();
+      }
+    };
+  }, [currentUser?.id]);
+
   useEffect(() => {
     window.handleShareDeal = async (productId) => {
       if (!currentUser) {
@@ -375,7 +526,8 @@ export default function App() {
           storesData={storesData}
           dealsData={dynamicDeals}
           onAddNotification={addNotification}
-          openAuthModal={() => setIsAuthModalOpen(true)}
+          onRefreshProfile={() => fetchFreshProfile(false)}
+          openAuthModal={handleOpenAuthModal}
           onLogout={handleLogout}
           theme={theme}
           toggleTheme={toggleTheme}
@@ -411,13 +563,14 @@ export default function App() {
           })}
           onGrabDeal={handleInterceptGrabDeal}
           currentUser={currentUser}
-          openAuthModal={() => setIsAuthModalOpen(true)}
+          openAuthModal={handleOpenAuthModal}
           theme={theme}
         />
       )}
 
       <AuthModal
         isOpen={isAuthModalOpen}
+        initialTab={authInitialTab}
         onClose={() => setIsAuthModalOpen(false)}
         onLogin={handleLogin}
         theme={theme}

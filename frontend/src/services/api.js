@@ -12,8 +12,18 @@ console.log(`[API Service] Running in BACKEND (${BASE_URL}) mode. Native: ${isCa
 
 // --- HELPER WRAPPER TO MAKE FETCH REQUESTS ---
 async function request(url, options = {}, retryCount = 0) {
+  let currentUserId = null;
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('user_session') : null;
+    if (raw) {
+      const u = JSON.parse(raw);
+      currentUserId = u.id || u._id;
+    }
+  } catch (e) {}
+
   const defaultHeaders = {
     'Content-Type': 'application/json',
+    ...(currentUserId ? { 'X-User-Id': String(currentUserId), 'userId': String(currentUserId) } : {})
   };
 
   // In Capacitor native, the WebView origin is http://localhost which causes
@@ -51,6 +61,14 @@ async function request(url, options = {}, retryCount = 0) {
         if (parsedError.error) errorMessage = parsedError.error;
         else if (parsedError.message) errorMessage = parsedError.message;
       } catch (e) {}
+
+      // If user account is blocked (403), trigger immediate logout & notification
+      if (response.status === 403 && (errorMessage.toLowerCase().includes('blocked') || (parsedError && (parsedError.isBlocked || parsedError.is_blocked)))) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:blocked', { detail: { message: errorMessage } }));
+        }
+      }
+
       const err = new Error(errorMessage);
       // Attach all parsed fields (e.g. requireOtp) so callers can inspect them
       if (parsedError) Object.assign(err, parsedError);
@@ -75,7 +93,7 @@ async function request(url, options = {}, retryCount = 0) {
 // --- API ACTIONS DEFINITIONS ---
 
 export const apiStores = {
-  getAll: () => request('/stores'),
+  getAll: () => request(`/stores?_t=${Date.now()}`),
   create: (store) => request('/stores', { method: 'POST', body: JSON.stringify(store) }),
   update: (id, store) => request(`/stores/${id}`, { method: 'PUT', body: JSON.stringify(store) }),
   toggleStatus: (id) => request(`/stores/${id}/toggle-status`, { method: 'PATCH' }),
@@ -114,7 +132,7 @@ export const apiDeals = {
 };
 
 export const apiUsers = {
-  getAll: () => request('/users'),
+  getAll: () => request(`/users?_t=${Date.now()}`),
   login: (identifier, password) => {
     const payload = { password, identifier };
     if (identifier && identifier.includes('@')) payload.email = identifier;
@@ -136,13 +154,53 @@ export const apiUsers = {
   verifyOtp: (identifier, otp) => request('/users/verify-otp', { method: 'POST', body: JSON.stringify({ identifier, otp }) }),
   resendOtp: (identifier) => request('/users/resend-otp', { method: 'POST', body: JSON.stringify({ identifier }) }),
   updateStatus: (id, status) => request(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  blockUser: async (id) => {
+    try {
+      return await request(`/users/${id}/block`, { method: 'PUT' });
+    } catch (e) {
+      return await request(`/admin/users/${id}/block`, { method: 'PUT' });
+    }
+  },
+  unblockUser: async (id) => {
+    try {
+      return await request(`/users/${id}/unblock`, { method: 'PUT' });
+    } catch (e) {
+      return await request(`/admin/users/${id}/unblock`, { method: 'PUT' });
+    }
+  },
   update: (id, userData) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(userData) }),
-  updateKyc: (id, kycData) => request(`/users/${id}/kyc`, { method: 'PUT', body: JSON.stringify(kycData) }),
+  updateKyc: async (id, kycData) => {
+    const res = await request(`/users/${id}/kyc`, { method: 'PUT', body: JSON.stringify(kycData) });
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user:kyc_updated', { detail: { id, ...kycData, user: res } }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'USER_KYC_UPDATED', userId: id, data: res });
+          bc.close();
+        }
+      }
+    } catch (e) {}
+    return res;
+  },
   forgotPassword: (identifier) => request('/users/forgot-password', { method: 'POST', body: JSON.stringify({ identifier }) }),
   resetPassword: (identifier, otp, password) => request('/users/reset-password', { method: 'POST', body: JSON.stringify({ identifier, otp, password }) }),
   updatePaymentDetails: (id, details) => request(`/users/${id}/payment-details`, { method: 'PUT', body: JSON.stringify(details) }),
-  updatePaymentDetailsStatus: (id, payload) => request(`/users/${id}/payment-details/status`, { method: 'PUT', body: JSON.stringify(payload) }),
-  getById: (id) => request(`/users/${id}`)
+  updatePaymentDetailsStatus: async (id, payload) => {
+    const res = await request(`/users/${id}/payment-details/status`, { method: 'PUT', body: JSON.stringify(payload) });
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user:payment_updated', { detail: { id, ...payload, user: res } }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'USER_PAYMENT_UPDATED', userId: id, data: res });
+          bc.close();
+        }
+      }
+    } catch (e) {}
+    return res;
+  },
+  getById: (id) => request(`/users/${id}?_t=${Date.now()}`)
 };
 
 export const apiProducts = {
@@ -166,8 +224,21 @@ export const apiCashback = {
 };
 
 export const apiWithdrawals = {
-  getAll: () => request('/withdrawals'),
-  create: (req) => request('/withdrawals', { method: 'POST', body: JSON.stringify(req) }),
+  getAll: () => request(`/withdrawals?_t=${Date.now()}`),
+  create: async (req) => {
+    const result = await request('/withdrawals', { method: 'POST', body: JSON.stringify(req) });
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('withdrawal:created', { detail: result }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'WITHDRAWAL_CREATED', data: result });
+          bc.close();
+        }
+      }
+    } catch (e) {}
+    return result;
+  },
   approve: (id, amount) => request(`/withdrawals/${id}/approve`, { method: 'PUT', body: JSON.stringify({ amount }) }),
   reject: (id, amount) => request(`/withdrawals/${id}/reject`, { method: 'PUT', body: JSON.stringify({ amount }) })
 };
@@ -227,10 +298,31 @@ export const apiAdmin = {
 };
 
 export const apiAdminManagement = {
-  getAllAdmins: () => request('/users/admins'),
+  getAllAdmins: () => request(`/users/admins?_t=${Date.now()}`),
   createAdmin: (adminData, requesterId) => request('/users/admin/create', {
     method: 'POST',
     body: JSON.stringify(adminData),
+    headers: { 'X-Admin-Id': requesterId }
+  }),
+  updateAdmin: (userId, adminData, requesterId) => request(`/users/admin/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(adminData),
+    headers: { 'X-Admin-Id': requesterId }
+  }),
+  deleteAdmin: (userId, requesterId) => request(`/users/admin/${userId}`, {
+    method: 'DELETE',
+    headers: { 'X-Admin-Id': requesterId }
+  }),
+  toggleBlockAdmin: async (userId, isCurrentlyBlocked, requesterId) => {
+    const endpoint = isCurrentlyBlocked ? `/users/${userId}/unblock` : `/users/${userId}/block`;
+    return request(endpoint, {
+      method: 'PUT',
+      headers: { 'X-Admin-Id': requesterId }
+    });
+  },
+  resetAdminPassword: (userId, newPassword, requesterId) => request(`/users/admin/${userId}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify({ password: newPassword }),
     headers: { 'X-Admin-Id': requesterId }
   }),
   changeRole: (userId, role, requesterId) => request(`/users/${userId}/role`, {

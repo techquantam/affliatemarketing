@@ -26,6 +26,7 @@ import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from './utils/ope
 import { getCleanedUrlIdentifier } from './utils/urlMatcher';
 import './index.css';
 import './App.css';
+import './Admin.css';
 
 const AdBanners = ({ banners }) => {
   if (!banners || banners.length === 0) return null;
@@ -400,16 +401,36 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [userNotifications, setUserNotifications] = useState([]);
 
+  const handleOpenAuthModal = (tab) => {
+    const hasReferral = Boolean(localStorage.getItem('lio_referral_code'));
+    const defaultTab = hasReferral ? 'signup' : 'login';
+    const target = tab || defaultTab;
+    setAuthInitialTab(target === 'register' || target === 'join' ? 'signup' : target);
+    setIsAuthModalOpen(true);
+  };
+
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
+      // Check query params in both window.location.search and window.location.hash (SPA support)
+      let searchStr = window.location.search;
+      if (!searchStr && window.location.hash && window.location.hash.includes('?')) {
+        searchStr = window.location.hash.substring(window.location.hash.indexOf('?'));
+      }
+      const params = new URLSearchParams(searchStr);
       const refParam = params.get('ref') || params.get('referral') || params.get('referralCode');
       if (refParam) {
         localStorage.setItem('lio_referral_code', refParam.trim().toUpperCase());
       }
-      const isSignupPath = window.location.pathname === '/signup' || window.location.pathname === '/join' || params.get('signup') === 'true';
+
+      const pathClean = (window.location.pathname || '').toLowerCase();
+      const hashClean = (window.location.hash || '').toLowerCase();
+      const isSignupPath = pathClean === '/signup' || pathClean === '/join' || pathClean === '/register' ||
+        pathClean.startsWith('/signup') || pathClean.startsWith('/join') || pathClean.startsWith('/register') ||
+        hashClean.includes('/signup') || hashClean.includes('/join') || hashClean.includes('/register') ||
+        params.get('signup') === 'true' || params.get('register') === 'true';
+
       if ((refParam || isSignupPath) && !localStorage.getItem('user_session')) {
-        setAuthInitialTab('register');
+        setAuthInitialTab('signup');
         setIsAuthModalOpen(true);
       }
     } catch (e) {
@@ -680,21 +701,16 @@ export default function App() {
     return () => clearInterval(interval);
   }, [currentUser?.id, currentView]);
 
-  // Keep full user profile (including UPI/bank details & KYC) fresh from backend
+  // Listen for blocked user event from API client / middleware
   useEffect(() => {
-    if (!currentUser?.id) return;
-    const fetchFreshProfile = async () => {
-      try {
-        const fresh = await apiUsers.getById(currentUser.id);
-        if (fresh && fresh.id) {
-          handleUpdateUser(fresh);
-        }
-      } catch (err) {
-        console.warn('Failed to refresh user profile:', err);
-      }
+    const handleBlocked = (e) => {
+      const msg = e?.detail?.message || 'Your account has been blocked by Admin';
+      handleLogout();
+      addNotification(msg, 'error');
     };
-    fetchFreshProfile();
-  }, [currentUser?.id]);
+    window.addEventListener('auth:blocked', handleBlocked);
+    return () => window.removeEventListener('auth:blocked', handleBlocked);
+  }, []);
 
   // Sync notifications for logged-in user
   const fetchUserNotifications = async () => {
@@ -987,23 +1003,154 @@ export default function App() {
     addNotification('Logged out successfully. See you again!', 'info');
   };
 
+  // --- REAL-TIME LIVE USER PROFILE & KYC/PAYMENT STATUS SYNC ---
+  const fetchFreshProfile = React.useCallback(async (silent = true) => {
+    if (!currentUser?.id) return;
+    try {
+      const fresh = await apiUsers.getById(currentUser.id);
+      if (fresh) {
+        if (fresh.status === 'blocked' || fresh.isBlocked || fresh.is_blocked === 1) {
+          handleLogout();
+          addNotification('Your account has been blocked by Admin', 'error');
+          return;
+        }
+        if (fresh.id) {
+          // Detect KYC status transition in real-time
+          if (currentUser.kycStatus && fresh.kycStatus && currentUser.kycStatus !== fresh.kycStatus) {
+            if (fresh.kycStatus === 'approved') {
+              addNotification('🎉 Great news! Your E-KYC verification has been APPROVED by Admin! Withdrawals are now active.', 'success');
+              try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+              } catch (e) {}
+            } else if (fresh.kycStatus === 'rejected') {
+              addNotification(`⚠️ Your E-KYC was rejected: ${fresh.kycRemarks || 'Please check and re-upload.'}`, 'error');
+            }
+          }
+
+          // Detect Payment details status transition in real-time
+          if (currentUser.paymentDetailsStatus && fresh.paymentDetailsStatus && currentUser.paymentDetailsStatus !== fresh.paymentDetailsStatus) {
+            if (fresh.paymentDetailsStatus === 'approved') {
+              addNotification('✅ Great news! Your Bank / UPI payout details have been APPROVED by Admin!', 'success');
+              try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+              } catch (e) {}
+            } else if (fresh.paymentDetailsStatus === 'rejected') {
+              addNotification(`⚠️ Your Bank/UPI details were rejected: ${fresh.paymentDetailsRemarks || 'Please edit and re-submit.'}`, 'error');
+            }
+          }
+
+          handleUpdateUser(fresh);
+          if (!silent) {
+            addNotification('Profile & verification status refreshed.', 'info');
+          }
+        }
+      }
+    } catch (err) {
+      if (err.status === 403 || String(err.message).toLowerCase().includes('blocked')) {
+        handleLogout();
+        addNotification('Your account has been blocked by Admin', 'error');
+      } else {
+        console.warn('Failed to refresh user profile:', err);
+      }
+    }
+  }, [currentUser, handleLogout, addNotification, handleUpdateUser]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    fetchFreshProfile(true);
+
+    // 1. Live Poll every 5 seconds for rapid status updates
+    const blockPoll = setInterval(() => fetchFreshProfile(true), 5000);
+
+    // 2. Cross-tab & in-tab instant sync
+    const handleKycEvent = () => fetchFreshProfile(true);
+    const handlePayEvent = () => fetchFreshProfile(true);
+    window.addEventListener('user:kyc_updated', handleKycEvent);
+    window.addEventListener('user:payment_updated', handlePayEvent);
+
+    let bc = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('affiliate_admin_sync');
+        bc.onmessage = (event) => {
+          if (
+            event.data?.type === 'USER_KYC_UPDATED' ||
+            event.data?.type === 'USER_PAYMENT_UPDATED'
+          ) {
+            if (!event.data.userId || event.data.userId === currentUser.id) {
+              fetchFreshProfile(true);
+            }
+          }
+        };
+      }
+    } catch (e) {}
+
+    // 3. Tab visibility / window focus revalidation
+    const handleFocus = () => fetchFreshProfile(true);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchFreshProfile(true);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(blockPoll);
+      window.removeEventListener('user:kyc_updated', handleKycEvent);
+      window.removeEventListener('user:payment_updated', handlePayEvent);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (bc) bc.close();
+    };
+  }, [currentUser?.id, fetchFreshProfile]);
+
   // Filter stores by category & active status for public display
   const activeStores = React.useMemo(() => {
-    return storesData.filter(s => s.status === 'active' || s.status === 'ACTIVE' || !s.status);
+    return storesData.filter((s) => {
+      if (!s) return false;
+      if (s.isActive === false || s.is_active === false || s.isActive === 0 || s.is_active === 0) return false;
+      const st = String(s.status || '').toLowerCase().trim();
+      if (st === 'inactive' || st === 'disabled' || st === '0' || st === 'false' || st === 'blocked') return false;
+      return true;
+    });
   }, [storesData]);
 
   const filteredStores = React.useMemo(() => {
-    if (!activeCategory || activeCategory === 'all') return activeStores;
+    if (!activeCategory || activeCategory === 'all' || activeCategory === '') return activeStores;
     const norm = (s) => (s || '').toLowerCase().replace(/[\s_\-]+/g, '');
     const activeNorm = norm(activeCategory);
     return activeStores.filter((s) => {
-      if (!s.category) return false;
+      if (!s.category || s.category === 'all') return true;
       const sNorm = norm(s.category);
       return sNorm === activeNorm || sNorm.includes(activeNorm) || activeNorm.includes(sNorm);
     });
   }, [activeCategory, activeStores]);
 
-  const selectedStore = storesData.find((s) => s.id === selectedStoreId);
+  const selectedStore = storesData.find((s) => (s.id && s.id === selectedStoreId) || (s._id && s._id === selectedStoreId));
 
   // Normalization helper for grouping products by name across shops
   const normalizeProdTitle = (str) => {
@@ -1385,7 +1532,7 @@ export default function App() {
           toggleTheme={toggleTheme}
           currentUser={currentUser}
           onLogout={handleLogout}
-          openAuthModal={() => setIsAuthModalOpen(true)}
+          openAuthModal={handleOpenAuthModal}
           storesData={storesData}
           onStoreSelect={handleStoreSelect}
           setHomeSearchQuery={setHomeSearchQuery}
@@ -1448,7 +1595,7 @@ export default function App() {
   }
 
   if (isMobileView && currentView !== 'admin-login' && currentView !== 'admin-panel') {
-    const selectedStore = storesData.find((s) => s.id === selectedStoreId);
+    const selectedStore = storesData.find((s) => (s.id && s.id === selectedStoreId) || (s._id && s._id === selectedStoreId));
 
     return (
       <div className="mobile-app-layout-root">
@@ -1480,7 +1627,7 @@ export default function App() {
               onGrabDeal={handleGrabProductDeal}
               onShareDeal={handleShareDeal}
               currentUser={currentUser}
-              openAuthModal={() => setIsAuthModalOpen(true)}
+              openAuthModal={handleOpenAuthModal}
               compareList={compareList}
               onToggleCompare={handleToggleCompare}
             />
@@ -1496,7 +1643,8 @@ export default function App() {
             dealsData={dynamicDeals}
             categoriesData={categoriesData}
             onAddNotification={addNotification}
-            openAuthModal={() => setIsAuthModalOpen(true)}
+            onRefreshProfile={() => fetchFreshProfile(false)}
+            openAuthModal={handleOpenAuthModal}
             onLogout={handleLogout}
             onGrabDeal={handleGrabProductDeal}
             onShareDeal={handleShareDeal}
@@ -1543,7 +1691,7 @@ export default function App() {
         toggleTheme={toggleTheme}
         currentUser={currentUser}
         onLogout={handleLogout}
-        openAuthModal={() => setIsAuthModalOpen(true)}
+        openAuthModal={handleOpenAuthModal}
         storesData={storesData}
         onStoreSelect={handleStoreSelect}
         homeSearchQuery={homeSearchQuery}
@@ -1567,7 +1715,16 @@ export default function App() {
 
       {/* Category Filter Bar (Directly below Header at top: 64px with 0 gap) */}
       {currentView === 'home' && (
-        <div className="home-category-bar-sticky">
+        <div 
+          className="home-category-bar-sticky"
+          style={{
+            position: 'sticky',
+            top: '64px',
+            zIndex: 40,
+            background: 'white',
+            backgroundColor: 'var(--card-bg, #ffffff)'
+          }}
+        >
           <CategoryGrid
             activeCategory={activeCategory}
             onCategoryChange={(catId) => {
@@ -1588,7 +1745,7 @@ export default function App() {
               onCtaClick={handleCtaRedirect}
               setView={setView}
               currentUser={currentUser}
-              openAuthModal={() => setIsAuthModalOpen(true)}
+              openAuthModal={handleOpenAuthModal}
             />
 
             {homeSearchQuery ? (
@@ -1748,7 +1905,7 @@ export default function App() {
             onGrabDeal={handleGrabProductDeal}
             onShareDeal={handleShareDeal}
             currentUser={currentUser}
-            openAuthModal={() => setIsAuthModalOpen(true)}
+            openAuthModal={handleOpenAuthModal}
             compareList={compareList}
             onToggleCompare={handleToggleCompare}
           />
@@ -1763,6 +1920,7 @@ export default function App() {
             onUpdateUser={handleUpdateUser}
             initialTab={dashboardTab}
             setInitialTab={setDashboardTab}
+            onRefreshProfile={() => fetchFreshProfile(false)}
           />
         )}
 
@@ -1770,7 +1928,7 @@ export default function App() {
           <ShareLanding 
             products={products}
             currentUser={currentUser}
-            openAuthModal={() => setIsAuthModalOpen(true)}
+            openAuthModal={handleOpenAuthModal}
           />
         )}
       </main>

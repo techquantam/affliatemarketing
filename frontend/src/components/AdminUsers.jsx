@@ -58,22 +58,65 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
   const [editStatus, setEditStatus] = useState('active');
   const [editSharedCommRate, setEditSharedCommRate] = useState('');
 
-  const handleToggleUserStatus = (userId) => {
-    const user = users.find(u => u.id === userId);
+  const handleToggleUserStatus = async (userId) => {
+    const user = users.find((u) => (u.id && u.id === userId) || (u._id && u._id === userId));
     if (!user) return;
-    const nextStatus = user.status === 'active' ? 'blocked' : 'active';
-    if (!window.confirm(`Are you sure you want to ${user.status === 'active' ? 'block' : 'unblock'} user ${user.name}?`)) {
+    const isCurrentlyBlocked = user.status === 'blocked' || user.isBlocked === true || user.is_blocked === 1 || user.is_blocked === '1' || user.isBlocked === 'true';
+    const nextStatus = isCurrentlyBlocked ? 'active' : 'blocked';
+    const actionVerb = isCurrentlyBlocked ? 'Unblock' : 'Block';
+
+    const confirmMessage = isCurrentlyBlocked
+      ? `Are you sure you want to unblock user "${user.name}"? Their access will be restored.`
+      : `Are you sure you want to block user "${user.name}"?\n\nThey will be immediately logged out and prevented from accessing the app.`;
+
+    if (!window.confirm(confirmMessage)) {
       return;
     }
+
+    const targetId = user.id || user._id || userId;
+
+    // Optimistically update UI status to "Blocked" with red badge instantly
     setUsers((prev) =>
       prev.map((u) => {
-        if (u.id === userId) {
-          onAddNotification(`User ${u.name} status updated to ${nextStatus}.`, 'info');
-          return { ...u, status: nextStatus };
+        if ((u.id && u.id === targetId) || (u._id && u._id === targetId)) {
+          return {
+            ...u,
+            status: nextStatus,
+            isBlocked: nextStatus === 'blocked',
+            is_blocked: nextStatus === 'blocked' ? 1 : 0
+          };
         }
         return u;
       })
     );
+    if (selectedUser && ((selectedUser.id && selectedUser.id === targetId) || (selectedUser._id && selectedUser._id === targetId))) {
+      setSelectedUser((prev) => ({
+        ...prev,
+        status: nextStatus,
+        isBlocked: nextStatus === 'blocked',
+        is_blocked: nextStatus === 'blocked' ? 1 : 0
+      }));
+    }
+
+    try {
+      if (nextStatus === 'blocked') {
+        await apiUsers.blockUser(targetId);
+        onAddNotification(`User "${user.name}" has been blocked successfully.`, 'success');
+      } else {
+        await apiUsers.unblockUser(targetId);
+        onAddNotification(`User "${user.name}" has been unblocked successfully.`, 'success');
+      }
+    } catch (err) {
+      console.error('Failed to update user block status:', err);
+      // Revert on failure
+      setUsers((prev) =>
+        prev.map((u) => ((u.id && u.id === targetId) || (u._id && u._id === targetId) ? user : u))
+      );
+      if (selectedUser && ((selectedUser.id && selectedUser.id === targetId) || (selectedUser._id && selectedUser._id === targetId))) {
+        setSelectedUser(user);
+      }
+      onAddNotification(`Failed to ${actionVerb.toLowerCase()} user: ` + (err.message || 'Server error'), 'error');
+    }
   };
 
   const openViewModal = (user) => {
@@ -83,10 +126,11 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
 
   const openEditModal = (user) => {
     setEditUser(user);
-    setEditName(user.name);
-    setEditEmail(user.email || `${user.name.toLowerCase().replace(' ', '')}@gmail.com`);
-    setEditMobile(user.phone || '+91 9876543210');
-    setEditStatus(user.status);
+    setEditName(user.name || '');
+    setEditEmail(user.email || `${(user.name || 'user').toLowerCase().replace(/\s+/g, '')}@gmail.com`);
+    setEditMobile(user.phone || '');
+    const isBlk = user.status === 'blocked' || user.isBlocked === true || user.is_blocked === 1;
+    setEditStatus(isBlk ? 'blocked' : (user.status || 'active'));
     setEditSharedCommRate(user.sharedCommissionRate !== null && user.sharedCommissionRate !== undefined ? user.sharedCommissionRate.toString() : '');
     setIsEditModalOpen(true);
   };
@@ -102,25 +146,27 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       return;
     }
 
+    const targetId = editUser.id || editUser._id;
+    const isBlk = editStatus === 'blocked';
+    const payload = {
+      name: editName.trim(),
+      email: editEmail.trim(),
+      phone: editMobile.trim(),
+      status: editStatus,
+      isBlocked: isBlk,
+      is_blocked: isBlk ? 1 : 0,
+      sharedCommissionRate: editSharedCommRate.trim() === '' ? null : parseFloat(editSharedCommRate),
+    };
+
     if (onEditUser) {
-      onEditUser(editUser.id, {
-        name: editName,
-        email: editEmail,
-        phone: editMobile,
-        status: editStatus,
-        sharedCommissionRate: editSharedCommRate.trim() === '' ? null : parseFloat(editSharedCommRate),
-      });
+      onEditUser(targetId, payload);
     } else {
       setUsers((prev) =>
         prev.map((u) =>
-          u.id === editUser.id
+          ((u.id && u.id === targetId) || (u._id && u._id === targetId))
             ? {
                 ...u,
-                name: editName,
-                email: editEmail,
-                phone: editMobile,
-                status: editStatus,
-                sharedCommissionRate: editSharedCommRate.trim() === '' ? null : parseFloat(editSharedCommRate),
+                ...payload
               }
             : u
         )
@@ -142,12 +188,16 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       phoneStr.includes(query) ||
       refCodeStr.includes(query) ||
       emailStr.includes(query);
-    const matchesStatus = statusFilter === 'all' || u.status === statusFilter;
+    const isBlk = u.status === 'blocked' || u.isBlocked === true || u.is_blocked === 1 || u.is_blocked === '1' || u.isBlocked === 'true';
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'blocked' && isBlk) ||
+      (statusFilter === 'active' && !isBlk);
     return matchesSearch && matchesStatus;
   });
 
   const exportColumns = [
-    { header: 'ID', dataKey: 'id', accessor: (u) => u.id || '' },
+    { header: 'ID', dataKey: 'id', accessor: (u) => u.id || u._id || '' },
     { header: 'Name', dataKey: 'name', accessor: (u) => u.name || '' },
     { header: 'Email', dataKey: 'email', accessor: (u) => u.email || `${(u.name || 'user').toLowerCase().replace(/\s+/g, '')}@gmail.com` },
     { header: 'Mobile', dataKey: 'phone', accessor: (u) => u.phone || '' },
@@ -167,15 +217,15 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
   const headers = ['User Name', 'Email', 'Mobile', 'Referral Code', 'Join Date', 'Status', 'KYC Status', 'Actions'];
 
   const renderRow = (item, idx) => (
-    <tr key={item.id} className="animate-fade">
+    <tr key={item.id || item._id} className="animate-fade">
       <td style={{ fontWeight: '600', color: 'var(--text-bold)' }}>{item.name}</td>
       <td>{item.email || `${item.name.toLowerCase().replace(' ', '')}@gmail.com`}</td>
       <td>{item.phone}</td>
       <td style={{ fontFamily: 'monospace', fontWeight: '600', color: 'var(--primary)' }}>{item.referralCode}</td>
       <td>{item.joinDate}</td>
       <td>
-        <span className={`status-badge ${item.status === 'active' ? 'active' : 'inactive'}`}>
-          {item.status}
+        <span className={`status-badge ${item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'blocked' : (item.status === 'active' ? 'active' : 'inactive')}`}>
+          {item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'Blocked' : (item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Active')}
         </span>
       </td>
       <td>
@@ -215,12 +265,20 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
             <span>Wallet</span>
           </button>
           <button
-            className={`admin-btn-icon ${item.status === 'active' ? 'delete' : 'edit'}`}
-            onClick={() => handleToggleUserStatus(item.id)}
-            title={item.status === 'active' ? 'Block User' : 'Unblock User'}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            className={`admin-btn-icon ${item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'edit' : 'delete'}`}
+            onClick={() => handleToggleUserStatus(item.id || item._id)}
+            title={item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'Unblock User' : 'Block User'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              color: item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? '#10b981' : '#ef4444',
+              border: item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+              cursor: 'pointer'
+            }}
           >
-            {item.status === 'active' ? <ShieldAlert size={14} /> : <ShieldCheck size={14} />}
+            {item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
           </button>
         </div>
       </td>
@@ -359,7 +417,9 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
               <div>
                 <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Account Status</span>
                 <p style={{ marginTop: '2px' }}>
-                  <span className={`status-badge ${selectedUser.status === 'active' ? 'active' : 'inactive'}`}>{selectedUser.status}</span>
+                  <span className={`status-badge ${selectedUser.status === 'blocked' || selectedUser.isBlocked || selectedUser.is_blocked === 1 ? 'blocked' : (selectedUser.status === 'active' ? 'active' : 'inactive')}`}>
+                    {selectedUser.status === 'blocked' || selectedUser.isBlocked || selectedUser.is_blocked === 1 ? 'Blocked' : (selectedUser.status || 'Active')}
+                  </span>
                 </p>
               </div>
               <div>
@@ -476,6 +536,35 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
                 )}
               </div>
             )}
+            {/* Account Access Control (Block / Unblock) */}
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h5 style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', color: 'var(--text-bold)' }}>Account Access Control</h5>
+                <p style={{ fontSize: '12px', color: 'var(--text)', margin: '2px 0 0 0' }}>
+                  {selectedUser.status === 'blocked' || selectedUser.isBlocked || selectedUser.is_blocked === 1
+                    ? 'User is currently blocked from app access.'
+                    : 'Block to terminate active sessions and prevent login.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className={`admin-btn ${selectedUser.status === 'blocked' || selectedUser.isBlocked || selectedUser.is_blocked === 1 ? 'admin-btn-primary' : 'admin-btn-danger'}`}
+                onClick={() => handleToggleUserStatus(selectedUser.id || selectedUser._id)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', fontWeight: 'bold' }}
+              >
+                {selectedUser.status === 'blocked' || selectedUser.isBlocked || selectedUser.is_blocked === 1 ? (
+                  <>
+                    <ShieldCheck size={15} />
+                    <span>Unblock User</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldAlert size={15} />
+                    <span>Block User</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </AdminModal>
       )}

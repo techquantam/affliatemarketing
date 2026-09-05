@@ -102,14 +102,23 @@ export default function AdminLedger({ users }) {
         </button>
       </td>
       <td>
-        <span style={{ 
-          color: item.type === 'CREDIT' ? '#10b981' : '#ef4444', 
-          fontWeight: 'bold',
-          display: 'flex', alignItems: 'center', gap: '4px'
-        }}>
-          {item.type === 'CREDIT' ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
-          {item.category === 'ADMIN_ADJUSTMENT' ? 'ADJUSTMENT' : item.type}
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ 
+            color: item.type === 'CREDIT' ? '#10b981' : '#ef4444', 
+            fontWeight: 'bold',
+            display: 'flex', alignItems: 'center', gap: '4px'
+          }}>
+            {item.type === 'CREDIT' ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
+            {item.category === 'ADMIN_ADJUSTMENT' ? 'ADJUSTMENT' : item.type}
+          </span>
+          <span style={{ 
+            fontSize: '10px', 
+            color: (item.targetWallet || '').toUpperCase() === 'PENDING' ? '#f59e0b' : 'var(--text-muted)',
+            fontWeight: (item.targetWallet || '').toUpperCase() === 'PENDING' ? 600 : 400
+          }}>
+            ({item.targetWallet || (item.category && item.category.includes('PENDING') ? 'PENDING' : 'APPROVED')})
+          </span>
+        </div>
       </td>
       <td style={{ fontWeight: 'bold', color: item.type === 'CREDIT' ? '#10b981' : '#ef4444' }}>
         ₹{item.amount?.toFixed(2) || '0.00'}
