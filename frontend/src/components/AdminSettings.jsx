@@ -2,12 +2,23 @@ import React, { useState } from 'react';
 import { Save, ShieldAlert, BadgeInfo } from 'lucide-react';
 import { AdminFormInput } from './AdminComponents';
 
-export default function AdminSettings({ globalSettings, onSaveSettings }) {
-  const [cbPercent, setCbPercent] = useState(globalSettings.cashbackPercent.toString());
-  const [holdPeriod, setHoldPeriod] = useState(globalSettings.holdDays.toString());
-  const [minWithdraw, setMinWithdraw] = useState(globalSettings.minimumWithdrawal.toString());
+export default function AdminSettings({ globalSettings = {}, onSaveSettings }) {
+  const [cbPercent, setCbPercent] = useState((globalSettings.cashbackPercent || 8.0).toString());
+  const [holdPeriod, setHoldPeriod] = useState((globalSettings.holdDays || 30).toString());
+  const [minWithdraw, setMinWithdraw] = useState((globalSettings.min_withdrawal || globalSettings.minimumWithdrawal || 500).toString());
   const [sharedCbPercent, setSharedCbPercent] = useState((globalSettings.sharedCommissionPercent || 5.0).toString());
   const [sharedHoldPeriod, setSharedHoldPeriod] = useState((globalSettings.sharedCommissionHoldDays || 30).toString());
+
+  React.useEffect(() => {
+    if (globalSettings) {
+      if (globalSettings.cashbackPercent != null) setCbPercent(globalSettings.cashbackPercent.toString());
+      if (globalSettings.holdDays != null) setHoldPeriod(globalSettings.holdDays.toString());
+      const minVal = globalSettings.min_withdrawal ?? globalSettings.minimumWithdrawal;
+      if (minVal != null) setMinWithdraw(minVal.toString());
+      if (globalSettings.sharedCommissionPercent != null) setSharedCbPercent(globalSettings.sharedCommissionPercent.toString());
+      if (globalSettings.sharedCommissionHoldDays != null) setSharedHoldPeriod(globalSettings.sharedCommissionHoldDays.toString());
+    }
+  }, [globalSettings]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -20,6 +31,7 @@ export default function AdminSettings({ globalSettings, onSaveSettings }) {
       cashbackPercent: parseFloat(cbPercent),
       holdDays: parseInt(holdPeriod, 10),
       minimumWithdrawal: parseFloat(minWithdraw),
+      min_withdrawal: minWithdraw.toString(),
       sharedCommissionPercent: parseFloat(sharedCbPercent),
       sharedCommissionHoldDays: parseInt(sharedHoldPeriod, 10),
     });

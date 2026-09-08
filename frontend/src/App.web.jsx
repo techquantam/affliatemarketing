@@ -19,11 +19,17 @@ import MobileApp from './components/MobileApp';
 import CompareModal from './components/CompareModal';
 import CompareTray from './components/CompareTray';
 import PriceComparisonModal from './components/PriceComparisonModal';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsAndConditions from './components/TermsAndConditions';
+import Signup from './pages/Signup';
 import SearchBar from './components/SearchBar';
 import CategoryIcon from './components/CategoryIcon';
-import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories, apiWallet, apiNotifications } from './services/api';
+import { apiTracking, apiWithdrawals, apiProducts, apiDeals, apiSharedLinks, apiSharedCommissions, apiStores, apiBanners, apiAffiliate, apiCategories, apiWallet, apiNotifications, apiUsers } from './services/api';
+import { isKycApproved, isKycRejected, getUnifiedKycStatus } from './components/KycPage';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from './utils/openUrl';
 import { getCleanedUrlIdentifier } from './utils/urlMatcher';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './index.css';
 import './App.css';
 import './Admin.css';
@@ -369,10 +375,28 @@ export default function App() {
     if (hash.startsWith('#/share/')) {
       return 'share-landing';
     }
+    if (hash === '#/privacy-policy' || hash === '#/privacy' || hash === '#privacy-policy') {
+      return 'privacy-policy';
+    }
+    if (hash === '#/terms-and-conditions' || hash === '#/terms-conditions' || hash === '#terms-conditions' || hash === '#/terms' || hash === '#terms-and-conditions' || hash === '#/terms-of-service' || hash === '#terms') {
+      return 'terms-and-conditions';
+    }
+    if (hash === '#/signup' || hash === '#/register' || hash === '#signup') {
+      return 'signup';
+    }
 
     const path = window.location.pathname;
     if (path.startsWith('/share/')) {
       return 'share-landing';
+    }
+    if (path === '/privacy-policy' || path === '/privacy') {
+      return 'privacy-policy';
+    }
+    if (path === '/terms-and-conditions' || path === '/terms-conditions' || path === '/terms' || path === '/terms-of-service') {
+      return 'terms-and-conditions';
+    }
+    if (path === '/signup' || path === '/register') {
+      return 'signup';
     }
     if (path === '/admin/login') {
       return 'admin-login';
@@ -398,6 +422,7 @@ export default function App() {
   const [theme, setTheme] = useState('light');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState('login');
+  const [authErrorMessage, setAuthErrorMessage] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [userNotifications, setUserNotifications] = useState([]);
 
@@ -406,6 +431,7 @@ export default function App() {
     const defaultTab = hasReferral ? 'signup' : 'login';
     const target = tab || defaultTab;
     setAuthInitialTab(target === 'register' || target === 'join' ? 'signup' : target);
+    setAuthErrorMessage('');
     setIsAuthModalOpen(true);
   };
 
@@ -602,10 +628,41 @@ export default function App() {
         const cleanedDeals = dbDeals.filter(d => !isBlacklistedBrand(d.name) && !isBlacklistedBrand(d.platform));
         setDealsData(cleanedDeals);
       }
-      if (storesRes && Array.isArray(storesRes) && storesRes.length > 0) {
-        const cleanedStores = storesRes.filter(s => !isBlacklistedBrand(s.name) && !isBlacklistedBrand(s.description));
-        setStoresData(cleanedStores);
-      }
+
+      // Merge Stores: 1. Remote Backend Stores (DB truth, latest first) -> 2. Local Custom Stores -> 3. Default Stores
+      let localCustomStores = [];
+      try {
+        const storedStores = localStorage.getItem('lio_custom_stores');
+        if (storedStores) {
+          const parsed = JSON.parse(storedStores);
+          if (Array.isArray(parsed)) localCustomStores = parsed;
+        }
+      } catch (e) {}
+
+      const remoteStores = (storesRes && Array.isArray(storesRes)) ? [...storesRes] : [];
+      // Remote stores from DB come first (latest first)
+      const allMergedStores = [...remoteStores];
+
+      localCustomStores.forEach(ls => {
+        const lsId = ls.id || ls._id;
+        if (!allMergedStores.some(s => (s.id && s.id === lsId) || (s._id && s._id === lsId) || (
+          s.name && ls.name && s.name.trim().toLowerCase() === ls.name.trim().toLowerCase()
+        ))) {
+          allMergedStores.push(ls);
+        }
+      });
+
+      DEFAULT_STORES.forEach(ds => {
+        const dsId = ds.id || ds._id;
+        if (!allMergedStores.some(s => (s.id && s.id === dsId) || (
+          s.name && ds.name && s.name.trim().toLowerCase() === ds.name.trim().toLowerCase()
+        ))) {
+          allMergedStores.push(ds);
+        }
+      });
+
+      const cleanedStores = allMergedStores.filter(s => !isBlacklistedBrand(s.name) && !isBlacklistedBrand(s.description));
+      setStoresData(cleanedStores);
       if (activeBanners && Array.isArray(activeBanners) && activeBanners.length > 0) {
         setBannersData(activeBanners);
       }
@@ -624,14 +681,50 @@ export default function App() {
 
   useEffect(() => {
     const handleFocus = () => loadCatalogData();
+    const handleStoreCreated = (e) => {
+      if (e?.detail) {
+        const newStore = e.detail;
+        const sid = newStore.id || newStore._id;
+        setStoresData((prev) => {
+          const arr = Array.isArray(prev) ? prev : [];
+          const exists = arr.some((s) => (s.id && s.id === sid) || (s._id && s._id === sid));
+          return exists ? arr.map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? newStore : s)) : [newStore, ...arr];
+        });
+      }
+      loadCatalogData();
+    };
+
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('store:created', handleStoreCreated);
+    window.addEventListener('store:updated', handleStoreCreated);
+    window.addEventListener('store:deleted', handleFocus);
+    window.addEventListener('stores:cache_cleared', handleFocus);
+
+    let bc;
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('affiliate_admin_sync');
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'STORE_CREATED' && event.data?.data) {
+          handleStoreCreated({ detail: event.data.data });
+        } else if (event.data?.type === 'STORE_UPDATED' || event.data?.type === 'STORE_DELETED') {
+          loadCatalogData();
+        }
+      };
+    }
+
     // Periodic refresh every 30 seconds for live admin update sync
     const pollInterval = setInterval(() => {
       loadCatalogData();
     }, 30000);
+
     return () => {
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('store:created', handleStoreCreated);
+      window.removeEventListener('store:updated', handleStoreCreated);
+      window.removeEventListener('store:deleted', handleFocus);
+      window.removeEventListener('stores:cache_cleared', handleFocus);
       clearInterval(pollInterval);
+      if (bc) bc.close();
     };
   }, [loadCatalogData]);
 
@@ -705,7 +798,10 @@ export default function App() {
   useEffect(() => {
     const handleBlocked = (e) => {
       const msg = e?.detail?.message || 'Your account has been blocked by Admin';
-      handleLogout();
+      handleLogout(true);
+      setAuthInitialTab('login');
+      setAuthErrorMessage(msg);
+      setIsAuthModalOpen(true);
       addNotification(msg, 'error');
     };
     window.addEventListener('auth:blocked', handleBlocked);
@@ -774,8 +870,10 @@ export default function App() {
           }
         }));
       }
+      return added;
     } catch (err) {
       console.error('Failed to request app withdrawal:', err);
+      throw err;
     }
   };
 
@@ -797,13 +895,17 @@ export default function App() {
     }
   }, [isAdminLoggedIn]);
 
-  // Sync navigation popstate
+  // Sync navigation popstate and hashchange
   useEffect(() => {
     const handlePopState = () => {
       setViewRaw(getInitialView());
     };
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
   }, [isAdminLoggedIn]);
 
   const setView = (viewName) => {
@@ -826,6 +928,15 @@ export default function App() {
     } else if (viewName === 'store') {
       newPath = '/store';
       newHash = '#/store';
+    } else if (viewName === 'privacy-policy') {
+      newPath = '/privacy-policy';
+      newHash = '#/privacy-policy';
+    } else if (viewName === 'terms-and-conditions' || viewName === 'terms' || viewName === 'terms-conditions') {
+      newPath = '/terms-conditions';
+      newHash = '#/terms-conditions';
+    } else if (viewName === 'signup' || viewName === 'register') {
+      newPath = '/signup';
+      newHash = '#/signup';
     }
     
     if (window.location.hash !== newHash) {
@@ -992,7 +1103,7 @@ export default function App() {
     });
   };
 
-  const handleLogout = () => {
+  const handleLogout = (silent = false) => {
     localStorage.removeItem('user_session');
     localStorage.removeItem('admin_session');
     localStorage.removeItem('is_admin');
@@ -1000,43 +1111,65 @@ export default function App() {
     setCurrentUser(null);
     setIsAdminLoggedIn(false);
     setView('home');
-    addNotification('Logged out successfully. See you again!', 'info');
+    if (!silent) {
+      addNotification('Logged out successfully. See you again!', 'info');
+    }
   };
 
   // --- REAL-TIME LIVE USER PROFILE & KYC/PAYMENT STATUS SYNC ---
   const fetchFreshProfile = React.useCallback(async (silent = true) => {
     if (!currentUser?.id) return;
     try {
-      const fresh = await apiUsers.getById(currentUser.id);
+      let fresh = await apiUsers.getById(currentUser.id);
+      try {
+        const freshKyc = await apiUsers.getKycStatus(currentUser.id);
+        if (freshKyc) {
+          fresh = {
+            ...fresh,
+            ...freshKyc,
+            kycStatus: freshKyc.status || freshKyc.kycStatus || fresh?.kycStatus,
+            kyc_status: freshKyc.status || freshKyc.kyc_status || fresh?.kyc_status,
+            is_verified: freshKyc.is_verified ?? fresh?.is_verified,
+            is_kyc_verified: freshKyc.is_kyc_verified ?? fresh?.is_kyc_verified
+          };
+        }
+      } catch (e) {}
+
       if (fresh) {
         if (fresh.status === 'blocked' || fresh.isBlocked || fresh.is_blocked === 1) {
-          handleLogout();
-          addNotification('Your account has been blocked by Admin', 'error');
+          handleLogout(true);
+          setAuthInitialTab('login');
+          setAuthErrorMessage('Your account is blocked by admin');
+          setIsAuthModalOpen(true);
+          addNotification('Your account is blocked by admin', 'error');
           return;
         }
         if (fresh.id) {
           // Detect KYC status transition in real-time
-          if (currentUser.kycStatus && fresh.kycStatus && currentUser.kycStatus !== fresh.kycStatus) {
-            if (fresh.kycStatus === 'approved') {
-              addNotification('🎉 Great news! Your E-KYC verification has been APPROVED by Admin! Withdrawals are now active.', 'success');
-              try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
-                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
-                osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.4);
-              } catch (e) {}
-            } else if (fresh.kycStatus === 'rejected') {
-              addNotification(`⚠️ Your E-KYC was rejected: ${fresh.kycRemarks || 'Please check and re-upload.'}`, 'error');
-            }
+          const wasApproved = isKycApproved(currentUser);
+          const nowApproved = isKycApproved(fresh);
+          const wasRejected = isKycRejected(currentUser);
+          const nowRejected = isKycRejected(fresh);
+
+          if (!wasApproved && nowApproved) {
+            addNotification('🎉 Great news! Your E-KYC verification has been APPROVED by Admin! Withdrawals are now active.', 'success');
+            try {
+              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+              osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+              osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+              gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+              osc.start();
+              osc.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {}
+          } else if (!wasRejected && nowRejected) {
+            addNotification(`⚠️ Your E-KYC was rejected: ${fresh.admin_remark || fresh.kycRemarks || 'Please check and re-upload.'}`, 'error');
           }
 
           // Detect Payment details status transition in real-time
@@ -1098,10 +1231,20 @@ export default function App() {
         bc.onmessage = (event) => {
           if (
             event.data?.type === 'USER_KYC_UPDATED' ||
-            event.data?.type === 'USER_PAYMENT_UPDATED'
+            event.data?.type === 'USER_PAYMENT_UPDATED' ||
+            event.data?.type === 'USER_STATUS_UPDATED' ||
+            event.data?.type === 'USER_BLOCKED'
           ) {
             if (!event.data.userId || event.data.userId === currentUser.id) {
-              fetchFreshProfile(true);
+              if (event.data.status === 'blocked' || event.data.is_blocked === 1 || event.data.type === 'USER_BLOCKED') {
+                handleLogout(true);
+                setAuthInitialTab('login');
+                setAuthErrorMessage('Your account is blocked by admin');
+                setIsAuthModalOpen(true);
+                addNotification('Your account is blocked by admin', 'error');
+              } else {
+                fetchFreshProfile(true);
+              }
             }
           }
         };
@@ -1565,7 +1708,8 @@ export default function App() {
         <AuthModal
           isOpen={isAuthModalOpen}
           initialTab={authInitialTab}
-          onClose={() => setIsAuthModalOpen(false)}
+          initialError={authErrorMessage}
+          onClose={() => { setIsAuthModalOpen(false); setAuthErrorMessage(''); }}
           onLogin={handleLogin}
         />
       </div>
@@ -1595,6 +1739,31 @@ export default function App() {
   }
 
   if (isMobileView && currentView !== 'admin-login' && currentView !== 'admin-panel') {
+    if (currentView === 'privacy-policy') {
+      return (
+        <div className="mobile-app-layout-root" style={{ minHeight: '100vh', background: 'var(--bg)', overflowY: 'auto' }}>
+          <Notification notifications={notifications} removeNotification={removeNotification} />
+          <PrivacyPolicy onBack={() => setView('home')} setView={setView} />
+        </div>
+      );
+    }
+    if (currentView === 'terms-and-conditions' || currentView === 'terms' || currentView === 'terms-conditions') {
+      return (
+        <div className="mobile-app-layout-root" style={{ minHeight: '100vh', background: 'var(--bg)', overflowY: 'auto' }}>
+          <Notification notifications={notifications} removeNotification={removeNotification} />
+          <TermsAndConditions onBack={() => setView('home')} setView={setView} />
+        </div>
+      );
+    }
+    if (currentView === 'signup' || currentView === 'register') {
+      return (
+        <div className="mobile-app-layout-root" style={{ minHeight: '100vh', background: 'var(--bg)', overflowY: 'auto' }}>
+          <Notification notifications={notifications} removeNotification={removeNotification} />
+          <Signup onLogin={handleLogin} setView={setView} />
+        </div>
+      );
+    }
+
     const selectedStore = storesData.find((s) => (s.id && s.id === selectedStoreId) || (s._id && s._id === selectedStoreId));
 
     return (
@@ -1662,7 +1831,8 @@ export default function App() {
         <AuthModal
           isOpen={isAuthModalOpen}
           initialTab={authInitialTab}
-          onClose={() => setIsAuthModalOpen(false)}
+          initialError={authErrorMessage}
+          onClose={() => { setIsAuthModalOpen(false); setAuthErrorMessage(''); }}
           onLogin={handleLogin}
         />
 
@@ -1831,6 +2001,7 @@ export default function App() {
                     <StoreGrid
                       stores={searchedStores}
                       onStoreSelect={handleStoreSelect}
+                      onRefresh={loadCatalogData}
                     />
                   </div>
                 )}
@@ -1858,6 +2029,7 @@ export default function App() {
                 <StoreGrid
                   stores={filteredStores}
                   onStoreSelect={handleStoreSelect}
+                  onRefresh={loadCatalogData}
                 />
 
                 {/* Deals Grid */}
@@ -1931,6 +2103,18 @@ export default function App() {
             openAuthModal={handleOpenAuthModal}
           />
         )}
+
+        {currentView === 'privacy-policy' && (
+          <PrivacyPolicy onBack={() => setView('home')} setView={setView} />
+        )}
+
+        {(currentView === 'terms-and-conditions' || currentView === 'terms' || currentView === 'terms-conditions') && (
+          <TermsAndConditions onBack={() => setView('home')} setView={setView} />
+        )}
+
+        {(currentView === 'signup' || currentView === 'register') && (
+          <Signup onLogin={handleLogin} setView={setView} />
+        )}
       </main>
 
       {/* Structured Footer */}
@@ -1940,7 +2124,8 @@ export default function App() {
       <AuthModal
         isOpen={isAuthModalOpen}
         initialTab={authInitialTab}
-        onClose={() => setIsAuthModalOpen(false)}
+        initialError={authErrorMessage}
+        onClose={() => { setIsAuthModalOpen(false); setAuthErrorMessage(''); }}
         onLogin={handleLogin}
       />
 
@@ -2248,6 +2433,18 @@ export default function App() {
         onGrabDeal={handleGrabProductDeal}
       />
 
+      <ToastContainer
+        position="top-right"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
     </div>
   );
 }

@@ -59,7 +59,13 @@ export default function Header({
     };
 
     const matchedStores = (storesData || [])
-      .filter(store => (store.status === 'active' || store.status === 'ACTIVE' || !store.status) && !isBlacklisted(store.name) && (store.name || '').toLowerCase().includes(query))
+      .filter(store => {
+        if (!store) return false;
+        if (store.isActive === false || store.is_active === false || store.isActive === 0 || store.is_active === 0) return false;
+        const st = String(store.status || '').toLowerCase().trim();
+        if (st === 'inactive' || st === 'disabled' || st === '0' || st === 'false' || st === 'blocked') return false;
+        return !isBlacklisted(store.name) && (store.name || '').toLowerCase().includes(query);
+      })
       .slice(0, 4)
       .map(store => ({
         type: 'store',

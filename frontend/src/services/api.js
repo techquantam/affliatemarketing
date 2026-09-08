@@ -63,9 +63,14 @@ async function request(url, options = {}, retryCount = 0) {
       } catch (e) {}
 
       // If user account is blocked (403), trigger immediate logout & notification
-      if (response.status === 403 && (errorMessage.toLowerCase().includes('blocked') || (parsedError && (parsedError.isBlocked || parsedError.is_blocked)))) {
+      const isBlocked = response.status === 403 && (
+        errorMessage.toLowerCase().includes('blocked') ||
+        (parsedError && (parsedError.isBlocked || parsedError.is_blocked === 1 || parsedError.status === false))
+      );
+      if (isBlocked) {
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth:blocked', { detail: { message: errorMessage } }));
+          const blockedMsg = parsedError?.message || errorMessage || 'Your account is blocked by admin';
+          window.dispatchEvent(new CustomEvent('auth:blocked', { detail: { message: blockedMsg } }));
         }
       }
 
@@ -73,6 +78,7 @@ async function request(url, options = {}, retryCount = 0) {
       // Attach all parsed fields (e.g. requireOtp) so callers can inspect them
       if (parsedError) Object.assign(err, parsedError);
       err.status = response.status;
+      err.response = { data: parsedError || { message: errorMessage, error: errorMessage }, status: response.status };
       throw err;
     }
 
@@ -93,7 +99,14 @@ async function request(url, options = {}, retryCount = 0) {
 // --- API ACTIONS DEFINITIONS ---
 
 export const apiStores = {
-  getAll: () => request(`/stores?_t=${Date.now()}`),
+  getAll: (params = {}) => {
+    const query = new URLSearchParams();
+    query.set('_t', String(Date.now()));
+    if (params && params.status) query.set('status', params.status);
+    if (params && params.is_active !== undefined) query.set('is_active', params.is_active);
+    return request(`/stores?${query.toString()}`, { cache: 'no-store' });
+  },
+  getActive: () => request(`/stores/active?_t=${Date.now()}`, { cache: 'no-store' }),
   create: (store) => request('/stores', { method: 'POST', body: JSON.stringify(store) }),
   update: (id, store) => request(`/stores/${id}`, { method: 'PUT', body: JSON.stringify(store) }),
   toggleStatus: (id) => request(`/stores/${id}/toggle-status`, { method: 'PATCH' }),
@@ -155,21 +168,115 @@ export const apiUsers = {
   resendOtp: (identifier) => request('/users/resend-otp', { method: 'POST', body: JSON.stringify({ identifier }) }),
   updateStatus: (id, status) => request(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   blockUser: async (id) => {
+    let res;
     try {
-      return await request(`/users/${id}/block`, { method: 'PUT' });
+      res = await request(`/users/${id}/block`, { method: 'PUT' });
     } catch (e) {
-      return await request(`/admin/users/${id}/block`, { method: 'PUT' });
+      res = await request(`/admin/users/${id}/block`, { method: 'PUT' });
     }
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user:status_updated', {
+          detail: { userId: id, status: 'blocked', isBlocked: true, is_blocked: 1, user: res }
+        }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'USER_STATUS_UPDATED', userId: id, status: 'blocked', isBlocked: true, is_blocked: 1, data: res });
+          bc.close();
+        }
+      }
+    } catch (e) {}
+    return res;
   },
   unblockUser: async (id) => {
+    let res;
     try {
-      return await request(`/users/${id}/unblock`, { method: 'PUT' });
+      res = await request(`/users/${id}/unblock`, { method: 'PUT' });
     } catch (e) {
-      return await request(`/admin/users/${id}/unblock`, { method: 'PUT' });
+      res = await request(`/admin/users/${id}/unblock`, { method: 'PUT' });
     }
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user:status_updated', {
+          detail: { userId: id, status: 'active', isBlocked: false, is_blocked: 0, user: res }
+        }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'USER_STATUS_UPDATED', userId: id, status: 'active', isBlocked: false, is_blocked: 0, data: res });
+          bc.close();
+        }
+      }
+    } catch (e) {}
+    return res;
   },
   update: (id, userData) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(userData) }),
+  getKycStatus: async (userId) => {
+    try {
+      return await request(`/kyc-status?user_id=${userId}&_t=${Date.now()}`);
+    } catch (e) {
+      return await request(`/users/${userId}?_t=${Date.now()}`);
+    }
+  },
+  approveKyc: async (userId, remark = 'Approved') => {
+    let res;
+    try {
+      res = await request(`/kyc/approve/${userId}`, {
+        method: 'POST',
+        body: JSON.stringify({ status: 'approved', admin_remark: remark })
+      });
+    } catch (e) {
+      res = await request(`/users/${userId}/kyc`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'approved', remarks: remark, admin_remark: remark })
+      });
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user:kyc_updated', {
+          detail: { id: userId, status: 'approved', kycStatus: 'approved', kyc_status: 'approved', is_verified: 1, is_kyc_verified: 1, user: res }
+        }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'USER_KYC_UPDATED', userId, status: 'approved', kycStatus: 'approved', is_verified: 1, is_kyc_verified: 1, data: res });
+          bc.close();
+        }
+      }
+    } catch (err) {}
+    return res;
+  },
+  rejectKyc: async (userId, remarks = 'Please re-upload clear document copies') => {
+    let res;
+    try {
+      res = await request(`/kyc/reject/${userId}`, {
+        method: 'POST',
+        body: JSON.stringify({ status: 'rejected', remarks, admin_remark: remarks })
+      });
+    } catch (e) {
+      res = await request(`/users/${userId}/kyc`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 'rejected', remarks, admin_remark: remarks })
+      });
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user:kyc_updated', {
+          detail: { id: userId, status: 'rejected', kycStatus: 'rejected', kyc_status: 'rejected', is_verified: 0, is_kyc_verified: 0, user: res }
+        }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'USER_KYC_UPDATED', userId, status: 'rejected', kycStatus: 'rejected', is_verified: 0, is_kyc_verified: 0, data: res });
+          bc.close();
+        }
+      }
+    } catch (err) {}
+    return res;
+  },
   updateKyc: async (id, kycData) => {
+    if (kycData?.status === 'approved' || kycData?.status === 'approve') {
+      return apiUsers.approveKyc(id, kycData?.remarks || kycData?.admin_remark || 'Approved');
+    } else if (kycData?.status === 'rejected' || kycData?.status === 'reject') {
+      return apiUsers.rejectKyc(id, kycData?.remarks || kycData?.admin_remark || 'Rejected');
+    }
     const res = await request(`/users/${id}/kyc`, { method: 'PUT', body: JSON.stringify(kycData) });
     try {
       if (typeof window !== 'undefined') {
@@ -183,8 +290,20 @@ export const apiUsers = {
     } catch (e) {}
     return res;
   },
-  forgotPassword: (identifier) => request('/users/forgot-password', { method: 'POST', body: JSON.stringify({ identifier }) }),
-  resetPassword: (identifier, otp, password) => request('/users/reset-password', { method: 'POST', body: JSON.stringify({ identifier, otp, password }) }),
+  forgotPassword: async (identifier) => {
+    try {
+      return await request('/admin/forgot-password', { method: 'POST', body: JSON.stringify({ identifier }) });
+    } catch (e) {
+      return await request('/users/forgot-password', { method: 'POST', body: JSON.stringify({ identifier }) });
+    }
+  },
+  resetPassword: async (identifier, otp, password) => {
+    try {
+      return await request('/admin/reset-password', { method: 'POST', body: JSON.stringify({ identifier, otp, password }) });
+    } catch (e) {
+      return await request('/users/reset-password', { method: 'POST', body: JSON.stringify({ identifier, otp, password }) });
+    }
+  },
   updatePaymentDetails: (id, details) => request(`/users/${id}/payment-details`, { method: 'PUT', body: JSON.stringify(details) }),
   updatePaymentDetailsStatus: async (id, payload) => {
     const res = await request(`/users/${id}/payment-details/status`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -263,8 +382,33 @@ export const apiWallet = {
 };
 
 export const apiSettings = {
-  get: () => request('/settings'),
-  update: (settingsData) => request('/settings', { method: 'PUT', body: JSON.stringify(settingsData) })
+  get: async () => {
+    try {
+      return await request('/admin/settings');
+    } catch (e) {
+      return await request('/settings');
+    }
+  },
+  update: async (settingsData) => {
+    let res;
+    try {
+      res = await request('/admin/settings', { method: 'PUT', body: JSON.stringify(settingsData) });
+    } catch (e) {
+      res = await request('/settings', { method: 'PUT', body: JSON.stringify(settingsData) });
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        const payload = { ...settingsData, ...(res || {}) };
+        window.dispatchEvent(new CustomEvent('settings:updated', { detail: payload }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'SETTINGS_UPDATED', data: payload });
+          bc.close();
+        }
+      }
+    } catch (err) {}
+    return res;
+  }
 };
 
 export const apiAffiliate = {
@@ -310,21 +454,40 @@ export const apiAdminManagement = {
     body: JSON.stringify(adminData),
     headers: { 'X-Admin-Id': requesterId }
   }),
-  updateAdmin: (userId, adminData, requesterId) => request(`/users/admin/${userId}`, {
-    method: 'PUT',
-    body: JSON.stringify(adminData),
-    headers: { 'X-Admin-Id': requesterId }
-  }),
+  updateAdmin: async (userId, adminData, requesterId) => {
+    const reqId = requesterId || adminData?.adminId;
+    try {
+      return await request(`/admin/update/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...adminData, adminId: reqId }),
+        headers: reqId ? { 'X-Admin-Id': reqId } : {}
+      });
+    } catch (e) {
+      return await request(`/users/admin/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify(adminData),
+        headers: reqId ? { 'X-Admin-Id': reqId } : {}
+      });
+    }
+  },
   deleteAdmin: (userId, requesterId) => request(`/users/admin/${userId}`, {
     method: 'DELETE',
     headers: { 'X-Admin-Id': requesterId }
   }),
   toggleBlockAdmin: async (userId, isCurrentlyBlocked, requesterId) => {
-    const endpoint = isCurrentlyBlocked ? `/users/${userId}/unblock` : `/users/${userId}/block`;
-    return request(endpoint, {
-      method: 'PUT',
-      headers: { 'X-Admin-Id': requesterId }
-    });
+    try {
+      return await request(`/admin/block/${userId}`, {
+        method: 'POST',
+        body: JSON.stringify({ isBlocked: !isCurrentlyBlocked, action: isCurrentlyBlocked ? 'unblock' : 'block' }),
+        headers: requesterId ? { 'X-Admin-Id': requesterId } : {}
+      });
+    } catch (e) {
+      const endpoint = isCurrentlyBlocked ? `/users/${userId}/unblock` : `/users/${userId}/block`;
+      return request(endpoint, {
+        method: 'PUT',
+        headers: requesterId ? { 'X-Admin-Id': requesterId } : {}
+      });
+    }
   },
   resetAdminPassword: (userId, newPassword, requesterId) => request(`/users/admin/${userId}/reset-password`, {
     method: 'POST',

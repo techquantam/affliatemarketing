@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ArrowLeft, Clock, Copy, Check, Info, ShieldAlert, Sparkles, ExternalLink, ShoppingBag, Search, X, MapPin, Phone } from 'lucide-react';
 import TopDeals from './TopDeals';
 import { openExternalUrl, getStoreUrl } from '../utils/openUrl';
+import { getFallbackStoreLogo } from '../utils/storeLogoHelper';
 
 export default function StoreDetail({ store, onBack, onAddNotification, deals, onGrabDeal, onShareDeal, currentUser, openAuthModal, compareList = [], onToggleCompare }) {
   const [copiedCouponId, setCopiedCouponId] = useState(null);
@@ -82,9 +83,15 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
         </button>
         {store && (
           <div className="store-sticky-back-info">
-            {store.logo && (
-              <img src={store.logo} alt={store.name} className="store-sticky-back-logo" />
-            )}
+            <img 
+              src={(store.logo && !store.logo.includes('null') && !store.logo.includes('undefined')) ? store.logo : getFallbackStoreLogo(store.name)} 
+              alt={store.name || 'Store'} 
+              className="store-sticky-back-logo" 
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = getFallbackStoreLogo(store.name);
+              }}
+            />
             <span className="store-sticky-back-name">{store.name}</span>
           </div>
         )}
@@ -108,7 +115,15 @@ export default function StoreDetail({ store, onBack, onAddNotification, deals, o
       {/* Store Detailed Banner */}
       <div className="store-detail-header" style={{ position: 'relative' }}>
         <div className="store-detail-logo-wrapper">
-          <img src={store.logo} alt={store.name} className="store-detail-logo" />
+          <img 
+            src={(store.logo && !store.logo.includes('null') && !store.logo.includes('undefined')) ? store.logo : getFallbackStoreLogo(store.name)} 
+            alt={store.name || 'Store'} 
+            className="store-detail-logo" 
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = getFallbackStoreLogo(store.name);
+            }}
+          />
         </div>
         <div className="store-detail-info" style={{ flex: 1 }}>
           <div className="store-detail-title-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>

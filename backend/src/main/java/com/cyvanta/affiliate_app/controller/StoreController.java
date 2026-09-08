@@ -18,21 +18,59 @@ public class StoreController {
     private final StoreRepository storeRepository;
 
     @GetMapping
-    public ResponseEntity<List<Store>> getAllStores() {
-        List<Store> stores = storeRepository.findAll();
-        for (Store store : stores) {
-            if (store.getStatus() == null || store.getStatus().isBlank()) {
-                store.setStatus("active");
-            }
-            if (store.getIsActive() == null) {
-                store.setIsActive(!"inactive".equalsIgnoreCase(store.getStatus()));
-            }
+    public ResponseEntity<List<Store>> getAllStores(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer is_approved,
+            @RequestParam(required = false) Boolean isApproved,
+            @RequestParam(required = false) Integer is_active) {
+
+        List<Store> stores = storeRepository.findAllByOrderByCreatedAtDesc();
+        if (stores == null || stores.isEmpty()) {
+            stores = storeRepository.findAll();
         }
+
+        List<Store> list = new java.util.ArrayList<>(stores != null ? stores : java.util.Collections.emptyList());
+        list.sort(java.util.Comparator.comparing(
+                Store::getCreatedAt,
+                java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())
+        ).reversed());
+
+        List<Store> filtered = list.stream()
+                .peek(store -> {
+                    if (store.getStatus() == null || store.getStatus().isBlank()) {
+                        store.setStatus("active");
+                    }
+                    if (store.getIsActive() == null) {
+                        store.setIsActive(!"inactive".equalsIgnoreCase(store.getStatus()));
+                    }
+                    if (store.getIsApproved() == null) {
+                        store.setIsApproved(true);
+                        store.setIs_approved(1);
+                    }
+                })
+                .filter(store -> {
+                    if (status != null && !status.equalsIgnoreCase(store.getStatus())) return false;
+                    if (is_approved != null && !is_approved.equals(store.getIs_approved())) return false;
+                    if (isApproved != null && !isApproved.equals(store.getIsApproved())) return false;
+                    if (is_active != null && !is_active.equals(store.getIs_active())) return false;
+                    return true;
+                })
+                .toList();
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
                 .header(HttpHeaders.PRAGMA, "no-cache")
                 .header(HttpHeaders.EXPIRES, "0")
-                .body(stores);
+                .body(filtered);
+    }
+
+    public ResponseEntity<List<Store>> getAllStores() {
+        return getAllStores(null, null, null, null);
+    }
+
+    @GetMapping({"/active", "/active-stores"})
+    public ResponseEntity<List<Store>> getActiveStores() {
+        return getAllStores("active", 1, true, 1);
     }
 
     @PostMapping
@@ -42,13 +80,18 @@ public class StoreController {
         }
         if (store.getIsActive() == null) {
             store.setIsActive(true);
+            store.setIs_active(1);
+        }
+        if (store.getIsApproved() == null) {
+            store.setIsApproved(true);
+            store.setIs_approved(1);
         }
         if (store.getCreatedAt() == null) {
             store.setCreatedAt(LocalDateTime.now());
         }
         if (store.getLogo() == null || store.getLogo().isBlank()) {
             String fallbackName = store.getName() != null && !store.getName().isBlank() ? store.getName().trim() : "Store";
-            store.setLogo("https://placehold.co/120x60/f8fafc/64748b?text=" + fallbackName);
+            store.setLogo("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='60'><rect width='100%' height='100%' fill='%23f8fafc'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2364748b' font-size='14' font-weight='bold'>" + fallbackName + "</text></svg>");
         }
         Store saved = storeRepository.save(store);
         return ResponseEntity.ok()

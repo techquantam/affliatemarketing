@@ -152,7 +152,8 @@ export default function AdminPanel({
   const [globalSettings, setGlobalSettings] = useState({
     cashbackPercent: 8.0,
     holdDays: 30,
-    minimumWithdrawal: 10.00,
+    minimumWithdrawal: 500.00,
+    min_withdrawal: "500",
   });
 
   // --- DATABASE STATE ---
@@ -314,11 +315,19 @@ export default function AdminPanel({
           totalWalletBalance: 0.00,
           transactions: [],
         });
-        setGlobalSettings(settingsData || {
+        const mergedSettings = settingsData ? {
+          cashbackPercent: settingsData.cashbackPercent || 8.0,
+          holdDays: settingsData.holdDays || 30,
+          minimumWithdrawal: parseFloat(settingsData.min_withdrawal || settingsData.minimumWithdrawal || 500.00),
+          min_withdrawal: (settingsData.min_withdrawal || settingsData.minimumWithdrawal || 500).toString(),
+          ...settingsData
+        } : {
           cashbackPercent: 8.0,
           holdDays: 30,
-          minimumWithdrawal: 10.00,
-        });
+          minimumWithdrawal: 500.00,
+          min_withdrawal: "500",
+        };
+        setGlobalSettings(mergedSettings);
 
         setCategories(categoriesData || []);
         setDeals(dealsData || []);
@@ -722,8 +731,32 @@ export default function AdminPanel({
 
   const updateGlobalSettings = async (newSettings) => {
     try {
-      const settings = await apiSettings.update(newSettings);
-      setGlobalSettings(settings);
+      let saved;
+      try {
+        saved = await apiSettings.update(newSettings);
+      } catch (e) {
+        console.warn('apiSettings.update failed, using local settings:', e);
+        saved = newSettings;
+      }
+      const minVal = newSettings.min_withdrawal ?? newSettings.minimumWithdrawal ?? globalSettings.minimumWithdrawal;
+      const merged = {
+        ...globalSettings,
+        ...newSettings,
+        ...(saved || {}),
+        minimumWithdrawal: parseFloat(minVal),
+        min_withdrawal: minVal.toString()
+      };
+      setGlobalSettings(merged);
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('settings:updated', { detail: merged }));
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('affiliate_admin_sync');
+            bc.postMessage({ type: 'SETTINGS_UPDATED', data: merged });
+            bc.close();
+          }
+        }
+      } catch (e) {}
       onAddNotification('Platform configurations updated successfully.', 'success');
     } catch (err) {
       console.error(err);
@@ -860,6 +893,29 @@ export default function AdminPanel({
     }
   };
 
+  const syncCustomStoresStorage = (storeToSave, action = 'save') => {
+    try {
+      if (typeof localStorage === 'undefined') return;
+      const stored = localStorage.getItem('lio_custom_stores');
+      let current = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(current)) current = [];
+      const sid = storeToSave?.id || storeToSave?._id;
+      if (action === 'delete') {
+        current = current.filter(s => s.id !== sid && s._id !== sid);
+      } else {
+        const idx = current.findIndex(s => (s.id && s.id === sid) || (s._id && s._id === sid));
+        if (idx >= 0) {
+          current[idx] = storeToSave;
+        } else {
+          current.unshift(storeToSave);
+        }
+      }
+      localStorage.setItem('lio_custom_stores', JSON.stringify(current));
+    } catch (e) {
+      console.warn('Failed to sync custom stores cache:', e);
+    }
+  };
+
   const addStore = async (store) => {
     try {
       const newStore = await apiStores.create(store);
@@ -875,6 +931,18 @@ export default function AdminPanel({
           return exists ? prevArr.map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? newStore : s)) : [newStore, ...prevArr];
         });
       }
+      syncCustomStoresStorage(newStore, 'save');
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('store:created', { detail: newStore }));
+          window.dispatchEvent(new CustomEvent('stores:cache_cleared'));
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('affiliate_admin_sync');
+            bc.postMessage({ type: 'STORE_CREATED', data: newStore });
+            bc.close();
+          }
+        }
+      } catch (e) {}
       if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification('Store added successfully.', 'success');
     } catch (err) {
@@ -892,6 +960,18 @@ export default function AdminPanel({
       if (onUpdateStores) {
         onUpdateStores((prev) => (prev || []).map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? updatedStore : s)));
       }
+      syncCustomStoresStorage(updatedStore, 'save');
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('store:updated', { detail: updatedStore }));
+          window.dispatchEvent(new CustomEvent('stores:cache_cleared'));
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('affiliate_admin_sync');
+            bc.postMessage({ type: 'STORE_UPDATED', data: updatedStore });
+            bc.close();
+          }
+        }
+      } catch (e) {}
       if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification('Store updated successfully.', 'success');
     } catch (err) {
@@ -905,6 +985,18 @@ export default function AdminPanel({
       await apiStores.delete(id);
       setStoresData((prev) => prev.filter((s) => s.id !== id && s._id !== id));
       if (onUpdateStores) onUpdateStores((prev) => (prev || []).filter((s) => s.id !== id && s._id !== id));
+      syncCustomStoresStorage({ id }, 'delete');
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('store:deleted', { detail: { id } }));
+          window.dispatchEvent(new CustomEvent('stores:cache_cleared'));
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('affiliate_admin_sync');
+            bc.postMessage({ type: 'STORE_DELETED', data: { id } });
+            bc.close();
+          }
+        }
+      } catch (e) {}
       if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification('Store deleted successfully.', 'success');
     } catch (err) {
@@ -921,6 +1013,18 @@ export default function AdminPanel({
       if (onUpdateStores) {
         onUpdateStores((prev) => (prev || []).map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? updatedStore : s)));
       }
+      syncCustomStoresStorage(updatedStore, 'save');
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('store:updated', { detail: updatedStore }));
+          window.dispatchEvent(new CustomEvent('stores:cache_cleared'));
+          if (typeof BroadcastChannel !== 'undefined') {
+            const bc = new BroadcastChannel('affiliate_admin_sync');
+            bc.postMessage({ type: 'STORE_UPDATED', data: updatedStore });
+            bc.close();
+          }
+        }
+      } catch (e) {}
       if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification(`Shop is now ${updatedStore.status === 'active' ? 'Enabled' : 'Disabled'}.`, 'success');
     } catch (err) {

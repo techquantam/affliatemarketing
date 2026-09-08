@@ -38,8 +38,8 @@ export default function Footer({ setView }) {
               <li><a href="#how-it-works">How it Works</a></li>
               <li><a href="#">About LIO MART</a></li>
               <li><a href="#" onClick={(e) => { e.preventDefault(); setView('admin-login'); }}>Admin Portal</a></li>
-              <li><a href="#">Terms & Conditions</a></li>
-              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#/terms-and-conditions" onClick={(e) => { e.preventDefault(); if (setView) setView('terms-and-conditions'); else window.location.hash = '#/terms-and-conditions'; }}>Terms & Conditions</a></li>
+              <li><a href="#/privacy-policy" onClick={(e) => { e.preventDefault(); if (setView) setView('privacy-policy'); else window.location.hash = '#/privacy-policy'; }}>Privacy Policy</a></li>
             </ul>
           </div>
 

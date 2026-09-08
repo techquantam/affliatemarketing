@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { AdminTable, AdminModal, AdminFormInput, AdminFormSelect, ExportDataButton } from './AdminComponents';
 import { apiUpload } from '../services/api';
+import { getFallbackStoreLogo, normalizeStoreLogo } from '../utils/storeLogoHelper';
 
 export default function AdminStores({ 
   stores = [], 
@@ -145,7 +146,15 @@ export default function AdminStores({
       }
     } catch (err) {
       console.error(err);
-      onAddNotification?.('Failed to upload logo image.', 'error');
+      // If server upload fails (e.g. no Cloudinary), read as local base64 preview so store has image
+      const reader = new FileReader();
+      reader.onload = (loadEvt) => {
+        if (loadEvt.target?.result) {
+          setLogo(loadEvt.target.result);
+          onAddNotification?.('Logo loaded locally as fallback!', 'warning');
+        }
+      };
+      reader.readAsDataURL(file);
     } finally {
       setUploadingLogo(false);
     }
@@ -224,9 +233,9 @@ export default function AdminStores({
       return;
     }
     const trimmedName = name.trim();
-    const fallbackLogo = logo.trim() || `https://placehold.co/120x60/f8fafc/64748b?text=${encodeURIComponent(trimmedName)}`;
-    const effectiveStatus = status || 'active';
-    const effectiveIsActive = effectiveStatus !== 'inactive' && effectiveStatus !== 'disabled';
+    const fallbackLogo = logo.trim() || getFallbackStoreLogo(trimmedName);
+    const effectiveStatus = (status && status.trim()) ? status.trim() : 'active';
+    const effectiveIsActive = effectiveStatus !== 'inactive' && effectiveStatus !== 'disabled' && effectiveStatus !== '0';
 
     const shopData = {
       name: trimmedName,
@@ -245,6 +254,9 @@ export default function AdminStores({
       isPopular: Boolean(isPopular),
       status: effectiveStatus,
       isActive: effectiveIsActive,
+      is_active: effectiveIsActive ? 1 : 0,
+      is_approved: 1,
+      isApproved: true,
       coupons: coupons || []
     };
 

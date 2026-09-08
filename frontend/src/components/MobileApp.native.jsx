@@ -47,7 +47,8 @@ import {
   ArrowLeft,
   ExternalLink,
   ShieldAlert
-} from 'lucide-react-native';
+import { getFallbackStoreLogo } from '../utils/storeLogoHelper';
+import { isKycApproved } from './KycPage';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 44) / 2;
@@ -315,7 +316,7 @@ export default function MobileApp({
       return;
     }
     
-    if (user?.kycStatus !== 'approved') {
+    if (!isKycApproved(user)) {
       onAddNotification('E-KYC verification is mandatory before making a withdrawal. Please complete your profile & E-KYC first.', 'error');
       return;
     }
@@ -578,8 +579,8 @@ export default function MobileApp({
             </View>
 
             <View style={styles.homeStoresGrid}>
-              {filteredStores.slice(0, 4).map(store => (
-                <TouchableOpacity key={store.id} style={[styles.homeStoreCard, themeStyles.card]} onPress={() => handleStoreClick(store)}>
+              {filteredStores.map(store => (
+                <TouchableOpacity key={store.id || store._id} style={[styles.homeStoreCard, themeStyles.card]} onPress={() => handleStoreClick(store)}>
                   {store.isPopular && (
                     <View style={styles.storePopularTag}>
                       <Star size={8} color="#fff" fill="#fff" />
@@ -587,10 +588,10 @@ export default function MobileApp({
                     </View>
                   )}
                   <View style={styles.storeLogoBox}>
-                    <Image source={{ uri: store.logo }} style={styles.storeLogoImg} resizeMode="contain" />
+                    <Image source={{ uri: (store.logo && !store.logo.includes('null') && !store.logo.includes('undefined')) ? store.logo : getFallbackStoreLogo(store.name) }} style={styles.storeLogoImg} resizeMode="contain" />
                   </View>
                   <Text style={[styles.storeCardName, themeStyles.text]}>{store.name}</Text>
-                  <Text style={styles.storeCardRate}>Up to {store.cashbackRate} CB</Text>
+                  <Text style={styles.storeCardRate}>Up to {store.cashbackRate || '10%'} CB</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -732,11 +733,11 @@ export default function MobileApp({
             <Text style={[styles.partnerTitle, themeStyles.text]}>Cashback Partners ({filteredStores.length})</Text>
             <View style={styles.storesList}>
               {filteredStores.map(store => (
-                <TouchableOpacity key={store.id} style={[styles.storeRow, themeStyles.card]} onPress={() => handleStoreClick(store)}>
-                  <Image source={{ uri: store.logo }} style={styles.storeLogo} resizeMode="contain" />
+                <TouchableOpacity key={store.id || store._id} style={[styles.storeRow, themeStyles.card]} onPress={() => handleStoreClick(store)}>
+                  <Image source={{ uri: (store.logo && !store.logo.includes('null') && !store.logo.includes('undefined')) ? store.logo : getFallbackStoreLogo(store.name) }} style={styles.storeLogo} resizeMode="contain" />
                   <View style={styles.storeRowInfo}>
                     <Text style={[styles.storeName, themeStyles.text]}>{store.name}</Text>
-                    <Text style={styles.storeRate}>Up to {store.cashbackRate} Cashback</Text>
+                    <Text style={styles.storeRate}>Up to {store.cashbackRate || '10%'} Cashback</Text>
                   </View>
                   <View style={[styles.storeGoBtn, { backgroundColor: '#ff4f2f' }]}>
                     <Text style={styles.storeGoText}>Shop </Text>

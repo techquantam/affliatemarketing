@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Edit2, Wallet } from 'lucide-react';
+import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Edit2, Wallet, Check } from 'lucide-react';
 import { AdminTable, AdminModal, AdminFormInput, AdminFormSelect, ExportDataButton } from './AdminComponents';
 import AdminWalletModal from './AdminWalletModal';
 import { apiUsers } from '../services/api';
+import { getUnifiedKycStatus, isKycApproved, isKycPending, isKycRejected } from './KycPage';
 
 export default function AdminUsers({ users, setUsers, onEditUser, onAddNotification, currentUser }) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -23,9 +24,18 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
 
   const handleApproveKyc = async () => {
     try {
-      await apiUsers.updateKyc(selectedUser.id, { status: 'approved' });
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, kycStatus: 'approved' } : u));
-      setSelectedUser(prev => ({ ...prev, kycStatus: 'approved' }));
+      await apiUsers.approveKyc(selectedUser.id, 'Approved');
+      const updatedFields = {
+        kycStatus: 'approved',
+        kyc_status: 'approved',
+        status: 'approved',
+        is_verified: 1,
+        is_kyc_verified: 1,
+        isKycVerified: true,
+        admin_remark: 'Approved'
+      };
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, ...updatedFields } : u));
+      setSelectedUser(prev => ({ ...prev, ...updatedFields }));
       onAddNotification('User E-KYC has been approved successfully!', 'success');
     } catch (err) {
       console.error(err);
@@ -39,9 +49,19 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       return;
     }
     try {
-      await apiUsers.updateKyc(selectedUser.id, { status: 'rejected', remarks: kycRemarks });
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, kycStatus: 'rejected', kycRemarks: kycRemarks } : u));
-      setSelectedUser(prev => ({ ...prev, kycStatus: 'rejected', kycRemarks: kycRemarks }));
+      await apiUsers.rejectKyc(selectedUser.id, kycRemarks);
+      const updatedFields = {
+        kycStatus: 'rejected',
+        kyc_status: 'rejected',
+        status: 'rejected',
+        is_verified: 0,
+        is_kyc_verified: 0,
+        isKycVerified: false,
+        kycRemarks: kycRemarks,
+        admin_remark: kycRemarks
+      };
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, ...updatedFields } : u));
+      setSelectedUser(prev => ({ ...prev, ...updatedFields }));
       setShowRejectReasonInput(false);
       setKycRemarks('');
       onAddNotification('User E-KYC has been rejected.', 'info');
@@ -63,19 +83,10 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
     if (!user) return;
     const isCurrentlyBlocked = user.status === 'blocked' || user.isBlocked === true || user.is_blocked === 1 || user.is_blocked === '1' || user.isBlocked === 'true';
     const nextStatus = isCurrentlyBlocked ? 'active' : 'blocked';
-    const actionVerb = isCurrentlyBlocked ? 'Unblock' : 'Block';
-
-    const confirmMessage = isCurrentlyBlocked
-      ? `Are you sure you want to unblock user "${user.name}"? Their access will be restored.`
-      : `Are you sure you want to block user "${user.name}"?\n\nThey will be immediately logged out and prevented from accessing the app.`;
-
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
+    const actionVerb = isCurrentlyBlocked ? 'unblocked' : 'blocked';
     const targetId = user.id || user._id || userId;
 
-    // Optimistically update UI status to "Blocked" with red badge instantly
+    // Optimistically update UI status instantly
     setUsers((prev) =>
       prev.map((u) => {
         if ((u.id && u.id === targetId) || (u._id && u._id === targetId)) {
@@ -98,13 +109,34 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       }));
     }
 
+    // Instant toast message
+    onAddNotification(`User "${user.name}" has been ${actionVerb} successfully.`, 'success');
+
+    // Broadcast change across tabs so active user sessions get notified immediately
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('affiliate_admin_sync');
+        bc.postMessage({
+          type: 'USER_STATUS_UPDATED',
+          userId: targetId,
+          status: nextStatus,
+          isBlocked: nextStatus === 'blocked',
+          is_blocked: nextStatus === 'blocked' ? 1 : 0
+        });
+        bc.close();
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user:status_updated', {
+          detail: { userId: targetId, status: nextStatus, isBlocked: nextStatus === 'blocked', is_blocked: nextStatus === 'blocked' ? 1 : 0 }
+        }));
+      }
+    } catch (e) {}
+
     try {
       if (nextStatus === 'blocked') {
         await apiUsers.blockUser(targetId);
-        onAddNotification(`User "${user.name}" has been blocked successfully.`, 'success');
       } else {
         await apiUsers.unblockUser(targetId);
-        onAddNotification(`User "${user.name}" has been unblocked successfully.`, 'success');
       }
     } catch (err) {
       console.error('Failed to update user block status:', err);
@@ -115,7 +147,7 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       if (selectedUser && ((selectedUser.id && selectedUser.id === targetId) || (selectedUser._id && selectedUser._id === targetId))) {
         setSelectedUser(user);
       }
-      onAddNotification(`Failed to ${actionVerb.toLowerCase()} user: ` + (err.message || 'Server error'), 'error');
+      onAddNotification(`Failed to ${isCurrentlyBlocked ? 'unblock' : 'block'} user: ` + (err.message || 'Server error'), 'error');
     }
   };
 
@@ -224,17 +256,36 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       <td style={{ fontFamily: 'monospace', fontWeight: '600', color: 'var(--primary)' }}>{item.referralCode}</td>
       <td>{item.joinDate}</td>
       <td>
-        <span className={`status-badge ${item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'blocked' : (item.status === 'active' ? 'active' : 'inactive')}`}>
-          {item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'Blocked' : (item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Active')}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span className={`status-badge ${item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'blocked' : (item.status === 'active' ? 'active' : 'inactive')}`}>
+            {item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'Blocked' : (item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : 'Active')}
+          </span>
+          <label className="admin-switch" title={item.status === 'blocked' || item.isBlocked || item.is_blocked === 1 ? 'Click to Unblock User' : 'Click to Block User'}>
+            <input
+              type="checkbox"
+              checked={!(item.status === 'blocked' || item.isBlocked || item.is_blocked === 1)}
+              onChange={() => handleToggleUserStatus(item.id || item._id)}
+            />
+            <span
+              className="admin-slider"
+              style={{
+                backgroundColor: (item.status === 'blocked' || item.isBlocked || item.is_blocked === 1) ? '#ef4444' : '#10b981'
+              }}
+            ></span>
+          </label>
+        </div>
       </td>
       <td>
         <span className="status-badge" style={{
-          backgroundColor: item.kycStatus === 'approved' ? 'rgba(16,185,129,0.1)' : item.kycStatus === 'pending' ? 'rgba(245,158,11,0.1)' : item.kycStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
-          color: item.kycStatus === 'approved' ? '#10b981' : item.kycStatus === 'pending' ? '#f59e0b' : item.kycStatus === 'rejected' ? '#ef4444' : '#64748b',
-          fontWeight: 'bold'
+          backgroundColor: isKycApproved(item) ? 'rgba(16,185,129,0.1)' : isKycPending(item) ? 'rgba(245,158,11,0.1)' : isKycRejected(item) ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
+          color: isKycApproved(item) ? '#10b981' : isKycPending(item) ? '#f59e0b' : isKycRejected(item) ? '#ef4444' : '#64748b',
+          fontWeight: 'bold',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px'
         }}>
-          {item.kycStatus ? item.kycStatus.toUpperCase().replace('_', ' ') : 'NONE'}
+          {isKycApproved(item) && <Check size={12} strokeWidth={3} />}
+          {getUnifiedKycStatus(item).toUpperCase().replace('_', ' ')}
         </span>
       </td>
       <td>
@@ -446,11 +497,15 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
                 <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>KYC Status</span>
                 <p style={{ marginTop: '2px' }}>
                   <span className="status-badge" style={{
-                    backgroundColor: selectedUser.kycStatus === 'approved' ? 'rgba(16,185,129,0.1)' : selectedUser.kycStatus === 'pending' ? 'rgba(245,158,11,0.1)' : selectedUser.kycStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
-                    color: selectedUser.kycStatus === 'approved' ? '#10b981' : selectedUser.kycStatus === 'pending' ? '#f59e0b' : selectedUser.kycStatus === 'rejected' ? '#ef4444' : '#64748b',
-                    fontWeight: 'bold'
+                    backgroundColor: isKycApproved(selectedUser) ? 'rgba(16,185,129,0.1)' : isKycPending(selectedUser) ? 'rgba(245,158,11,0.1)' : isKycRejected(selectedUser) ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
+                    color: isKycApproved(selectedUser) ? '#10b981' : isKycPending(selectedUser) ? '#f59e0b' : isKycRejected(selectedUser) ? '#ef4444' : '#64748b',
+                    fontWeight: 'bold',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}>
-                    {selectedUser.kycStatus ? selectedUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
+                    {isKycApproved(selectedUser) && <Check size={12} strokeWidth={3} />}
+                    {getUnifiedKycStatus(selectedUser).toUpperCase().replace('_', ' ')}
                   </span>
                 </p>
               </div>
@@ -510,7 +565,7 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
             )}
 
             {/* KYC Admin Actions */}
-            {selectedUser.kycStatus === 'pending' && (
+            {isKycPending(selectedUser) && (
               <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <h5 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: 'var(--text-bold)' }}>Verify E-KYC Documents</h5>
                 

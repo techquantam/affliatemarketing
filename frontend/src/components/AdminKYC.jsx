@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Check, X, Camera, Landmark, Wallet } from 'lucide-react';
 import { AdminTable, AdminModal, ExportDataButton } from './AdminComponents';
 import { apiUsers } from '../services/api';
+import { getUnifiedKycStatus, isKycApproved, isKycPending, isKycRejected } from './KycPage';
 
 export default function AdminKYC({ users, setUsers, onAddNotification, currentUser }) {
   const [activeSubTab, setActiveSubTab] = useState('kyc'); // 'kyc' or 'payment'
@@ -22,20 +23,31 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
   const [payRemarks, setPayRemarks] = useState('');
 
   const filteredUsers = users.filter((u) => {
-    const kycStatus = u.kycStatus || 'not_submitted';
+    const kycStatus = getUnifiedKycStatus(u);
     const payStatus = u.paymentDetailsStatus || 'not_submitted';
     
     // Check search query
     const query = searchQuery.toLowerCase();
     const matchesSearch =
-      u.name.toLowerCase().includes(query) ||
+      (u.name || '').toLowerCase().includes(query) ||
       (u.email || '').toLowerCase().includes(query) ||
       (u.upiId || '').toLowerCase().includes(query) ||
+      (u.aadhaarNumber || '').toLowerCase().includes(query) ||
+      (u.panNumber || '').toLowerCase().includes(query) ||
       (u.bankAccountNumber || '').includes(query);
       
     // Apply status filter
-    const statusToCheck = activeSubTab === 'kyc' ? kycStatus : payStatus;
-    const matchesStatus = statusFilter === 'all' || statusToCheck.toLowerCase() === statusFilter.toLowerCase();
+    let matchesStatus = true;
+    if (statusFilter !== 'all') {
+      if (activeSubTab === 'kyc') {
+        if (statusFilter === 'approved') matchesStatus = isKycApproved(u);
+        else if (statusFilter === 'pending') matchesStatus = isKycPending(u);
+        else if (statusFilter === 'rejected') matchesStatus = isKycRejected(u);
+        else matchesStatus = kycStatus.toLowerCase() === statusFilter.toLowerCase();
+      } else {
+        matchesStatus = payStatus.toLowerCase() === statusFilter.toLowerCase();
+      }
+    }
     
     return matchesSearch && matchesStatus;
   });
@@ -59,9 +71,18 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
       return;
     }
     try {
-      await apiUsers.updateKyc(selectedUser.id, { status: 'approved' });
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, kycStatus: 'approved' } : u));
-      setSelectedUser(prev => ({ ...prev, kycStatus: 'approved' }));
+      await apiUsers.approveKyc(selectedUser.id, 'Approved');
+      const updatedFields = {
+        kycStatus: 'approved',
+        kyc_status: 'approved',
+        status: 'approved',
+        is_verified: 1,
+        is_kyc_verified: 1,
+        isKycVerified: true,
+        admin_remark: 'Approved'
+      };
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, ...updatedFields } : u));
+      setSelectedUser(prev => ({ ...prev, ...updatedFields }));
       onAddNotification('User E-KYC has been approved successfully!', 'success');
       setIsModalOpen(false);
     } catch (err) {
@@ -79,9 +100,19 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
       return;
     }
     try {
-      await apiUsers.updateKyc(selectedUser.id, { status: 'rejected', remarks: kycRemarks });
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, kycStatus: 'rejected', kycRemarks: kycRemarks } : u));
-      setSelectedUser(prev => ({ ...prev, kycStatus: 'rejected', kycRemarks: kycRemarks }));
+      await apiUsers.rejectKyc(selectedUser.id, kycRemarks);
+      const updatedFields = {
+        kycStatus: 'rejected',
+        kyc_status: 'rejected',
+        status: 'rejected',
+        is_verified: 0,
+        is_kyc_verified: 0,
+        isKycVerified: false,
+        kycRemarks: kycRemarks,
+        admin_remark: kycRemarks
+      };
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, ...updatedFields } : u));
+      setSelectedUser(prev => ({ ...prev, ...updatedFields }));
       setShowRejectReasonInput(false);
       setKycRemarks('');
       onAddNotification('User E-KYC has been rejected.', 'info');
@@ -134,7 +165,10 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
   const payHeaders = ['User Name', 'Email', 'UPI Address', 'Account Holder', 'Bank Name', 'Account Number', 'Status', 'Actions'];
 
   const renderKycRow = (item) => {
-    const kycStatus = item.kycStatus || 'not_submitted';
+    const kycStatus = getUnifiedKycStatus(item);
+    const approved = isKycApproved(item);
+    const pending = isKycPending(item);
+    const rejected = isKycRejected(item);
     return (
       <tr key={item.id} className="animate-fade">
         <td style={{ fontWeight: '600', color: 'var(--text-bold)' }}>{item.name}</td>
@@ -144,10 +178,14 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
         <td style={{ fontFamily: 'monospace', textTransform: 'uppercase' }}>{item.panNumber || '—'}</td>
         <td>
           <span className="status-badge" style={{
-            backgroundColor: kycStatus === 'approved' ? 'rgba(16,185,129,0.1)' : kycStatus === 'pending' ? 'rgba(245,158,11,0.1)' : kycStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
-            color: kycStatus === 'approved' ? '#10b981' : kycStatus === 'pending' ? '#f59e0b' : kycStatus === 'rejected' ? '#ef4444' : '#64748b',
-            fontWeight: 'bold'
+            backgroundColor: approved ? 'rgba(16,185,129,0.1)' : pending ? 'rgba(245,158,11,0.1)' : rejected ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
+            color: approved ? '#10b981' : pending ? '#f59e0b' : rejected ? '#ef4444' : '#64748b',
+            fontWeight: 'bold',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
           }}>
+            {approved && <Check size={12} strokeWidth={3} />}
             {kycStatus.toUpperCase().replace('_', ' ')}
           </span>
         </td>
@@ -336,7 +374,7 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
           title="Verify E-KYC Documents"
           footer={
             <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-              {selectedUser.kycStatus === 'pending' && !showRejectReasonInput && (
+              {isKycPending(selectedUser) && !showRejectReasonInput && (
                 <>
                   <button
                     className="admin-btn admin-btn-danger"
@@ -357,7 +395,7 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
               <button 
                 className="admin-btn admin-btn-secondary" 
                 onClick={() => setIsModalOpen(false)}
-                style={{ flex: selectedUser.kycStatus === 'pending' ? 'none' : 1 }}
+                style={{ flex: isKycPending(selectedUser) ? 'none' : 1 }}
               >
                 Close
               </button>
@@ -417,18 +455,24 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
                 <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Current KYC Status</span>
                 <p style={{ marginTop: '2px' }}>
                   <span className="status-badge" style={{
-                    backgroundColor: selectedUser.kycStatus === 'approved' ? 'rgba(16,185,129,0.1)' : selectedUser.kycStatus === 'pending' ? 'rgba(245,158,11,0.1)' : selectedUser.kycStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
-                    color: selectedUser.kycStatus === 'approved' ? '#10b981' : selectedUser.kycStatus === 'pending' ? '#f59e0b' : selectedUser.kycStatus === 'rejected' ? '#ef4444' : '#64748b',
-                    fontWeight: 'bold'
+                    backgroundColor: isKycApproved(selectedUser) ? 'rgba(16,185,129,0.1)' : isKycPending(selectedUser) ? 'rgba(245,158,11,0.1)' : isKycRejected(selectedUser) ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
+                    color: isKycApproved(selectedUser) ? '#10b981' : isKycPending(selectedUser) ? '#f59e0b' : isKycRejected(selectedUser) ? '#ef4444' : '#64748b',
+                    fontWeight: 'bold',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}>
-                    {(selectedUser.kycStatus || 'NOT SUBMITTED').toUpperCase().replace('_', ' ')}
+                    {isKycApproved(selectedUser) && <Check size={12} strokeWidth={3} />}
+                    {getUnifiedKycStatus(selectedUser).toUpperCase().replace('_', ' ')}
                   </span>
                 </p>
               </div>
-              {selectedUser.kycRemarks && (
+              {(selectedUser.admin_remark || selectedUser.kycRemarks) && (
                 <div>
                   <span style={{ fontSize: '11px', color: 'var(--text)', textTransform: 'uppercase', fontWeight: '600' }}>Admin Remarks</span>
-                  <p style={{ fontWeight: '500', color: '#ef4444', fontSize: '13px', marginTop: '2px' }}>{selectedUser.kycRemarks}</p>
+                  <p style={{ fontWeight: '500', color: isKycApproved(selectedUser) ? '#10b981' : '#ef4444', fontSize: '13px', marginTop: '2px' }}>
+                    {selectedUser.admin_remark || selectedUser.kycRemarks}
+                  </p>
                 </div>
               )}
             </div>

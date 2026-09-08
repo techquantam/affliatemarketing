@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
 import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Share2, Percent, Trash2, Play, ExternalLink, Plus, BookOpen, HelpCircle, User, Camera, ArrowLeft, ShieldAlert, CreditCard, Landmark, RotateCw } from 'lucide-react';
 import { apiSharedLinks, apiSharedCommissions, apiSettings, apiUsers, apiUpload } from '../services/api';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
 import ReferralShareModal from './ReferralShareModal';
+import Withdrawal from './Withdrawal';
 import { buildAffiliateTrackingUrl } from '../services/affiliateNetworks';
 import { copyToClipboard, getReferralDetails } from '../utils/clipboard';
+import { getUnifiedKycStatus, isKycApproved, isKycPending, isKycRejected } from './KycPage';
 
 const DUMMY_CLICKS = [];
 
@@ -16,6 +20,22 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   const handleManualRefresh = async () => {
     if (refreshingProfile) return;
     setRefreshingProfile(true);
+    try {
+      const uid = currentUser?.id || currentUser?._id;
+      if (uid) {
+        const freshKyc = await apiUsers.getKycStatus(uid);
+        if (freshKyc && onUpdateUser) {
+          onUpdateUser({
+            ...currentUser,
+            ...freshKyc,
+            kycStatus: freshKyc.status || freshKyc.kycStatus,
+            kyc_status: freshKyc.status || freshKyc.kyc_status,
+            is_verified: freshKyc.is_verified,
+            is_kyc_verified: freshKyc.is_kyc_verified
+          });
+        }
+      }
+    } catch (e) {}
     if (onRefreshProfile) {
       await onRefreshProfile();
     }
@@ -40,6 +60,33 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   const [showWithdrawForm, setShowWithdrawForm] = useState(false);
   const [withdrawUpi, setWithdrawUpi] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [minLimit, setMinLimit] = useState(500);
+
+  useEffect(() => {
+    const fetchMinLimit = () => {
+      axios.get('/api/settings')
+        .then(res => {
+          const min = res.data?.min_withdrawal ?? res.data?.minimumWithdrawal;
+          if (min != null && !isNaN(parseFloat(min))) setMinLimit(parseFloat(min));
+        })
+        .catch(() => {
+          axios.get(`${BASE_URL}/settings`)
+            .then(res => {
+              const min = res.data?.min_withdrawal ?? res.data?.minimumWithdrawal;
+              if (min != null && !isNaN(parseFloat(min))) setMinLimit(parseFloat(min));
+            })
+            .catch(() => {});
+        });
+    };
+    fetchMinLimit();
+    const handleSettingsUpdated = (e) => {
+      const min = e?.detail?.min_withdrawal ?? e?.detail?.minimumWithdrawal;
+      if (min != null && !isNaN(parseFloat(min))) setMinLimit(parseFloat(min));
+      else fetchMinLimit();
+    };
+    window.addEventListener('settings:updated', handleSettingsUpdated);
+    return () => window.removeEventListener('settings:updated', handleSettingsUpdated);
+  }, []);
 
   // --- PROFILE STATES ---
   const [profileName, setProfileName] = useState(currentUser?.name || '');
@@ -272,7 +319,7 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   // --- WITHDRAWAL SUBMISSION ---
   const handleWithdraw = () => {
     const userWallet = currentUser?.wallet || { confirmed: 0, pending: 0, referral: 0 };
-    if (currentUser?.kycStatus !== 'approved') {
+    if (!isKycApproved(currentUser)) {
       onAddNotification('E-KYC verification is mandatory before making a withdrawal. Please go to the "My Profile & KYC" tab to submit your documents.', 'error');
       return;
     }
@@ -299,27 +346,49 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   };
 
   const handleWithdrawalRequest = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     const amount = parseFloat(withdrawAmount);
-    if (isNaN(amount) || amount < 10) {
-      onAddNotification('Please enter a valid amount (minimum ₹10).', 'error');
+    if (isNaN(amount) || amount < minLimit) {
+      toast.error(`Minimum withdrawal is Rs. ${minLimit}`);
+      onAddNotification(`Please enter a valid amount (minimum Rs. ${minLimit}).`, 'error');
       return;
     }
     const userWallet = currentUser?.wallet || { confirmed: 0, pending: 0, referral: 0 };
     if (amount > userWallet.confirmed) {
-      onAddNotification('Insufficient confirmed commission balance.', 'error');
+      Swal.fire({
+        icon: 'error',
+        title: 'Insufficient Balance',
+        text: `You have ₹${userWallet.confirmed.toFixed(2)} confirmed balance. Cannot withdraw ₹${amount.toFixed(2)}.`,
+        confirmButtonColor: '#ef4444'
+      });
+      toast.error('Insufficient confirmed commission balance.');
       return;
     }
     if (!withdrawUpi || !withdrawUpi.trim()) {
-      onAddNotification('No payout destination configured.', 'error');
+      toast.error('No payout destination configured.');
       return;
     }
+
+    // Confirmation dialog before withdrawal
+    const confirmResult = await Swal.fire({
+      title: 'Confirm Withdrawal?',
+      text: `Are you sure you want to withdraw Rs. ${amount.toFixed(2)}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Withdraw',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true
+    });
+
+    if (!confirmResult.isConfirmed) return;
 
     setWithdrawing(true);
     try {
       const newRequest = {
-        userId: currentUser.id,
-        userName: currentUser.name,
+        userId: currentUser.id || currentUser._id,
+        userName: currentUser.name || 'User',
         coins: Math.round(amount * 100),
         amount: amount,
         upiId: withdrawUpi,
@@ -332,8 +401,28 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
       setShowWithdrawForm(false);
       setWithdrawAmount('');
       setWithdrawUpi('');
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Withdrawal Successful!',
+        text: `Rs. ${amount} withdrawal request submitted`,
+        confirmButtonColor: '#10b981'
+      });
+      toast.success('Withdrawal Successful');
+
+      if (onAddNotification) {
+        onAddNotification(`Rs. ${amount} withdrawal request submitted successfully!`, 'success');
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Withdrawal error:', err);
+      const errMsg = err?.response?.data?.message || err?.message || 'Withdrawal request failed';
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed',
+        text: errMsg,
+        confirmButtonColor: '#ef4444'
+      });
+      toast.error(errMsg);
     } finally {
       setWithdrawing(false);
     }
@@ -481,7 +570,10 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
         aadhaarBackUrl: aadhaarBack,
         panCardUrl: panCard,
         selfieUrl: selfie,
-        kycStatus: 'pending'
+        kycStatus: 'pending',
+        kyc_status: 'pending',
+        is_kyc_verified: 0,
+        is_verified: 0
       });
       if (onUpdateUser) {
         onUpdateUser(updatedUser);
@@ -844,43 +936,19 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
             </div>
 
             {showWithdrawForm && (
-              <form onSubmit={handleWithdrawalRequest} className="referral-card animate-fade" style={{ gridTemplateColumns: '1fr', padding: '24px', maxWidth: '500px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
-                  <h3 className="referral-title" style={{ fontSize: '16px', margin: 0 }}>Request Withdrawal</h3>
-                  <button type="button" onClick={() => setShowWithdrawForm(false)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}>
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)', textTransform: 'uppercase' }}>Payout Destination (Verified)</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={withdrawUpi}
-                    style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card-bg)', color: 'var(--text)', fontSize: '14px', cursor: 'not-allowed' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-bold)', textTransform: 'uppercase' }}>Amount (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    min="10"
-                    max={currentUser?.wallet?.confirmed || 0}
-                    step="0.01"
-                    placeholder="Enter amount"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--bg)', color: 'var(--text-bold)', fontSize: '14px' }}
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text)' }}>
-                    Max withdrawable: ₹{(currentUser?.wallet?.confirmed || 0).toFixed(2)}
-                  </span>
-                </div>
-                <button type="submit" disabled={withdrawing} className="btn-primary" style={{ padding: '12px', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold', width: '100%' }}>
-                  {withdrawing ? 'Submitting...' : 'Submit Payout Request'}
-                </button>
-              </form>
+              <div style={{ marginTop: '16px', width: '100%' }}>
+                <Withdrawal
+                  currentUser={currentUser}
+                  wallet={currentUser?.wallet}
+                  onWithdrawSuccess={(res) => {
+                    setShowWithdrawForm(false);
+                    if (onAddWithdrawalRequest) onAddWithdrawalRequest(res);
+                    handleManualRefresh();
+                  }}
+                  onClose={() => setShowWithdrawForm(false)}
+                  onAddNotification={onAddNotification}
+                />
+              </div>
             )}
 
             {/* Referral Info Card */}
@@ -1238,17 +1306,32 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
             <div style={{
               padding: '16px 20px',
               borderRadius: '12px',
-              background: currentUser?.kycStatus === 'approved' ? 'rgba(16,185,129,0.1)' : currentUser?.kycStatus === 'pending' ? 'rgba(245,158,11,0.1)' : currentUser?.kycStatus === 'rejected' ? 'rgba(239,68,68,0.1)' : 'var(--card-bg)',
-              border: `1px solid ${currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--border)'}`,
+              background: isKycApproved(currentUser) ? 'rgba(16,185,129,0.1)' : isKycPending(currentUser) ? 'rgba(245,158,11,0.1)' : isKycRejected(currentUser) ? 'rgba(239,68,68,0.1)' : 'var(--card-bg)',
+              border: `1px solid ${isKycApproved(currentUser) ? '#10b981' : isKycPending(currentUser) ? '#f59e0b' : isKycRejected(currentUser) ? '#ef4444' : 'var(--border)'}`,
               display: 'flex',
               flexDirection: 'column',
               gap: '8px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShieldCheck size={20} style={{ color: currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--text)' }} />
-                  <strong style={{ fontSize: '15px', color: 'var(--text-bold)' }}>
-                    KYC Status: {currentUser?.kycStatus ? currentUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
+                  <ShieldCheck size={20} style={{ color: isKycApproved(currentUser) ? '#10b981' : isKycPending(currentUser) ? '#f59e0b' : isKycRejected(currentUser) ? '#ef4444' : 'var(--text)' }} />
+                  <strong style={{ fontSize: '15px', color: 'var(--text-bold)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    KYC Status: {getUnifiedKycStatus(currentUser).toUpperCase().replace('_', ' ')}
+                    {isKycApproved(currentUser) && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: '#10b981',
+                        color: '#ffffff',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        padding: '2px 8px',
+                        borderRadius: '999px'
+                      }}>
+                        <Check size={12} strokeWidth={3} /> Approved
+                      </span>
+                    )}
                   </strong>
                 </div>
 
@@ -1292,12 +1375,12 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
               </div>
 
               <span style={{ fontSize: '13px', color: 'var(--text)' }}>
-                {currentUser?.kycStatus === 'approved' 
+                {isKycApproved(currentUser) 
                   ? 'Your E-KYC is approved! You can now request withdrawals.'
-                  : currentUser?.kycStatus === 'pending'
+                  : isKycPending(currentUser)
                   ? 'Your E-KYC verification is pending admin review. Withdrawals will unlock automatically once approved.'
-                  : currentUser?.kycStatus === 'rejected'
-                  ? `Your E-KYC was rejected. Reason: ${currentUser?.kycRemarks || 'Invalid documents'}. Please update and re-submit.`
+                  : isKycRejected(currentUser)
+                  ? `Your E-KYC was rejected. Reason: ${currentUser?.admin_remark || currentUser?.kycRemarks || 'Invalid documents'}. Please update and re-submit.`
                   : 'Please fill in your profile details and upload Aadhaar, PAN and Selfie to activate withdrawals.'}
               </span>
             </div>
@@ -1312,15 +1395,15 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
               </div>
               <div style={{ padding: '16px', borderRadius: '12px', background: 'var(--card-bg)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text)' }}>Withdrawal Eligibility</span>
-                <strong style={{ fontSize: '18px', color: currentUser?.kycStatus === 'approved' ? '#10b981' : '#ef4444' }}>
-                  {currentUser?.kycStatus === 'approved' ? 'ELIGIBLE' : 'BLOCKED (Needs Approved KYC)'}
+                <strong style={{ fontSize: '18px', color: isKycApproved(currentUser) ? '#10b981' : '#ef4444' }}>
+                  {isKycApproved(currentUser) ? 'ELIGIBLE' : 'BLOCKED (Needs Approved KYC)'}
                 </strong>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
               {/* Personal Information Form */}
-              {currentUser?.kycStatus !== 'approved' ? (
+              {!isKycApproved(currentUser) ? (
                 <form onSubmit={handleSaveProfile} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>Personal Information</h3>
                   
@@ -1395,10 +1478,10 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
               )}
 
               {/* KYC Document Upload Form */}
-              {currentUser?.kycStatus !== 'approved' ? (
+              {!isKycApproved(currentUser) ? (
                 <form onSubmit={handleSubmitKyc} className="referral-card" style={{ gridTemplateColumns: '1fr', padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <h3 className="referral-title" style={{ fontSize: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
-                    E-KYC Verification {currentUser?.kycStatus === 'pending' ? '(Pending Review)' : ''}
+                    E-KYC Verification {isKycPending(currentUser) ? '(Pending Review)' : ''}
                   </h3>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1463,7 +1546,7 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
                   </div>
 
                   <button type="submit" disabled={isSubmittingKyc} className="btn-primary" style={{ padding: '10px', borderRadius: '8px', marginTop: '8px', fontWeight: 'bold' }}>
-                    {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'pending' ? 'Update & Re-Submit KYC' : 'Submit KYC for Verification'}
+                    {isSubmittingKyc ? 'Submitting...' : isKycPending(currentUser) ? 'Update & Re-Submit KYC' : 'Submit KYC for Verification'}
                   </button>
                 </form>
               ) : (

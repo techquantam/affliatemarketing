@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Lock, Mail, User, ShieldCheck, Gift } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { apiUsers } from '../services/api';
 
 const normalizeTab = (tab) => {
@@ -8,25 +9,29 @@ const normalizeTab = (tab) => {
   return 'login';
 };
 
-export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'login' }) {
+export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'login', initialError = '' }) {
   const [activeTab, setActiveTab] = useState(() => normalizeTab(initialTab));
   const [authStep, setAuthStep] = useState('details'); // 'details', 'otp', 'forgot-request', 'forgot-reset'
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [referralCode, setReferralCode] = useState(() => localStorage.getItem('lio_referral_code') || '');
+  const [agreed, setAgreed] = useState(false);
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(initialError || '');
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(normalizeTab(initialTab));
+      if (initialError) {
+        setError(initialError);
+      }
       const savedRef = localStorage.getItem('lio_referral_code') || '';
       if (savedRef) setReferralCode(savedRef.toUpperCase());
     }
-  }, [isOpen, initialTab]);
+  }, [isOpen, initialTab, initialError]);
 
   if (!isOpen) return null;
 
@@ -44,6 +49,7 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
     setIdentifier('');
     setPassword('');
     setName('');
+    setAgreed(false);
     if (targetTab === 'signup') {
       const savedRef = localStorage.getItem('lio_referral_code') || '';
       if (savedRef) setReferralCode(savedRef.toUpperCase());
@@ -98,6 +104,13 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
           setLoading(false);
         });
     } else {
+      if (!agreed) {
+        toast.error("Please accept Terms & Conditions");
+        setError("Please accept Terms & Conditions to proceed");
+        setSuccessMessage('');
+        setLoading(false);
+        return;
+      }
       if (!name || !identifier || !password) {
         setError('Please fill in all fields');
         setLoading(false);
@@ -393,13 +406,59 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
               </div>
             )}
 
-            <button type="submit" className="btn-auth-submit" disabled={loading}>
+            {activeTab === 'signup' && (
+              <div className="flex items-start gap-2 mt-4" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '16px', marginBottom: '16px' }}>
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mt-1"
+                  style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#FF4D00', width: '16px', height: '16px', flexShrink: 0 }}
+                />
+                <label htmlFor="terms" className="text-sm text-gray-600" style={{ fontSize: '13px', color: 'var(--text)', cursor: 'pointer', lineHeight: '1.4' }}>
+                  I have read and agree to the{' '}
+                  <a
+                    href="#/terms-conditions"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline mx-1"
+                    style={{ color: 'var(--primary)', textDecoration: 'underline', margin: '0 2px', fontWeight: '600' }}
+                  >
+                    Terms &amp; Conditions
+                  </a>{' '}
+                  and{' '}
+                  <a
+                    href="#/privacy-policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline mx-1"
+                    style={{ color: 'var(--primary)', textDecoration: 'underline', margin: '0 2px', fontWeight: '600' }}
+                  >
+                    Privacy Policy
+                  </a>.
+                </label>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || (activeTab === 'signup' && !agreed)}
+              className={`btn-auth-submit w-full py-2 rounded ${
+                activeTab === 'signup' && !agreed ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+              style={
+                activeTab === 'signup' && !agreed
+                  ? { opacity: 0.6, cursor: 'not-allowed', filter: 'grayscale(0.6)' }
+                  : {}
+              }
+            >
               {loading ? (
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   <span className="spinner" style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }}></span>
                   Connecting...
                 </span>
-              ) : (activeTab === 'login' ? 'Continue & Claim Cashback' : 'Join Now & Get ₹5.00 Bonus')}
+              ) : (activeTab === 'login' ? 'Continue & Claim Cashback' : 'Create Account')}
             </button>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
@@ -412,7 +471,27 @@ export default function AuthModal({ isOpen, onClose, onLogin, initialTab = 'logi
             </div>
 
             <p style={{ fontSize: '12px', textAlign: 'center', marginTop: '8px', color: 'var(--text)' }}>
-              By continuing, you agree to our Terms of Service & Privacy Policy.
+              By continuing, you agree to our <a
+                href="#/terms-and-conditions"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onClose();
+                  window.location.hash = '#/terms-and-conditions';
+                }}
+                style={{ color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Terms of Service
+              </a> &amp; <a
+                href="#/privacy-policy"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onClose();
+                  window.location.hash = '#/privacy-policy';
+                }}
+                style={{ color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Privacy Policy
+              </a>.
             </p>
           </form>
         )}

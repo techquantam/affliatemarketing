@@ -77,8 +77,10 @@ export default function AdminLogin({ onLoginSuccess, onAddNotification, setView 
           }
 
           console.error('Admin login error:', error);
-          setError(error.message || 'Invalid admin credentials. Please try again.');
-          onAddNotification('Authentication failed: ' + (error.message || 'Incorrect identifier or password.'), 'error');
+          const isBlocked = error.status === 403 || error.isBlocked || error.is_blocked === 1 || (error.message && error.message.toLowerCase().includes('blocked'));
+          const displayMsg = isBlocked ? 'Your account is blocked' : (error.message || 'Invalid admin credentials. Please try again.');
+          setError(displayMsg);
+          onAddNotification(isBlocked ? 'Your account is blocked' : ('Authentication failed: ' + (error.message || 'Incorrect identifier or password.')), 'error');
           setLoading(false);
         });
     } else {
@@ -349,9 +351,23 @@ export default function AdminLogin({ onLoginSuccess, onAddNotification, setView 
                 />
                 Remember Me
               </label>
-              <span className="admin-login-forgot-btn" onClick={handleForgot} style={{ fontSize: '12px', color: '#9ca3af', cursor: 'pointer' }}>
+              <button
+                type="button"
+                className="admin-login-forgot-btn"
+                onClick={handleForgot}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  fontSize: '13px',
+                  color: '#60a5fa',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  textDecoration: 'underline'
+                }}
+              >
                 Forgot Password?
-              </span>
+              </button>
             </div>
 
             <button type="submit" className="admin-login-btn" disabled={loading}>

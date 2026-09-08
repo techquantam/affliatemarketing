@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/withdrawals")
+@RequestMapping({"/api/withdrawals", "/api/withdraw", "/withdrawals", "/withdraw"})
 @RequiredArgsConstructor
 public class WithdrawalsController {
 
@@ -26,6 +26,7 @@ public class WithdrawalsController {
     private final WalletService walletService;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
+    private final com.cyvanta.affiliate_app.service.WithdrawalService withdrawalService;
 
     @GetMapping
     public ResponseEntity<List<WithdrawalRequest>> getAll() {
@@ -33,25 +34,80 @@ public class WithdrawalsController {
     }
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody WithdrawalRequest request) {
-        if (request.getUserId() == null || request.getAmount() == null || request.getAmount() <= 0) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid user ID or amount"));
+    public ResponseEntity<?> create(
+            @RequestBody WithdrawalRequest request,
+            @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
+
+        if ((request.getUserId() == null || request.getUserId().isBlank()) && headerUserId != null && !headerUserId.isBlank()) {
+            request.setUserId(headerUserId.trim());
+        }
+
+        if (request.getUserId() == null || request.getUserId().isBlank() || request.getAmount() == null || request.getAmount() <= 0) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "Invalid user ID or amount",
+                    "message", "Invalid user ID or amount"
+            ));
         }
 
         // 1. Mandatory E-KYC check
-        Optional<User> userOpt = userRepository.findById(request.getUserId());
+        Optional<User> userOpt = userRepository.findById(request.getUserId().trim());
         if (userOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
+            userOpt = userRepository.findByEmail(request.getUserId().trim().toLowerCase());
+        }
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "User not found",
+                    "message", "User not found"
+            ));
         }
         User user = userOpt.get();
-        if (user.getKycStatus() == null || !"approved".equalsIgnoreCase(user.getKycStatus())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "E-KYC is mandatory before withdrawal. Please complete your profile and upload Aadhaar, PAN & Selfie, and wait for admin approval."));
+        request.setUserId(user.getId());
+        if (request.getUserName() == null || request.getUserName().isBlank()) {
+            request.setUserName(user.getName());
+        }
+        if (request.getUpiId() == null || request.getUpiId().isBlank()) {
+            if (user.getUpiId() != null && !user.getUpiId().isBlank()) {
+                request.setUpiId(user.getUpiId());
+            } else if (user.getBankAccountNumber() != null && !user.getBankAccountNumber().isBlank()) {
+                request.setUpiId("A/C: " + user.getBankAccountNumber() + " (" + (user.getBankName() != null ? user.getBankName() : "Bank") + ")");
+            }
         }
 
-        // 2. Wallet Balance check
+        boolean isKycApproved = "approved".equalsIgnoreCase(user.getKycStatus())
+                || "approve".equalsIgnoreCase(user.getKycStatus())
+                || (user.getIs_kyc_verified() != null && user.getIs_kyc_verified() == 1)
+                || Boolean.TRUE.equals(user.getIsKycVerified());
+        if (!isKycApproved) {
+            String errMsg = "E-KYC is mandatory before withdrawal. Please complete your profile and upload Aadhaar, PAN & Selfie, and wait for admin approval.";
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", errMsg,
+                    "message", errMsg
+            ));
+        }
+
+        // 2. Minimum withdrawal threshold check from settings
+        int minLimit = withdrawalService.getMinimumWithdrawalLimit();
+        if (request.getAmount() < minLimit) {
+            String errMsg = "Minimum withdrawal is Rs. " + minLimit;
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", errMsg,
+                    "message", errMsg
+            ));
+        }
+
+        // 3. Wallet Balance check
         Wallet wallet = walletService.getOrCreateWallet(request.getUserId());
         if (wallet.getApprovedBalance() < request.getAmount()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Insufficient confirmed cashback balance for withdrawal."));
+            String errMsg = "Insufficient confirmed cashback balance for withdrawal.";
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", errMsg,
+                    "message", errMsg
+            ));
         }
 
         // 3. Deduct from confirmed balance immediately (do not add to pending balance)

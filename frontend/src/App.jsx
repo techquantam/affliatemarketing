@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, StatusBar, Platform, SafeAreaView } from 'react-native';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import MobileApp from './components/MobileApp';
 import AuthModal from './components/AuthModal';
 import Notification from './components/Notification';
 import StoreDetail from './components/StoreDetail';
 import { apiTracking, apiWithdrawals, apiProducts, apiUsers, apiStores, apiDeals, apiAffiliate, apiWallet } from './services/api';
+import { isKycApproved, isKycRejected, getUnifiedKycStatus } from './components/KycPage';
 
 const DEFAULT_STORES = [
   {
@@ -320,8 +323,10 @@ export default function App() {
           }
         }));
       }
+      return added;
     } catch (err) {
       console.error('Failed to request app withdrawal:', err);
+      throw err;
     }
   };
 
@@ -338,23 +343,37 @@ export default function App() {
   const fetchFreshProfile = async (silent = true) => {
     if (!currentUser?.id) return;
     try {
-      const fresh = await apiUsers.getById(currentUser.id);
+      let fresh = await apiUsers.getById(currentUser.id);
+      try {
+        const freshKyc = await apiUsers.getKycStatus(currentUser.id);
+        if (freshKyc) {
+          fresh = {
+            ...fresh,
+            ...freshKyc,
+            kycStatus: freshKyc.status || freshKyc.kycStatus || fresh?.kycStatus,
+            kyc_status: freshKyc.status || freshKyc.kyc_status || fresh?.kyc_status,
+            is_verified: freshKyc.is_verified ?? fresh?.is_verified,
+            is_kyc_verified: freshKyc.is_kyc_verified ?? fresh?.is_kyc_verified
+          };
+        }
+      } catch (e) {}
+
       if (fresh && fresh.id) {
-        const oldKyc = currentUser.kycStatus;
-        const newKyc = fresh.kycStatus;
+        const wasApproved = isKycApproved(currentUser);
+        const nowApproved = isKycApproved(fresh);
+        const wasRejected = isKycRejected(currentUser);
+        const nowRejected = isKycRejected(fresh);
         const oldPayment = currentUser.paymentDetailsStatus;
         const newPayment = fresh.paymentDetailsStatus;
 
-        if (oldKyc !== newKyc) {
-          if (newKyc === 'approved') {
-            addNotification('🎉 Congratulations! Your E-KYC has been approved by the admin.', 'success');
-            try {
-              const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-              audio.play().catch(() => {});
-            } catch (e) {}
-          } else if (newKyc === 'rejected') {
-            addNotification(`⚠️ Your E-KYC submission was rejected: ${fresh.kycRemarks || 'Please review documents.'}`, 'error');
-          }
+        if (!wasApproved && nowApproved) {
+          addNotification('🎉 Congratulations! Your E-KYC has been approved by the admin.', 'success');
+          try {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+            audio.play().catch(() => {});
+          } catch (e) {}
+        } else if (!wasRejected && nowRejected) {
+          addNotification(`⚠️ Your E-KYC submission was rejected: ${fresh.admin_remark || fresh.kycRemarks || 'Please review documents.'}`, 'error');
         }
 
         if (oldPayment !== newPayment) {
@@ -574,6 +593,19 @@ export default function App() {
         onClose={() => setIsAuthModalOpen(false)}
         onLogin={handleLogin}
         theme={theme}
+      />
+
+      <ToastContainer
+        position="top-right"
+        autoClose={4000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
       />
     </SafeAreaView>
   );

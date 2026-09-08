@@ -1,10 +1,89 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { ArrowRight, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { getFallbackStoreLogo } from '../utils/storeLogoHelper';
+import { apiStores } from '../services/api';
 
-export default function StoreGrid({ stores, onStoreSelect, title = "Popular Stores" }) {
+export default function StoreGrid({ stores: initialStores, onStoreSelect, title = "Popular Stores", onRefresh }) {
   const scrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [localStores, setLocalStores] = useState(initialStores || []);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Synchronize when parent prop updates
+  useEffect(() => {
+    if (initialStores && Array.isArray(initialStores)) {
+      setLocalStores(initialStores);
+    }
+  }, [initialStores]);
+
+  // Re-fetch logic without hard refresh
+  const refetchStores = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      if (onRefresh) {
+        await onRefresh();
+      } else {
+        const fresh = await apiStores.getAll({ status: 'active', is_active: 1 });
+        if (fresh && Array.isArray(fresh) && fresh.length > 0) {
+          setLocalStores(fresh);
+        }
+      }
+    } catch (err) {
+      console.warn('StoreGrid auto-refetch failed:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [onRefresh]);
+
+  // Listen for store creation / updates across tabs and components
+  useEffect(() => {
+    const handleStoreChange = (e) => {
+      // If a specific new store was created, prepend immediately
+      if (e?.detail && (e.type === 'store:created' || e.type === 'store:updated')) {
+        const incoming = e.detail;
+        const incomingId = incoming.id || incoming._id;
+        setLocalStores((prev) => {
+          const exists = prev.some((s) => (s.id && s.id === incomingId) || (s._id && s._id === incomingId));
+          return exists ? prev.map((s) => ((s.id && s.id === incomingId) || (s._id && s._id === incomingId) ? incoming : s)) : [incoming, ...prev];
+        });
+      }
+      refetchStores();
+    };
+
+    window.addEventListener('store:created', handleStoreChange);
+    window.addEventListener('store:updated', handleStoreChange);
+    window.addEventListener('store:deleted', handleStoreChange);
+    window.addEventListener('stores:cache_cleared', refetchStores);
+
+    let bc;
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('affiliate_admin_sync');
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'STORE_CREATED' || event.data?.type === 'STORE_UPDATED' || event.data?.type === 'STORE_DELETED') {
+          if (event.data.data) {
+            const incoming = event.data.data;
+            const incomingId = incoming.id || incoming._id;
+            setLocalStores((prev) => {
+              const exists = prev.some((s) => (s.id && s.id === incomingId) || (s._id && s._id === incomingId));
+              return exists ? prev.map((s) => ((s.id && s.id === incomingId) || (s._id && s._id === incomingId) ? incoming : s)) : [incoming, ...prev];
+            });
+          }
+          refetchStores();
+        }
+      };
+    }
+
+    return () => {
+      window.removeEventListener('store:created', handleStoreChange);
+      window.removeEventListener('store:updated', handleStoreChange);
+      window.removeEventListener('store:deleted', handleStoreChange);
+      window.removeEventListener('stores:cache_cleared', refetchStores);
+      if (bc) bc.close();
+    };
+  }, [refetchStores]);
+
+  const stores = (localStores && localStores.length > 0) ? localStores : initialStores;
 
   const checkScroll = () => {
     if (scrollRef.current) {
@@ -42,7 +121,16 @@ export default function StoreGrid({ stores, onStoreSelect, title = "Popular Stor
         <div className="section-title-wrap">
           <h3 className="section-title">{title}</h3>
         </div>
-        <div className="store-nav-arrows">
+        <div className="store-nav-arrows" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            className={`store-scroll-arrow-btn ${isRefreshing ? 'animate-spin' : ''}`}
+            onClick={refetchStores}
+            title="Refresh stores"
+            aria-label="Refresh stores"
+          >
+            <RefreshCw size={14} />
+          </button>
           <button
             type="button"
             className="store-scroll-arrow-btn"
@@ -95,12 +183,13 @@ export default function StoreGrid({ stores, onStoreSelect, title = "Popular Stor
               {/* Store Logo centered inside a small rounded rectangle with light border */}
               <div className="store-logo-box">
                 <img 
-                  src={store.logo || store.imageUrl || store.banner || `https://placehold.co/120x60/f8fafc/64748b?text=${encodeURIComponent(store.name || 'Store')}`} 
+                  src={(store.logo && !store.logo.includes('null') && !store.logo.includes('undefined')) ? store.logo : (store.imageUrl || store.banner || getFallbackStoreLogo(store.name))} 
                   alt={store.name || 'Store'} 
                   className="store-logo-img"
+                  loading="lazy"
                   onError={(e) => {
                     e.currentTarget.onerror = null;
-                    e.currentTarget.src = `https://placehold.co/120x60/f8fafc/64748b?text=${encodeURIComponent(store.name || 'Store')}`;
+                    e.currentTarget.src = getFallbackStoreLogo(store.name);
                   }}
                 />
               </div>

@@ -1,0 +1,797 @@
+[
+  {
+    "num": 1,
+    "title": "INTRODUCTION",
+    "id": "section-introduction",
+    "icon": "Info",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Welcome to Lio Mart."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart is an Affiliate Shopping and Cashback Platform that provides users with access to products, offers, coupons, deals, cashback opportunities, and other promotional services from various online shopping websites, brands, merchants, and service providers."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart is not the manufacturer, seller, distributor, or owner of the products listed or promoted through the Platform. Product information, prices, availability, offers, delivery, warranty, and other details may be provided or controlled by the respective Merchant."
+      },
+      {
+        "type": "paragraph",
+        "text": "The purpose of Lio Mart is to provide users with a simple, convenient, and transparent platform through which they may access participating e-commerce websites and, where applicable, earn Cashback, Rewards, or Referral Benefits subject to these Terms & Conditions."
+      },
+      {
+        "type": "paragraph",
+        "text": "By accessing or using the Lio Mart website, mobile application, or any related service, you acknowledge that you have read, understood, and agreed to these Terms & Conditions. If you do not agree with these Terms, you must not use Lio Mart."
+      }
+    ]
+  },
+  {
+    "num": 2,
+    "title": "DEFINITIONS",
+    "id": "section-definitions",
+    "icon": "BookOpen",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "For the purposes of these Terms:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "\"Lio Mart\", \"Platform\", \"we\", \"us\", or \"our\" means the Lio Mart website, mobile application, servers, administration systems, APIs, services, and related platforms",
+          "\"User\", \"you\", or \"your\" means any person who accesses, registers with, or uses Lio Mart",
+          "\"Merchant\" means an online store, brand, service provider, e-commerce platform, or other business participating through an Affiliate Program or other commercial arrangement with Lio Mart",
+          "\"Affiliate Link\" means a tracking link through which a User is redirected to a Merchant's website or service",
+          "\"Cashback\" means an amount that may become payable to a User following an eligible and successfully tracked transaction, subject to the applicable Merchant and Lio Mart terms",
+          "\"Wallet\" means the digital balance associated with a User's Lio Mart account in which eligible Cashback, Rewards, Referral Bonuses, or other promotional credits may be recorded",
+          "\"Order\" means an eligible purchase or transaction made by a User through a participating Merchant",
+          "\"Commission\" means an amount paid or payable by a Merchant or Affiliate Network to Lio Mart in connection with an eligible transaction",
+          "\"Reward\" means any promotional benefit, incentive, bonus, or other benefit offered by Lio Mart under a specific campaign or promotion"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 3,
+    "title": "ELIGIBILITY",
+    "id": "section-eligibility",
+    "icon": "UserCheck",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. Users must generally be at least 18 years of age to independently use Lio Mart",
+          "2. Where permitted by applicable law, minors may use the Platform only with the involvement and consent of a parent or legal guardian",
+          "3. Users must provide accurate, complete, and up-to-date information",
+          "4. Lio Mart may suspend or terminate an account if information provided by a User is found to be false, misleading, fraudulent, or materially incomplete",
+          "5. Users are responsible for ensuring that their use of the Platform complies with all applicable laws and regulations"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 4,
+    "title": "USER ACCOUNT",
+    "id": "section-user-account",
+    "icon": "User",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. A User should maintain only one personal Lio Mart account unless Lio Mart expressly permits otherwise",
+          "2. Creating multiple accounts for the purpose of obtaining additional Cashback, Referral Benefits, promotional benefits, or otherwise abusing the Platform is prohibited",
+          "3. Users are responsible for maintaining the confidentiality of their login credentials",
+          "4. Users must immediately notify Lio Mart if they become aware of unauthorized access or suspicious activity involving their account",
+          "5. Lio Mart may request identity verification, KYC information, or supporting documents where reasonably necessary for security, fraud prevention, withdrawals, compliance, or account verification"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 5,
+    "title": "AFFILIATE SHOPPING",
+    "id": "section-affiliate-shopping",
+    "icon": "ShoppingBag",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. Lio Mart may operate through Affiliate Programs, Affiliate Networks, direct Merchant relationships, or other commercial arrangements",
+          "2. A User may need to access a Merchant through an Affiliate Link for a transaction to qualify for Cashback",
+          "3. Not every transaction will necessarily be successfully tracked",
+          "4. Lio Mart does not guarantee that every purchase made through an Affiliate Link will generate Cashback",
+          "5. If a Merchant cancels, rejects, refunds, reverses, or otherwise invalidates a transaction, the associated Cashback may be cancelled or declined",
+          "6. Cashback may become payable only after the applicable Commission has been successfully received or confirmed by Lio Mart, subject to the applicable program rules"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Product Prices, Price Changes and Price Discrepancies"
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart displays product prices based on the price information available from the respective Merchant, Affiliate Partner, or other authorized source at the time the product is added, listed, imported, or last updated on the Platform."
+      },
+      {
+        "type": "paragraph",
+        "text": "Product prices displayed on Lio Mart may not always reflect the Merchant’s current or real-time selling price. Merchants and Affiliate Partners may change, increase, decrease, or otherwise modify product prices, discounts, offers, taxes, shipping charges, or other applicable charges at any time. Due to technical, operational, synchronization, or update limitations, such changes may not be reflected on Lio Mart immediately."
+      },
+      {
+        "type": "paragraph",
+        "text": "Accordingly, the price displayed on Lio Mart is provided for informational and comparison purposes and should not be treated as a guaranteed or final sale price. The final price applicable to a purchase shall be the price, along with applicable taxes, shipping charges, discounts, and other charges, displayed by the respective Merchant on its website or application at the time the User places the order or completes the purchase."
+      },
+      {
+        "type": "paragraph",
+        "text": "Users are advised to verify the final product price, availability, applicable discounts, delivery charges, taxes, and other terms on the Merchant’s website or application before completing any purchase."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart shall not be responsible for any difference between the price displayed on the Lio Mart Platform and the price subsequently displayed by the Merchant, nor for any loss, inconvenience, or claim arising solely from such price differences, provided that Lio Mart has not independently guaranteed the displayed price."
+      },
+      {
+        "type": "paragraph",
+        "text": "Any cashback, reward, commission, or other benefit, where applicable, shall be calculated and processed in accordance with the applicable Merchant/Affiliate Partner terms and Lio Mart’s Cashback and Rewards Policy, and shall not be interpreted as a guarantee of any particular product price."
+      }
+    ]
+  },
+  {
+    "num": 6,
+    "title": "CASHBACK POLICY",
+    "id": "section-cashback-policy",
+    "icon": "Tag",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. Cashback rates and eligibility conditions may vary by Merchant, product, category, campaign, payment method, coupon, or promotional offer",
+          "2. Cashback may appear in different statuses, including Pending, Confirmed, Approved, Rejected, Cancelled, or Paid",
+          "3. Pending Cashback represents an expected or provisional amount and does not constitute an unconditional payment obligation",
+          "4. Cashback confirmation may take time depending on the Merchant or Affiliate Network's validation and settlement process",
+          "5. A transaction may be rejected for reasons including cancellation, return, refund, payment failure, duplicate transaction, invalid tracking, coupon misuse, Merchant policy violations, fraud, or other reasons determined under the applicable program rules",
+          "6. Lio Mart does not guarantee a fixed Cashback amount unless expressly stated in a specific offer",
+          "7. Where a Merchant or Affiliate Network rejects the underlying Commission, the corresponding Cashback may also be rejected"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 7,
+    "title": "WALLET POLICY",
+    "id": "section-wallet-policy",
+    "icon": "Wallet",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. Eligible Users may receive a Lio Mart Wallet",
+          "2. The Wallet may record Cashback, Referral Bonuses, Promotional Rewards, and other eligible credits",
+          "3. Wallet balances are digital records associated with the Lio Mart Platform and do not constitute a bank account or deposit account",
+          "4. No interest shall be payable on Wallet balances",
+          "5. Lio Mart may verify Wallet transactions and balances at any time",
+          "6. If an amount is credited due to a technical error, duplicate credit, fraudulent activity, Merchant reversal, or other mistake, Lio Mart may correct, reverse, or adjust the erroneous credit, subject to applicable law",
+          "7. Wallet functionality may be temporarily restricted where an account is under security, fraud, KYC, compliance, or transaction review",
+          "8. Any withdrawal from the Wallet remains subject to the applicable Withdrawal and KYC requirements"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 8,
+    "title": "CASHBACK CONFIRMATION",
+    "id": "section-cashback-confirmation",
+    "icon": "CheckCircle",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "1. Cashback may be confirmed only after the applicable transaction has been validated by the Merchant or relevant Affiliate Network."
+      },
+      {
+        "type": "paragraph",
+        "text": "2. Pending Cashback is not guaranteed and may subsequently be approved, rejected, cancelled, or adjusted."
+      },
+      {
+        "type": "paragraph",
+        "text": "3. Cashback may be rejected or cancelled if:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "the Order is cancelled",
+          "the Order is returned or refunded",
+          "payment fails",
+          "the transaction is not tracked",
+          "an applicable coupon or promotional rule is violated",
+          "the Merchant declares the transaction invalid",
+          "fraudulent or suspicious activity is detected",
+          "any other applicable Merchant or Affiliate Program condition is not satisfied"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "4. The final eligibility of a transaction may depend on information received from the relevant Merchant or Affiliate Network."
+      }
+    ]
+  },
+  {
+    "num": 9,
+    "title": "REFERRAL PROGRAM",
+    "id": "section-referral-program",
+    "icon": "Share2",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. Lio Mart may provide eligible Users with a unique Referral Code or Referral Link",
+          "2. Referral Benefits are available only for qualifying new Users and transactions as specified in the applicable Referral Program",
+          "3. Self-referrals are strictly prohibited",
+          "4. Creating or controlling multiple accounts for the purpose of generating Referral Benefits is prohibited",
+          "5. Lio Mart may investigate suspicious referrals using reasonable technical and account-related information",
+          "6. Referral Benefits obtained through fraudulent, abusive, or otherwise invalid activity may be cancelled or reversed",
+          "7. Lio Mart may modify, suspend, or discontinue any Referral Program subject to applicable law and the specific promotional terms"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 10,
+    "title": "WITHDRAWAL POLICY",
+    "id": "section-withdrawal-policy",
+    "icon": "CreditCard",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. A User may request a withdrawal only after satisfying the applicable minimum withdrawal threshold",
+          "2. Withdrawals may be made only to a verified UPI ID, bank account, or other payment method supported by Lio Mart",
+          "3. Lio Mart may require KYC or identity verification before processing a withdrawal",
+          "4. Users must ensure that their payment details are accurate and belong to them or are otherwise legally authorized for their use",
+          "5. Withdrawal requests may be reviewed for fraud, security, compliance, transaction validity, and KYC purposes",
+          "6. Processing times may vary depending on banking systems, payment providers, verification procedures, weekends, public holidays, and other circumstances",
+          "7. Lio Mart may delay or reject a withdrawal where required by applicable law, fraud prevention requirements, KYC requirements, payment-provider rules, or a legitimate account investigation",
+          "8. Lio Mart shall not be responsible for delays caused by banks, payment providers, technical failures, government restrictions, or circumstances outside its reasonable control"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 11,
+    "title": "ORDERS & TRACKING",
+    "id": "section-orders-and-tracking",
+    "icon": "Activity",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. Orders placed with Merchants are subject to the Merchant's own terms, conditions, return policies, cancellation policies, and privacy policies",
+          "2. Affiliate tracking may depend on cookies, tracking parameters, device settings, browser settings, Merchant systems, Affiliate Networks, and other technologies",
+          "3. Cashback may not be recorded where tracking is interrupted or blocked",
+          "4. Use of ad blockers, VPNs, privacy tools, disabled cookies, browser extensions, multiple tabs, or other tracking restrictions may affect Cashback eligibility",
+          "5. Users should normally begin the shopping journey through the applicable Lio Mart Affiliate Link when seeking Cashback",
+          "6. Lio Mart is not responsible for the Merchant's failure to fulfil an Order"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 12,
+    "title": "FRAUD PREVENTION",
+    "id": "section-fraud-prevention",
+    "icon": "ShieldAlert",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "The following activities are strictly prohibited:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Creating fake or fraudulent Orders",
+          "Making purchases with the intention of abusing Cashback and subsequently obtaining an improper benefit",
+          "Creating multiple accounts to obtain additional benefits",
+          "Self-referrals or fake referrals",
+          "Using bots, scripts, automated systems, or other unauthorized methods",
+          "Manipulating Affiliate tracking or Commission systems",
+          "Using another person's identity or account without authorization",
+          "Violating Merchant or Affiliate Program rules",
+          "Coupon or promotional abuse",
+          "Attempting to exploit technical errors or vulnerabilities",
+          "Providing false or misleading information"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Where fraudulent or abusive activity is identified or reasonably suspected, Lio Mart may, subject to applicable law:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "suspend or restrict the Wallet",
+          "cancel or reverse Cashback",
+          "cancel Referral Benefits",
+          "suspend or terminate the User account",
+          "restrict future use of the Platform; and/or",
+          "take appropriate legal or other action where necessary"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 13,
+    "title": "USER RESPONSIBILITIES",
+    "id": "section-user-responsibilities",
+    "icon": "CheckCircle2",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Users agree that they will:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "1. Comply with all applicable laws and regulations",
+          "2. Use Lio Mart only for lawful purposes",
+          "3. Not attempt to hack, disrupt, damage, or compromise the Platform",
+          "4. Not misuse any API, system, or technical service provided by Lio Mart",
+          "5. Not upload viruses, malware, malicious code, or other harmful content",
+          "6. Not access another User's account without authorization",
+          "7. Not publish knowingly false, misleading, abusive, or fraudulent reviews or information",
+          "8. Not intentionally damage the reputation or legitimate business interests of Lio Mart or participating Merchants",
+          "9. Provide accurate information whenever required for account, KYC, payment, or support purposes"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 14,
+    "title": "INTELLECTUAL PROPERTY RIGHTS",
+    "id": "section-intellectual-property",
+    "icon": "FileCheck",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. The Lio Mart name, logo, branding, website design, mobile application, software, database, API, source code, text, graphics, icons, layout, and other original materials are owned by or licensed to Lio Mart, unless otherwise stated",
+          "2. No User may copy, reproduce, modify, distribute, sell, publish, reverse engineer, or commercially exploit Lio Mart's intellectual property without prior written authorization, except where expressly permitted by applicable law",
+          "3. Merchant names, trademarks, logos, product images, and other third-party intellectual property remain the property of their respective owners",
+          "4. Nothing in these Terms transfers ownership of any intellectual property to a User"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 15,
+    "title": "PRIVACY & DATA PROTECTION",
+    "id": "section-privacy-and-data-protection",
+    "icon": "ShieldCheck",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart respects User privacy and may collect and process information reasonably necessary to provide and secure its services."
+      },
+      {
+        "type": "paragraph",
+        "text": "Depending on the services used, information may include:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Name",
+          "Mobile number",
+          "Email address",
+          "Bank or UPI details for withdrawals",
+          "IP address",
+          "Device information",
+          "Browser information",
+          "Login and security information",
+          "Referral information",
+          "Transaction and Cashback information"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Such information may be used for:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "User verification",
+          "Cashback processing",
+          "Withdrawal processing",
+          "Fraud prevention",
+          "Customer support",
+          "Security",
+          "Legal and regulatory compliance",
+          "Platform operation and improvement",
+          "Other purposes disclosed in the applicable Privacy Policy"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart will handle personal information in accordance with its Privacy Policy and applicable law."
+      }
+    ]
+  },
+  {
+    "num": 16,
+    "title": "COOKIES & TRACKING TECHNOLOGIES",
+    "id": "section-cookies-and-tracking",
+    "icon": "Cookie",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may use cookies, pixels, SDKs, local storage, and similar technologies for purposes including:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "maintaining login sessions",
+          "Affiliate tracking",
+          "Cashback tracking",
+          "security",
+          "analytics",
+          "performance monitoring",
+          "improving User experience"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Disabling certain cookies or tracking technologies may affect the functionality of certain Lio Mart services, including Affiliate tracking and Cashback attribution."
+      }
+    ]
+  },
+  {
+    "num": 17,
+    "title": "DISCLAIMER",
+    "id": "section-disclaimer",
+    "icon": "AlertTriangle",
+    "blocks": [
+      {
+        "type": "list",
+        "items": [
+          "1. Lio Mart operates as an Affiliate and Cashback Platform and is generally not the seller or manufacturer of products offered by Merchants",
+          "2. Lio Mart does not guarantee the quality, safety, authenticity, availability, delivery, warranty, pricing, or suitability of products or services supplied by third-party Merchants",
+          "3. Merchant prices, offers, availability, terms, and Cashback rates may change without notice",
+          "4. Although Lio Mart may attempt to keep information accurate and current, errors, omissions, delays, or outdated information may occur",
+          "5. Users should review the Merchant's final price, terms, return policy, and other applicable conditions before completing a purchase",
+          "6. Nothing on Lio Mart should be interpreted as a guarantee that a particular transaction will generate Cashback unless expressly confirmed under the applicable offer terms"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 18,
+    "title": "LIMITATION OF LIABILITY",
+    "id": "section-limitation-of-liability",
+    "icon": "Scale",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "To the maximum extent permitted by applicable law, Lio Mart shall not be responsible for losses or damages arising from:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "rejection or cancellation of an Order by a Merchant",
+          "failure or rejection of Cashback",
+          "Affiliate tracking failure",
+          "payment or banking delays",
+          "banking or payment-provider errors",
+          "network or Internet failures",
+          "server downtime",
+          "technical failures",
+          "temporary service interruptions",
+          "loss of data caused by circumstances beyond Lio Mart's reasonable control",
+          "indirect, incidental, special, consequential, or similar losses"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Nothing in these Terms excludes or limits any liability that cannot lawfully be excluded or limited under applicable law."
+      }
+    ]
+  },
+  {
+    "num": 19,
+    "title": "FORCE MAJEURE",
+    "id": "section-force-majeure",
+    "icon": "Globe",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart shall not be liable for failure, delay, or interruption of its services caused by circumstances beyond its reasonable control, including natural disasters, war, riots, epidemics or pandemics, government actions, Internet outages, power failures, cyber incidents, cloud-service failures, telecommunications failures, or other events of force majeure."
+      }
+    ]
+  },
+  {
+    "num": 20,
+    "title": "THIRD-PARTY SERVICES",
+    "id": "section-third-party-services",
+    "icon": "Layers",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may use or integrate third-party services, including:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Payment Gateways",
+          "Banking and payment providers",
+          "SMS providers",
+          "Email services",
+          "Cloud hosting providers",
+          "Analytics services",
+          "Push notification services",
+          "Merchant or Affiliate Networks"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Third-party services may have their own terms, conditions, privacy policies, and operational rules. Users may be required to comply with those applicable third-party terms."
+      }
+    ]
+  },
+  {
+    "num": 21,
+    "title": "ACCOUNT SUSPENSION & TERMINATION",
+    "id": "section-suspension-and-termination",
+    "icon": "Trash2",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may suspend, restrict, or terminate a User account where reasonably necessary, including in cases involving:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "false or misleading information",
+          "multiple accounts",
+          "fraudulent Cashback or Referral activity",
+          "illegal or suspicious activity",
+          "unauthorized access or system interference",
+          "violation of these Terms",
+          "security concerns",
+          "KYC or verification concerns",
+          "an order, direction, or legal requirement of a competent authority"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Upon suspension or termination, Lio Mart may restrict Wallet activity, cancel invalid or unconfirmed benefits, restrict withdrawals where legally or reasonably necessary, and prevent further use of the Platform."
+      },
+      {
+        "type": "paragraph",
+        "text": "Any action affecting a User's funds or confirmed entitlements will remain subject to applicable law."
+      }
+    ]
+  },
+  {
+    "num": 22,
+    "title": "USER-GENERATED CONTENT",
+    "id": "section-user-generated-content",
+    "icon": "Edit3",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "If Users submit Reviews, Ratings, Comments, Photos, Videos, or other content:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "1. The User must have the necessary rights and permissions to submit the content",
+          "2. The content must not infringe any third-party copyright, trademark, privacy, publicity, or other legal rights",
+          "3. Content must not be illegal, fraudulent, defamatory, abusive, hateful, obscene, threatening, or misleading",
+          "4. Lio Mart may remove or restrict content that violates these Terms or applicable law",
+          "5. By submitting content, the User grants Lio Mart a non-exclusive, worldwide, royalty-free license to host, display, reproduce, and use the content for operating, improving, and promoting the Platform, subject to applicable law"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 23,
+    "title": "CUSTOMER SUPPORT & GRIEVANCE REDRESSAL",
+    "id": "section-customer-support",
+    "icon": "HelpCircle",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Users may contact Lio Mart through the official Customer Support channels regarding issues related to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Cashback",
+          "Wallet",
+          "Referral Benefits",
+          "Order Tracking",
+          "Withdrawals",
+          "KYC",
+          "Account access",
+          "other Lio Mart services"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may review complaints based on information provided by the User, relevant transaction records, Merchant or Affiliate Network information, and applicable policies."
+      },
+      {
+        "type": "paragraph",
+        "text": "Additional documents or identity verification may be requested where reasonably necessary."
+      },
+      {
+        "type": "paragraph",
+        "text": "Support Email: support@liomart.co.in"
+      }
+    ]
+  },
+  {
+    "num": 24,
+    "title": "GOVERNING LAW",
+    "id": "section-governing-law",
+    "icon": "FileText",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "These Terms & Conditions shall be governed by and interpreted in accordance with the applicable laws of India."
+      },
+      {
+        "type": "paragraph",
+        "text": "Users agree to comply with all applicable laws and regulations relevant to their use of Lio Mart."
+      }
+    ]
+  },
+  {
+    "num": 25,
+    "title": "DISPUTE RESOLUTION",
+    "id": "section-dispute-resolution",
+    "icon": "Scale",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "In the event of a dispute:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "1. The parties should first attempt to resolve the matter through good-faith communication and Customer Support",
+          "2. If the matter cannot be resolved through such communication, it may be addressed through the appropriate legal or statutory process available under applicable Indian law",
+          "3. Nothing in this section prevents a User from exercising any non-waivable statutory rights or remedies available under applicable law"
+        ]
+      }
+    ]
+  },
+  {
+    "num": 26,
+    "title": "CHANGES TO THESE TERMS",
+    "id": "section-changes-to-terms",
+    "icon": "RefreshCw",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may update, modify, or revise these Terms & Conditions from time to time."
+      },
+      {
+        "type": "paragraph",
+        "text": "The updated version may be published on the Lio Mart website or mobile application. The updated Terms will become effective from the date stated in the updated version or, where no date is stated, upon publication."
+      },
+      {
+        "type": "paragraph",
+        "text": "Users should periodically review these Terms for changes."
+      }
+    ]
+  },
+  {
+    "num": 27,
+    "title": "NOTICES",
+    "id": "section-notices",
+    "icon": "Bell",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may communicate with Users through:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Email",
+          "SMS",
+          "Push Notifications",
+          "WhatsApp, where available and legally permitted",
+          "Website notifications",
+          "Mobile application notifications"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Users are responsible for keeping their registered contact information accurate and up to date."
+      }
+    ]
+  },
+  {
+    "num": 28,
+    "title": "SEVERABILITY",
+    "id": "section-severability",
+    "icon": "FileCheck",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "If any provision of these Terms is determined by a competent court or authority to be unlawful, invalid, or unenforceable, that provision shall be interpreted or modified to the minimum extent necessary where legally permissible, and the remaining provisions shall continue in full force and effect."
+      }
+    ]
+  },
+  {
+    "num": 29,
+    "title": "ENTIRE AGREEMENT",
+    "id": "section-entire-agreement",
+    "icon": "BookOpen",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "These Terms & Conditions, together with the Lio Mart Privacy Policy, Cashback Policy, Withdrawal Policy, Referral Policy, Refund/Cancellation Policy, and other applicable policies or promotional terms published by Lio Mart, constitute the applicable agreement governing the User's use of the Platform."
+      },
+      {
+        "type": "paragraph",
+        "text": "Where a specific promotional offer contains additional terms, those specific terms may apply to that offer."
+      }
+    ]
+  },
+  {
+    "num": 30,
+    "title": "CONTACT INFORMATION",
+    "id": "section-contact-information",
+    "icon": "PhoneCall",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "For questions, suggestions, complaints, legal notices, or other communications relating to Lio Mart, Users may contact:"
+      },
+      {
+        "type": "subheading",
+        "text": "Lio Mart"
+      },
+      {
+        "type": "paragraph",
+        "text": "Email: support@liomart.co.in"
+      },
+      {
+        "type": "paragraph",
+        "text": "Website: https://liomart.co.in"
+      },
+      {
+        "type": "paragraph",
+        "text": "Grievance Contact: Grievance Officer / Legal Desk"
+      },
+      {
+        "type": "paragraph",
+        "text": "Business/Registered Address: Lio Mart Technologies Pvt. Ltd."
+      },
+      {
+        "type": "paragraph",
+        "text": "Phone: Support Helpdesk (support@liomart.co.in)"
+      }
+    ]
+  },
+  {
+    "num": 31,
+    "title": "ACCEPTANCE OF TERMS",
+    "id": "section-acceptance-of-terms",
+    "icon": "CheckCircle2",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "By accessing, registering for, or using the Lio Mart website, mobile application, or related services, the User acknowledges and agrees that:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "the User has read these Terms & Conditions",
+          "the User understands these Terms & Conditions",
+          "the User agrees to comply with these Terms & Conditions",
+          "if the User does not agree with these Terms, the User will discontinue use of Lio Mart"
+        ]
+      }
+    ]
+  }
+]

@@ -128,7 +128,7 @@ public class UserController {
 
     @PostMapping("/{id}/block")
     @PutMapping("/{id}/block")
-    public ResponseEntity<?> blockUser(@PathVariable String id) {
+    public ResponseEntity<?> blockUser(@PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
         String targetId = id != null ? id.trim() : "";
         Optional<User> userOpt = userRepository.findById(targetId);
         if (userOpt.isEmpty()) {
@@ -140,6 +140,7 @@ public class UserController {
         return userOpt.map(user -> {
             user.setStatus("blocked");
             user.setIsBlocked(true);
+            user.setIs_blocked(1);
             User saved = userRepository.save(user);
             Wallet wallet = walletService.getOrCreateWallet(saved.getId());
             log.info("[Admin] User blocked: id={}, email={}", saved.getId(), saved.getEmail());
@@ -149,9 +150,13 @@ public class UserController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    public ResponseEntity<?> blockUser(String id) {
+        return blockUser(id, null);
+    }
+
     @PostMapping("/{id}/unblock")
     @PutMapping("/{id}/unblock")
-    public ResponseEntity<?> unblockUser(@PathVariable String id) {
+    public ResponseEntity<?> unblockUser(@PathVariable String id, @RequestBody(required = false) Map<String, Object> body) {
         String targetId = id != null ? id.trim() : "";
         Optional<User> userOpt = userRepository.findById(targetId);
         if (userOpt.isEmpty()) {
@@ -163,6 +168,7 @@ public class UserController {
         return userOpt.map(user -> {
             user.setStatus("active");
             user.setIsBlocked(false);
+            user.setIs_blocked(0);
             User saved = userRepository.save(user);
             Wallet wallet = walletService.getOrCreateWallet(saved.getId());
             log.info("[Admin] User unblocked: id={}, email={}", saved.getId(), saved.getEmail());
@@ -170,6 +176,10 @@ public class UserController {
                     .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
                     .body(buildUserResponse(saved, wallet));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    public ResponseEntity<?> unblockUser(String id) {
+        return unblockUser(id, null);
     }
 
     @PutMapping("/{id}")
@@ -206,17 +216,25 @@ public class UserController {
             if (updatedUser.getAadhaarBackUrl() != null) user.setAadhaarBackUrl(updatedUser.getAadhaarBackUrl());
             if (updatedUser.getPanCardUrl() != null) user.setPanCardUrl(updatedUser.getPanCardUrl());
             if (updatedUser.getSelfieUrl() != null) user.setSelfieUrl(updatedUser.getSelfieUrl());
-            if (updatedUser.getKycStatus() != null) {
-                user.setKycStatus(updatedUser.getKycStatus());
-            } else if (!"approved".equalsIgnoreCase(user.getKycStatus())) {
-                // Auto-submit KYC to pending if all mandatory docs are provided
-                if (user.getAadhaarNumber() != null && !user.getAadhaarNumber().trim().isEmpty() &&
-                    user.getPanNumber() != null && !user.getPanNumber().trim().isEmpty() &&
-                    user.getAadhaarFrontUrl() != null && !user.getAadhaarFrontUrl().trim().isEmpty() &&
-                    user.getPanCardUrl() != null && !user.getPanCardUrl().trim().isEmpty() &&
-                    user.getSelfieUrl() != null && !user.getSelfieUrl().trim().isEmpty()) {
-                    user.setKycStatus("pending");
-                    user.setKycRemarks(null);
+
+            boolean isAlreadyApproved = "approved".equalsIgnoreCase(user.getKycStatus())
+                    || "approved".equalsIgnoreCase(user.getKyc_status())
+                    || (user.getIs_kyc_verified() != null && user.getIs_kyc_verified() == 1)
+                    || Boolean.TRUE.equals(user.getIsKycVerified());
+
+            if (!isAlreadyApproved) {
+                if (updatedUser.getKycStatus() != null && !"not_submitted".equalsIgnoreCase(updatedUser.getKycStatus())) {
+                    user.setKycStatus(updatedUser.getKycStatus());
+                } else {
+                    // Auto-submit KYC to pending if all mandatory docs are provided
+                    if (user.getAadhaarNumber() != null && !user.getAadhaarNumber().trim().isEmpty() &&
+                        user.getPanNumber() != null && !user.getPanNumber().trim().isEmpty() &&
+                        user.getAadhaarFrontUrl() != null && !user.getAadhaarFrontUrl().trim().isEmpty() &&
+                        user.getPanCardUrl() != null && !user.getPanCardUrl().trim().isEmpty() &&
+                        user.getSelfieUrl() != null && !user.getSelfieUrl().trim().isEmpty()) {
+                        user.setKycStatus("pending");
+                        user.setKycRemarks(null);
+                    }
                 }
             }
             if (updatedUser.getKycRemarks() != null) user.setKycRemarks(updatedUser.getKycRemarks());
@@ -504,8 +522,14 @@ public class UserController {
                 return ResponseEntity.status(401).body((Object) Map.of("error", "Invalid credentials"));
             }
 
-            if ("blocked".equalsIgnoreCase(user.getStatus()) || Boolean.TRUE.equals(user.getIsBlocked())) {
-                return ResponseEntity.status(403).body((Object) Map.of("error", "Your account has been blocked by Admin", "isBlocked", true, "is_blocked", 1));
+            if ("blocked".equalsIgnoreCase(user.getStatus()) || Boolean.TRUE.equals(user.getIsBlocked()) || (user.getIs_blocked() != null && user.getIs_blocked() == 1)) {
+                return ResponseEntity.status(403).body((Object) Map.of(
+                        "status", false,
+                        "message", "Your account is blocked by admin",
+                        "error", "Your account is blocked by admin",
+                        "isBlocked", true,
+                        "is_blocked", 1
+                ));
             }
 
             if (Boolean.FALSE.equals(user.getIsVerified()) || "pending".equals(user.getStatus())) {

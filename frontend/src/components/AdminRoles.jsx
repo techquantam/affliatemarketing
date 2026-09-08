@@ -108,9 +108,10 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
     setEditName(user.name || '');
     setEditEmail(user.email || '');
     setEditPhone(user.phone || '');
-    setEditStatus(user.isBlocked === true || user.status === 'blocked' ? 'blocked' : 'active');
+    const isBlocked = user.is_blocked === 1 || user.isBlocked === true || user.status === 'blocked';
+    setEditStatus(isBlocked ? 'blocked' : 'active');
     setEditPassword('');
-    setEditRole(user.role || 'USER');
+    setEditRole(user.role || 'ADMIN');
     
     // Set permissions mapping
     setEditPermissions({
@@ -136,7 +137,7 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
 
   const handleToggleBlockAdmin = async (user) => {
     const targetId = user.id || user._id;
-    const isCurrentlyBlocked = user.isBlocked === true || user.status === 'blocked';
+    const isCurrentlyBlocked = user.is_blocked === 1 || user.isBlocked === true || user.status === 'blocked';
     const actionName = isCurrentlyBlocked ? 'unblock' : 'block';
 
     if (isMasterAdmin(user.email)) {
@@ -154,14 +155,22 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
     }
 
     try {
-      await apiAdminManagement.toggleBlockAdmin(targetId, isCurrentlyBlocked, currentUser?.id);
+      const res = await apiAdminManagement.toggleBlockAdmin(targetId, isCurrentlyBlocked, currentUser?.id);
       const newStatus = isCurrentlyBlocked ? 'active' : 'blocked';
       const newIsBlocked = !isCurrentlyBlocked;
+      const newIsBlockedInt = !isCurrentlyBlocked ? 1 : 0;
+      const resUser = res?.user || res?.admin || res;
 
       setUsers((prev) => prev.map((u) => {
         const uid = u.id || u._id;
         if (uid === targetId) {
-          return { ...u, status: newStatus, isBlocked: newIsBlocked };
+          return {
+            ...u,
+            ...(resUser && typeof resUser === 'object' ? resUser : {}),
+            status: resUser?.status || res?.status || newStatus,
+            isBlocked: resUser?.isBlocked !== undefined ? resUser.isBlocked : (res?.isBlocked !== undefined ? res.isBlocked : newIsBlocked),
+            is_blocked: resUser?.is_blocked !== undefined ? resUser.is_blocked : (res?.is_blocked !== undefined ? res.is_blocked : newIsBlockedInt),
+          };
         }
         return u;
       }));
@@ -239,6 +248,7 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
     setSavingEdit(true);
     const targetId = selectedUser.id || selectedUser._id;
     const fullPermissions = { ...editPermissions, allowedModules: editAllowedModules };
+    const isBlocked = editStatus === 'blocked';
 
     try {
       const payload = {
@@ -247,7 +257,8 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
         phone: editPhone,
         role: editRole,
         status: editStatus,
-        isBlocked: editStatus === 'blocked',
+        isBlocked: isBlocked,
+        is_blocked: isBlocked ? 1 : 0,
         permissions: fullPermissions,
         adminId: currentUser?.id,
       };
@@ -256,20 +267,23 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
         payload.password = editPassword.trim();
       }
 
-      const updated = await apiAdminManagement.updateAdmin(targetId, payload);
+      const updated = await apiAdminManagement.updateAdmin(targetId, payload, currentUser?.id);
+      const resUser = (updated && updated.user) ? updated.user : (updated && updated.admin) ? updated.admin : updated;
 
       setUsers((prev) => prev.map((u) => {
         const uid = u.id || u._id;
         if (uid === targetId) {
           return {
             ...u,
-            name: updated.name || editName,
-            email: updated.email || editEmail,
-            phone: updated.phone || editPhone,
-            role: updated.role || editRole,
-            status: updated.status || editStatus,
-            isBlocked: updated.isBlocked !== undefined ? updated.isBlocked : (editStatus === 'blocked'),
-            permissions: updated.permissions || fullPermissions,
+            ...(resUser && typeof resUser === 'object' ? resUser : {}),
+            name: (resUser && resUser.name) || editName,
+            email: (resUser && resUser.email) || editEmail,
+            phone: (resUser && resUser.phone) || editPhone,
+            role: (resUser && resUser.role) || editRole,
+            status: (resUser && resUser.status) || editStatus,
+            isBlocked: (resUser && resUser.isBlocked !== undefined) ? resUser.isBlocked : isBlocked,
+            is_blocked: (resUser && resUser.is_blocked !== undefined) ? resUser.is_blocked : (isBlocked ? 1 : 0),
+            permissions: (resUser && resUser.permissions) || fullPermissions,
           };
         }
         return u;
@@ -391,13 +405,13 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
     );
   };
 
-  const headers = ['Admin', 'Email', 'Role', 'Status', 'Modules Access', 'Actions'];
+  const headers = ['Admin', 'Email', 'Role', 'is_blocked', 'Status', 'Modules Access', 'Actions'];
 
   const renderRow = (user) => {
     const targetId = user.id || user._id;
     const isRoot = isMasterAdmin(user.email);
     const isSelf = targetId === currentUser?.id;
-    const isBlocked = user.isBlocked === true || user.status === 'blocked';
+    const isBlocked = user.is_blocked === 1 || user.isBlocked === true || user.status === 'blocked';
     const moduleCount = user.permissions?.allowedModules?.length || 0;
     const totalModules = ALL_MODULES.length;
 
@@ -423,6 +437,18 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
         <td>{getRoleBadge(user.role)}</td>
         <td>
           <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: '4px',
+            padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '700',
+            fontFamily: 'monospace',
+            backgroundColor: isBlocked ? '#fee2e2' : '#f0fdf4',
+            color: isBlocked ? '#dc2626' : '#16a34a',
+            border: `1px solid ${isBlocked ? '#fca5a5' : '#86efac'}`,
+          }}>
+            {isBlocked ? 'true (1)' : 'false (0)'}
+          </span>
+        </td>
+        <td>
+          <span style={{
             display: 'inline-flex', alignItems: 'center', gap: '5px',
             padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600',
             backgroundColor: isBlocked ? '#fee2e2' : '#dcfce7',
@@ -443,7 +469,7 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
           </span>
         </td>
         <td>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               className="admin-btn-icon"
               onClick={() => openEditModal(user)}
@@ -453,35 +479,48 @@ export default function AdminRoles({ users, setUsers, onEditUser, onAddNotificat
               <Edit2 size={14} />
             </button>
 
-            {isSuperAdmin && !isRoot && !isSelf && (
+            {!isRoot && !isSelf && (
               <>
                 <button
-                  className="admin-btn-icon"
+                  type="button"
                   onClick={() => handleToggleBlockAdmin(user)}
                   title={isBlocked ? "Unblock Admin" : "Block Admin"}
                   style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: isBlocked ? '#16a34a' : '#dc2626',
-                    borderColor: isBlocked ? '#86efac' : '#fca5a5',
-                    backgroundColor: isBlocked ? '#f0fdf4' : '#fef2f2'
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    color: '#fff',
+                    backgroundColor: isBlocked ? '#16a34a' : '#dc2626',
+                    borderColor: isBlocked ? '#15803d' : '#b91c1c',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
                   }}
                 >
-                  {isBlocked ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
+                  {isBlocked ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+                  {isBlocked ? 'Unblock' : 'Block'}
                 </button>
 
-                <button
-                  className="admin-btn-icon"
-                  onClick={() => handleDeleteAdmin(user)}
-                  title="Delete Admin Account"
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#dc2626',
-                    borderColor: '#fca5a5',
-                    backgroundColor: '#fef2f2'
-                  }}
-                >
-                  <Trash2 size={14} />
-                </button>
+                {isSuperAdmin && (
+                  <button
+                    className="admin-btn-icon"
+                    onClick={() => handleDeleteAdmin(user)}
+                    title="Delete Admin Account"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#dc2626',
+                      borderColor: '#fca5a5',
+                      backgroundColor: '#fef2f2'
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </>
             )}
           </div>

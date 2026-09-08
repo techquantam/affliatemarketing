@@ -51,8 +51,12 @@ public class User {
 
     @Builder.Default
     @JsonProperty("isBlocked")
-    @JsonAlias({"is_blocked", "blocked"})
+    @JsonAlias({"blocked"})
     private Boolean isBlocked = false;
+
+    @Builder.Default
+    @JsonProperty("is_blocked")
+    private Integer is_blocked = 0;
 
     // Custom shared commission rate for this user (null = use global default)
     private Double sharedCommissionRate;
@@ -89,6 +93,16 @@ public class User {
     @Builder.Default
     private String kycStatus = "not_submitted"; // "not_submitted", "pending", "approved", "rejected"
 
+    private String kyc_status;
+
+    @Builder.Default
+    private Integer is_kyc_verified = 0;
+
+    @Builder.Default
+    private Boolean isKycVerified = false;
+
+    private String admin_remark;
+
     private String kycRemarks;
 
     // --- Payment Details Fields ---
@@ -115,13 +129,30 @@ public class User {
         return null;
     }
 
+    public Integer getIs_blocked() {
+        if (is_blocked != null) return is_blocked;
+        return ((isBlocked != null && isBlocked) || "blocked".equalsIgnoreCase(status)) ? 1 : 0;
+    }
+
+    public void setIs_blocked(Integer val) {
+        this.is_blocked = val != null ? val : 0;
+        this.isBlocked = this.is_blocked == 1;
+        if (this.isBlocked) {
+            this.status = "blocked";
+        } else if ("blocked".equalsIgnoreCase(this.status)) {
+            this.status = "active";
+        }
+    }
+
     public Boolean getIsBlocked() {
         if (isBlocked != null && isBlocked) return true;
+        if (is_blocked != null && is_blocked == 1) return true;
         return "blocked".equalsIgnoreCase(status);
     }
 
     public void setIsBlocked(Boolean blocked) {
         this.isBlocked = blocked != null && blocked;
+        this.is_blocked = this.isBlocked ? 1 : 0;
         if (this.isBlocked) {
             this.status = "blocked";
         } else if ("blocked".equalsIgnoreCase(this.status)) {
@@ -133,8 +164,40 @@ public class User {
         this.status = status;
         if ("blocked".equalsIgnoreCase(status)) {
             this.isBlocked = true;
+            this.is_blocked = 1;
         } else if ("active".equalsIgnoreCase(status)) {
             this.isBlocked = false;
+            this.is_blocked = 0;
+        }
+    }
+
+    public String getKycStatus() {
+        if (kycStatus != null && !kycStatus.isBlank()) return kycStatus;
+        return kyc_status;
+    }
+
+    public String getKyc_status() {
+        if (kyc_status != null && !kyc_status.isBlank()) return kyc_status;
+        return kycStatus;
+    }
+
+    public void setKycStatus(String status) {
+        String normalized = "approve".equalsIgnoreCase(status) ? "approved" : status;
+        this.kycStatus = normalized;
+        this.kyc_status = normalized;
+        if ("approved".equalsIgnoreCase(normalized)) {
+            this.is_kyc_verified = 1;
+            this.isKycVerified = true;
+        }
+    }
+
+    public void setKyc_status(String status) {
+        String normalized = "approve".equalsIgnoreCase(status) ? "approved" : status;
+        this.kyc_status = normalized;
+        this.kycStatus = normalized;
+        if ("approved".equalsIgnoreCase(normalized)) {
+            this.is_kyc_verified = 1;
+            this.isKycVerified = true;
         }
     }
 

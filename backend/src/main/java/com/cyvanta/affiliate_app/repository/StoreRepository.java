@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface StoreRepository extends MongoRepository<Store, String> {
     List<Store> findByStatus(String status);
+    List<Store> findAllByOrderByCreatedAtDesc();
 }

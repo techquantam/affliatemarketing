@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
 import SearchBar from './SearchBar';
 import {
   Home,
@@ -50,6 +52,8 @@ import { apiAffiliate } from '../services/api';
 import { openExternalUrl, getStoreUrl, getProductPlatformUrl } from '../utils/openUrl';
 import { getCleanedUrlIdentifier } from '../utils/urlMatcher';
 import { copyToClipboard, getReferralDetails } from '../utils/clipboard';
+import { getFallbackStoreLogo } from '../utils/storeLogoHelper';
+import { getUnifiedKycStatus, isKycApproved, isKycPending, isKycRejected } from './KycPage';
 
 const STORES_INFO = [
   { platform: 'Amazon', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg', cashbackPercent: 10.0 },
@@ -155,7 +159,13 @@ export default function MobileApp({
 }) {
   const sanitizedStores = React.useMemo(() => {
     return (storesData || [])
-      .filter(s => s.status === 'active' || s.status === 'ACTIVE' || !s.status)
+      .filter(s => {
+        if (!s) return false;
+        if (s.isActive === false || s.is_active === false || s.isActive === 0 || s.is_active === 0) return false;
+        const st = String(s.status || '').toLowerCase().trim();
+        if (st === 'inactive' || st === 'disabled' || st === '0' || st === 'false' || st === 'blocked') return false;
+        return true;
+      })
       .filter(s => !isBlacklistedBrand(s?.name) && !isBlacklistedBrand(s?.description));
   }, [storesData]);
 
@@ -247,11 +257,27 @@ export default function MobileApp({
   const [refreshingMobileProfile, setRefreshingMobileProfile] = useState(false);
 
   const handleManualRefresh = async () => {
+    setRefreshingMobileProfile(true);
+    try {
+      const uid = currentUser?.id || currentUser?._id;
+      if (uid) {
+        const freshKyc = await apiUsers.getKycStatus(uid);
+        if (freshKyc && onUpdateUser) {
+          onUpdateUser({
+            ...currentUser,
+            ...freshKyc,
+            kycStatus: freshKyc.status || freshKyc.kycStatus,
+            kyc_status: freshKyc.status || freshKyc.kyc_status,
+            is_verified: freshKyc.is_verified,
+            is_kyc_verified: freshKyc.is_kyc_verified
+          });
+        }
+      }
+    } catch (e) {}
     if (onRefreshProfile) {
-      setRefreshingMobileProfile(true);
       await onRefreshProfile();
-      setTimeout(() => setRefreshingMobileProfile(false), 500);
     }
+    setTimeout(() => setRefreshingMobileProfile(false), 500);
   };
 
   // Selected Order for tracking modal
@@ -566,42 +592,70 @@ export default function MobileApp({
   const handleRequestWithdrawal = async (e) => {
     e.preventDefault();
     if (isGuest) {
+      toast.error('Please Login / Sign Up to request withdrawals.');
       onAddNotification('Please Login / Sign Up to request withdrawals.', 'error');
       openAuthModal();
       return;
     }
     
-    if (user?.kycStatus !== 'approved') {
-      onAddNotification('E-KYC verification is mandatory before making a withdrawal. Please click your initial at the top to go to "Profile & KYC" page.', 'error');
+    if (!isKycApproved(user)) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'KYC Required',
+        text: 'E-KYC verification is mandatory before making a withdrawal. Please go to "Profile & KYC" page.',
+        confirmButtonColor: '#f59e0b'
+      });
+      toast.warn('E-KYC verification is mandatory before withdrawal.');
       return;
     }
 
     const amount = parseFloat(withdrawAmount);
     if (isNaN(amount) || amount <= 0) {
-      onAddNotification('Please enter a valid withdrawal amount.', 'error');
+      toast.error('Please enter a valid withdrawal amount.');
       return;
     }
 
     if (amount < 10) {
-      onAddNotification('Minimum withdrawal amount is ₹10.00', 'error');
+      toast.error('Minimum withdrawal amount is ₹10.00');
       return;
     }
 
     if (amount > user.wallet.confirmed) {
-      onAddNotification('Insufficient confirmed cashback balance.', 'error');
+      Swal.fire({
+        icon: 'error',
+        title: 'Insufficient Balance',
+        text: `You have ₹${user.wallet.confirmed.toFixed(2)} confirmed balance. Cannot withdraw ₹${amount.toFixed(2)}.`,
+        confirmButtonColor: '#ef4444'
+      });
+      toast.error('Insufficient confirmed cashback balance.');
       return;
     }
 
     if (!upiId.trim().includes('@')) {
-      onAddNotification('Please enter a valid UPI ID (e.g. name@bank).', 'error');
+      toast.error('Please enter a valid UPI ID (e.g. name@bank).');
       return;
     }
+
+    // Confirmation dialog before withdrawal
+    const confirmResult = await Swal.fire({
+      title: 'Confirm Withdrawal?',
+      text: `Are you sure you want to withdraw Rs. ${amount.toFixed(2)}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Withdraw',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true
+    });
+
+    if (!confirmResult.isConfirmed) return;
 
     setWithdrawLoading(true);
 
     const newRequest = {
-      userId: user.id,
-      userName: user.name,
+      userId: user.id || user._id,
+      userName: user.name || 'User',
       coins: Math.round(amount * 100), // 100 coins = ₹1
       amount: amount,
       upiId: upiId,
@@ -614,8 +668,28 @@ export default function MobileApp({
       }
       setWithdrawAmount('');
       setUpiId('');
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Withdrawal Successful!',
+        text: `Rs. ${amount} withdrawal request submitted`,
+        confirmButtonColor: '#10b981'
+      });
+      toast.success('Withdrawal Successful');
+
+      if (onAddNotification) {
+        onAddNotification(`Rs. ${amount} withdrawal request submitted successfully!`, 'success');
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Withdrawal error:', err);
+      const errMsg = err?.response?.data?.message || err?.message || 'Withdrawal request failed';
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed',
+        text: errMsg,
+        confirmButtonColor: '#ef4444'
+      });
+      toast.error(errMsg);
     } finally {
       setWithdrawLoading(false);
     }
@@ -814,7 +888,10 @@ export default function MobileApp({
         aadhaarBackUrl: aadhaarBack,
         panCardUrl: panCard,
         selfieUrl: selfie,
-        kycStatus: 'pending'
+        kycStatus: 'pending',
+        kyc_status: 'pending',
+        is_kyc_verified: 0,
+        is_verified: 0
       });
       if (onUpdateUser) {
         onUpdateUser(updatedUser);
@@ -1267,7 +1344,15 @@ export default function MobileApp({
                         <div className="app-stores-list" style={{ gap: '8px' }}>
                           {searchedStores.map(store => (
                             <div key={store.id} className="app-store-row" onClick={() => handleStoreClick(store)} style={{ padding: '8px' }}>
-                              <img src={store.logo} alt={store.name} style={{ width: '36px', height: '36px' }} />
+                              <img 
+                                src={store.logo || getFallbackStoreLogo(store.name)} 
+                                alt={store.name} 
+                                style={{ width: '36px', height: '36px', objectFit: 'contain' }} 
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = getFallbackStoreLogo(store.name);
+                                }}
+                              />
                               <div className="app-store-row-info">
                                 <h4 style={{ fontSize: '12px' }}>{store.name}</h4>
                                 <p style={{ fontSize: '10px' }}>Up to {store.cashbackRate} Cashback</p>
@@ -1399,10 +1484,9 @@ export default function MobileApp({
                       <div style={{ display: 'flex', gap: '12px', overflowX: 'auto', paddingBottom: '6px', scrollbarWidth: 'none' }}>
                         {sanitizedStores
                           .filter(s => selectedCategory === 'all' || s.category === selectedCategory)
-                          .slice(0, 6)
                           .map((store) => (
                             <div 
-                              key={store.id} 
+                              key={store.id || store._id} 
                               onClick={() => handleStoreClick(store)}
                               style={{
                                 flexShrink: 0,
@@ -1423,15 +1507,26 @@ export default function MobileApp({
                               <div style={{
                                 width: '44px',
                                 height: '44px',
+                                minWidth: '44px',
+                                minHeight: '44px',
                                 backgroundColor: '#fff',
                                 border: '1px solid var(--border)',
                                 borderRadius: '8px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                padding: '6px'
+                                padding: '6px',
+                                overflow: 'hidden'
                               }}>
-                                <img src={store.logo} alt={store.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                <img 
+                                  src={store.logo && !store.logo.includes('null') && !store.logo.includes('undefined') ? store.logo : getFallbackStoreLogo(store.name)} 
+                                  alt={store.name || 'Store'} 
+                                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} 
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = getFallbackStoreLogo(store.name);
+                                  }}
+                                />
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%' }}>
                                 <h4 style={{ margin: 0, fontSize: '11px', fontWeight: '800', color: 'var(--text-bold)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1590,8 +1685,15 @@ export default function MobileApp({
               {sanitizedStores
                 .filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
                 .map(store => (
-                  <div key={store.id} className="app-store-row" onClick={() => handleStoreClick(store)}>
-                    <img src={store.logo} alt={store.name} />
+                  <div key={store.id || store._id} className="app-store-row" onClick={() => handleStoreClick(store)}>
+                    <img 
+                      src={store.logo && !store.logo.includes('null') && !store.logo.includes('undefined') ? store.logo : getFallbackStoreLogo(store.name)} 
+                      alt={store.name || 'Store'} 
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = getFallbackStoreLogo(store.name);
+                      }}
+                    />
                     <div className="app-store-row-info">
                       <h4>{store.name}</h4>
                       <p>Up to {store.cashbackRate} Cashback</p>
@@ -1848,19 +1950,34 @@ export default function MobileApp({
             <div style={{
               padding: '12px 14px',
               borderRadius: '8px',
-              background: currentUser?.kycStatus === 'approved' ? 'rgba(16,185,129,0.08)' : currentUser?.kycStatus === 'pending' ? 'rgba(245,158,11,0.08)' : currentUser?.kycStatus === 'rejected' ? 'rgba(239,68,68,0.08)' : 'var(--bg)',
-              border: `1px solid ${currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--border)'}`,
+              background: isKycApproved(currentUser) ? 'rgba(16,185,129,0.08)' : isKycPending(currentUser) ? 'rgba(245,158,11,0.08)' : isKycRejected(currentUser) ? 'rgba(239,68,68,0.08)' : 'var(--bg)',
+              border: `1px solid ${isKycApproved(currentUser) ? '#10b981' : isKycPending(currentUser) ? '#f59e0b' : isKycRejected(currentUser) ? '#ef4444' : 'var(--border)'}`,
               fontSize: '12px',
               color: 'var(--text)',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShieldCheck size={16} style={{ color: currentUser?.kycStatus === 'approved' ? '#10b981' : currentUser?.kycStatus === 'pending' ? '#f59e0b' : currentUser?.kycStatus === 'rejected' ? '#ef4444' : 'var(--text)' }} />
-                  <strong style={{ color: 'var(--text-bold)' }}>
-                    KYC Status: {currentUser?.kycStatus ? currentUser.kycStatus.toUpperCase().replace('_', ' ') : 'NOT SUBMITTED'}
+                  <ShieldCheck size={16} style={{ color: isKycApproved(currentUser) ? '#10b981' : isKycPending(currentUser) ? '#f59e0b' : isKycRejected(currentUser) ? '#ef4444' : 'var(--text)' }} />
+                  <strong style={{ color: 'var(--text-bold)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    KYC Status: {getUnifiedKycStatus(currentUser).toUpperCase().replace('_', ' ')}
+                    {isKycApproved(currentUser) && (
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        backgroundColor: '#10b981',
+                        color: '#fff',
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        padding: '1px 6px',
+                        borderRadius: '999px'
+                      }}>
+                        <Check size={10} strokeWidth={3} /> Approved
+                      </span>
+                    )}
                   </strong>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1868,44 +1985,42 @@ export default function MobileApp({
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }}></span>
                     Live
                   </span>
-                  {onRefreshProfile && (
-                    <button
-                      type="button"
-                      onClick={handleManualRefresh}
-                      disabled={refreshingMobileProfile}
-                      title="Sync verification status live"
-                      style={{
-                        background: 'none',
-                        border: '1px solid var(--border)',
-                        borderRadius: '4px',
-                        padding: '2px 6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '3px',
-                        fontSize: '10px',
-                        color: 'var(--text-bold)'
-                      }}
-                    >
-                      <RotateCw size={10} className={refreshingMobileProfile ? 'animate-spin' : ''} />
-                      Sync
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleManualRefresh}
+                    disabled={refreshingMobileProfile}
+                    title="Sync verification status live"
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border)',
+                      borderRadius: '4px',
+                      padding: '2px 6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontSize: '10px',
+                      color: 'var(--text-bold)'
+                    }}
+                  >
+                    <RotateCw size={10} className={refreshingMobileProfile ? 'animate-spin' : ''} />
+                    Sync
+                  </button>
                 </div>
               </div>
               <span>
-                {currentUser?.kycStatus === 'approved' 
+                {isKycApproved(currentUser) 
                   ? 'Your E-KYC is approved! You can request payouts.'
-                  : currentUser?.kycStatus === 'pending'
+                  : isKycPending(currentUser)
                   ? 'KYC is pending admin review.'
-                  : currentUser?.kycStatus === 'rejected'
-                  ? `Rejected: ${currentUser?.kycRemarks || 'Invalid files'}`
+                  : isKycRejected(currentUser)
+                  ? `Rejected: ${currentUser?.admin_remark || currentUser?.kycRemarks || 'Invalid files'}`
                   : 'Complete profile & upload docs to request payouts.'}
               </span>
             </div>
 
             {/* Personal Details Form */}
-            {currentUser?.kycStatus !== 'approved' ? (
+            {!isKycApproved(currentUser) ? (
               <form onSubmit={handleSaveProfile} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>Personal Details</h4>
                 
@@ -1959,10 +2074,10 @@ export default function MobileApp({
             )}
 
             {/* E-KYC Upload Form */}
-            {currentUser?.kycStatus !== 'approved' ? (
+            {!isKycApproved(currentUser) ? (
               <form onSubmit={handleSubmitKyc} className="app-withdrawal-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <h4 style={{ margin: '0 0 6px', fontSize: '13px', borderBottom: '1px solid var(--border)', paddingBottom: '6px', color: 'var(--text-bold)' }}>
-                  Identity Documents {currentUser?.kycStatus === 'pending' ? '(Pending Review)' : ''}
+                  Identity Documents {isKycPending(currentUser) ? '(Pending Review)' : ''}
                 </h4>
 
                 <div className="app-input-group">
@@ -2010,7 +2125,7 @@ export default function MobileApp({
                 </div>
 
                 <button type="submit" disabled={isSubmittingKyc} className="app-withdraw-submit-btn" style={{ padding: '10px', fontSize: '12px', marginTop: '6px' }}>
-                  {isSubmittingKyc ? 'Submitting...' : currentUser?.kycStatus === 'pending' ? 'Update & Re-Submit KYC' : 'Submit E-KYC'}
+                  {isSubmittingKyc ? 'Submitting...' : isKycPending(currentUser) ? 'Update & Re-Submit KYC' : 'Submit E-KYC'}
                 </button>
               </form>
             ) : (

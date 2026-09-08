@@ -1,0 +1,1151 @@
+[
+  {
+    "num": 1,
+    "title": "ABOUT LIO MART",
+    "id": "section-1",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart is an Affiliate Shopping, Cashback, Rewards and Referral platform that may provide users with access to products, offers, affiliate links, cashback opportunities, referral programs, wallet services and related digital services."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may work with third-party merchants, affiliate networks, payment service providers, technology providers, analytics providers and other service providers to operate its platform."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart does not necessarily sell or directly provide the products or services offered by third-party merchants. Purchases may be completed on third-party websites or applications."
+      }
+    ],
+    "icon": "Info"
+  },
+  {
+    "num": 2,
+    "title": "SCOPE OF THIS PRIVACY POLICY",
+    "id": "section-2",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "This Privacy Policy applies to information collected through:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Lio Mart website",
+          "Lio Mart mobile or web application",
+          "User registration and login systems",
+          "Affiliate shopping activities",
+          "Cashback and rewards services",
+          "Referral programs",
+          "Wallet and withdrawal services",
+          "Customer support and ticket systems",
+          "Promotional campaigns",
+          "Communication with Lio Mart",
+          "Other services or digital features operated by Lio Mart"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "This Policy may not apply to third-party websites, applications, merchants, banks, payment providers or affiliate platforms that are outside Lio Mart's control."
+      }
+    ],
+    "icon": "Layers"
+  },
+  {
+    "num": 3,
+    "title": "INFORMATION WE COLLECT",
+    "id": "section-3",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Depending upon the services used by you, Lio Mart may collect the following categories of information."
+      },
+      {
+        "type": "subheading",
+        "text": "Personal Information"
+      },
+      {
+        "type": "paragraph",
+        "text": "This may include:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Full name",
+          "Mobile number",
+          "Email address",
+          "Date of birth, where required for a legitimate service or verification purpose",
+          "Address or other contact details, where required",
+          "Account login information",
+          "Profile information"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Payment and Withdrawal Information"
+      },
+      {
+        "type": "paragraph",
+        "text": "Where applicable, Lio Mart may collect:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "UPI ID",
+          "Bank account details",
+          "Account holder name",
+          "IFSC code",
+          "Bank name",
+          "Transaction and withdrawal details",
+          "Payment status and related records"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Payment information may be collected for processing eligible withdrawals, cashback payments, refunds or other transactions."
+      },
+      {
+        "type": "subheading",
+        "text": "KYC and Verification Information"
+      },
+      {
+        "type": "paragraph",
+        "text": "Where KYC or identity verification is required, Lio Mart may collect information such as:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "PAN information",
+          "Aadhaar-related information, where legally permitted and required",
+          "Identity verification information",
+          "Selfie or photograph submitted for verification",
+          "KYC verification status",
+          "Other information reasonably required for fraud prevention, account verification or legal compliance"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart will seek to process such information only for legitimate and disclosed purposes and subject to applicable law."
+      },
+      {
+        "type": "subheading",
+        "text": "Technical Information"
+      },
+      {
+        "type": "paragraph",
+        "text": "When you use our website or application, we may automatically collect:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "IP address",
+          "Device information",
+          "Browser type",
+          "Operating system",
+          "Device identifiers, where applicable",
+          "Login history",
+          "Date and time of access",
+          "Pages or screens visited",
+          "Application usage information",
+          "Referral source",
+          "Cookies and similar technologies",
+          "Security and diagnostic information"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Transaction and Activity Information"
+      },
+      {
+        "type": "paragraph",
+        "text": "We may collect:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Affiliate clicks",
+          "Product or offer interactions",
+          "Orders and transaction information",
+          "Cashback records",
+          "Wallet transactions",
+          "Referral activity",
+          "Commission-related records",
+          "Withdrawal requests",
+          "Account activity",
+          "Fraud or risk-related signals"
+        ]
+      }
+    ],
+    "icon": "Database"
+  },
+  {
+    "num": 4,
+    "title": "HOW WE COLLECT INFORMATION",
+    "id": "section-4",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Information may be collected when you:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Create an account",
+          "Log in to your account",
+          "Complete your profile",
+          "Click an affiliate link",
+          "Visit or interact with product or offer pages",
+          "Make or initiate an eligible purchase",
+          "Participate in cashback programs",
+          "Participate in referral programs",
+          "Request a wallet withdrawal",
+          "Complete KYC verification",
+          "Contact customer support",
+          "Submit a ticket",
+          "Participate in campaigns or promotions",
+          "Use our website or application"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Certain technical information may also be collected automatically through cookies, logs, analytics and similar technologies."
+      }
+    ],
+    "icon": "Activity"
+  },
+  {
+    "num": 5,
+    "title": "PURPOSES FOR WHICH WE USE YOUR INFORMATION",
+    "id": "section-5",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may use collected information for the following purposes:"
+      },
+      {
+        "type": "subheading",
+        "text": "Account Management"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Creating and maintaining your account",
+          "Authentication and login",
+          "Profile management",
+          "Account security",
+          "Providing requested services"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Affiliate Tracking"
+      },
+      {
+        "type": "paragraph",
+        "text": "Information may be used to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Track affiliate clicks",
+          "Identify eligible transactions",
+          "Attribute transactions to the appropriate user or campaign",
+          "Verify affiliate activity",
+          "Calculate eligible cashback or rewards"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Cashback and Rewards"
+      },
+      {
+        "type": "paragraph",
+        "text": "Information may be used for:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Cashback calculation",
+          "Cashback tracking",
+          "Cashback confirmation",
+          "Rewards processing",
+          "Wallet crediting",
+          "Transaction reconciliation"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Referral Program"
+      },
+      {
+        "type": "paragraph",
+        "text": "Information may be used to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Identify referring users",
+          "Track referrals",
+          "Calculate eligible referral rewards",
+          "Prevent referral abuse",
+          "Maintain referral records"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Wallet and Withdrawals"
+      },
+      {
+        "type": "paragraph",
+        "text": "Information may be used to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Maintain wallet records",
+          "Process withdrawal requests",
+          "Verify payment details",
+          "Verify KYC status",
+          "Detect suspicious transactions",
+          "Maintain transaction records"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Fraud Prevention and Security"
+      },
+      {
+        "type": "paragraph",
+        "text": "Information may be used to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Detect fraudulent activity",
+          "Prevent abuse of cashback or referral programs",
+          "Detect duplicate or suspicious accounts",
+          "Protect the platform",
+          "Investigate unauthorized activity",
+          "Maintain system security"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "The Terms & Conditions similarly provide for fraud detection, user verification, cashback processing, customer support and legal compliance as purposes for using user information."
+      },
+      {
+        "type": "subheading",
+        "text": "Customer Support"
+      },
+      {
+        "type": "paragraph",
+        "text": "Information may be used to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Respond to enquiries",
+          "Resolve complaints",
+          "Process support tickets",
+          "Investigate transaction-related issues",
+          "Communicate with users"
+        ]
+      },
+      {
+        "type": "subheading",
+        "text": "Legal and Regulatory Compliance"
+      },
+      {
+        "type": "paragraph",
+        "text": "Information may be processed where reasonably necessary to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Comply with applicable laws",
+          "Respond to lawful requests",
+          "Prevent unlawful activities",
+          "Maintain required records",
+          "Protect legal rights and interests"
+        ]
+      }
+    ],
+    "icon": "CheckCircle"
+  },
+  {
+    "num": 6,
+    "title": "AFFILIATE AND THIRD-PARTY TRACKING",
+    "id": "section-6",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may use affiliate tracking technologies, tracking parameters, cookies, pixels or similar technologies to determine whether a user has interacted with an affiliate link and whether an eligible transaction occurred."
+      },
+      {
+        "type": "paragraph",
+        "text": "When you click an affiliate link, you may be redirected to a third-party merchant or affiliate network."
+      },
+      {
+        "type": "paragraph",
+        "text": "Such third parties may independently collect information according to their own privacy policies and terms."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart does not control the privacy practices of third-party merchants or affiliate networks."
+      },
+      {
+        "type": "subheading",
+        "text": "Product Price and Merchant Information"
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may collect, receive, store, display, and process product information obtained from Merchants, Affiliate Partners, affiliate networks, APIs, feeds, or other authorized sources. Such information may include product name, product description, product image, price, discount, availability, seller information, and related product details."
+      },
+      {
+        "type": "paragraph",
+        "text": "The product price and related information displayed on Lio Mart may represent the information available from the relevant Merchant or Affiliate Partner at the time such information was received or last updated. Since Merchant prices and product information may change from time to time, the information displayed on Lio Mart may not always represent the Merchant’s current or real-time price."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may process such information for product listing, price comparison, affiliate tracking, cashback calculation, user experience, analytics, and related Platform operations. The collection or display of product price information does not constitute a guarantee by Lio Mart that such price will remain unchanged or will be available at the Merchant’s website or application at the time of purchase."
+      },
+      {
+        "type": "paragraph",
+        "text": "Users should verify the current price and other applicable charges directly on the respective Merchant’s website or application before completing a purchase."
+      }
+    ],
+    "icon": "ExternalLink"
+  },
+  {
+    "num": 7,
+    "title": "COOKIES AND SIMILAR TECHNOLOGIES",
+    "id": "section-7",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may use cookies and similar technologies for:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Maintaining login sessions",
+          "Affiliate tracking",
+          "Cashback tracking",
+          "Security",
+          "Analytics",
+          "Performance monitoring",
+          "Personalised user experience"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Cookies may also help us understand how users interact with our platform."
+      },
+      {
+        "type": "paragraph",
+        "text": "Disabling certain cookies may affect the functionality of some Lio Mart services. This is consistent with the existing Lio Mart Terms, which identify login sessions, affiliate tracking, cashback tracking, security, analytics and performance monitoring as cookie-related purposes."
+      }
+    ],
+    "icon": "Cookie"
+  },
+  {
+    "num": 8,
+    "title": "INFORMATION SHARING WITH THIRD PARTIES",
+    "id": "section-8",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may share limited information with third parties where reasonably necessary to operate the platform, including:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Affiliate networks",
+          "Merchants and e-commerce platforms",
+          "Payment processors",
+          "Banking or payment service providers",
+          "KYC or verification service providers",
+          "Hosting and cloud service providers",
+          "Analytics and technology providers",
+          "Customer support providers",
+          "Security and fraud-prevention providers",
+          "Professional advisers",
+          "Government authorities or law-enforcement agencies where legally required"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart does not intend to sell users' personal information as a commercial product."
+      },
+      {
+        "type": "paragraph",
+        "text": "Where third-party services are used, information shared will depend upon the particular service and its operational requirements."
+      }
+    ],
+    "icon": "Share2"
+  },
+  {
+    "num": 9,
+    "title": "PAYMENT AND BANKING INFORMATION",
+    "id": "section-9",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Where you request a withdrawal or other payment-related service, Lio Mart may require payment information such as UPI ID or bank account details."
+      },
+      {
+        "type": "paragraph",
+        "text": "Users are responsible for ensuring that the payment information submitted to Lio Mart is accurate and belongs to them or is otherwise lawfully authorised for use."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart is not responsible for losses caused by incorrect payment information submitted by a user."
+      }
+    ],
+    "icon": "CreditCard"
+  },
+  {
+    "num": 10,
+    "title": "KYC AND IDENTITY VERIFICATION",
+    "id": "section-10",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may require KYC or identity verification before allowing certain services, including withdrawals or higher-value transactions."
+      },
+      {
+        "type": "paragraph",
+        "text": "Where required, users may be asked to provide appropriate verification information."
+      },
+      {
+        "type": "paragraph",
+        "text": "KYC information may be used for:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Identity verification",
+          "Fraud prevention",
+          "Account security",
+          "Withdrawal verification",
+          "Compliance requirements",
+          "Investigation of suspicious activity"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart will take reasonable measures to restrict access to KYC information to authorised personnel or service providers who require it for legitimate purposes."
+      }
+    ],
+    "icon": "UserCheck"
+  },
+  {
+    "num": 11,
+    "title": "WALLET AND TRANSACTION DATA",
+    "id": "section-11",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may maintain records relating to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Cashback credits",
+          "Rewards",
+          "Referral earnings",
+          "Wallet balance",
+          "Pending amounts",
+          "Confirmed amounts",
+          "Withdrawals",
+          "Reversals",
+          "Adjustments",
+          "Transaction history"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "These records may be retained for accounting, reconciliation, customer support, fraud prevention, dispute resolution and legal or regulatory purposes."
+      }
+    ],
+    "icon": "Wallet"
+  },
+  {
+    "num": 12,
+    "title": "DATA SECURITY",
+    "id": "section-12",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart takes reasonable technical and organisational measures intended to protect personal information against:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Unauthorised access",
+          "Unauthorised disclosure",
+          "Loss",
+          "Misuse",
+          "Alteration",
+          "Destruction",
+          "Security breaches"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "However, no internet-based service can guarantee absolute security."
+      },
+      {
+        "type": "paragraph",
+        "text": "Users should also maintain the confidentiality of their login credentials, OTPs and account information and should immediately notify Lio Mart if they suspect unauthorised access."
+      }
+    ],
+    "icon": "ShieldCheck"
+  },
+  {
+    "num": 13,
+    "title": "DATA RETENTION",
+    "id": "section-13",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may retain personal information for as long as reasonably necessary for:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Providing services",
+          "Maintaining user accounts",
+          "Processing transactions",
+          "Cashback and wallet reconciliation",
+          "Fraud prevention",
+          "Customer support",
+          "Resolving disputes",
+          "Meeting legal or regulatory obligations",
+          "Protecting legal rights"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "When information is no longer reasonably required, Lio Mart may delete, anonymise or securely dispose of it, subject to applicable legal and operational requirements."
+      }
+    ],
+    "icon": "Clock"
+  },
+  {
+    "num": 14,
+    "title": "USER RIGHTS AND CHOICES",
+    "id": "section-14",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Subject to applicable law and reasonable verification requirements, users may have rights relating to their personal information, including the ability to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Request access to certain personal information",
+          "Request correction of inaccurate information",
+          "Update account information",
+          "Request deletion where legally permissible",
+          "Withdraw certain permissions or consents where applicable",
+          "Raise privacy-related concerns or complaints"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Certain information may need to be retained where required for legal, security, fraud-prevention, accounting or transaction-related purposes."
+      }
+    ],
+    "icon": "Sliders"
+  },
+  {
+    "num": 15,
+    "title": "ACCOUNT INFORMATION AND PROFILE",
+    "id": "section-15",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Users should ensure that their account information remains accurate and updated."
+      },
+      {
+        "type": "paragraph",
+        "text": "Where Lio Mart provides profile-editing functionality, users may update eligible information through their account."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may restrict changes to certain information where verification is required for security, KYC, payment or fraud-prevention reasons."
+      }
+    ],
+    "icon": "User"
+  },
+  {
+    "num": 16,
+    "title": "COMMUNICATIONS",
+    "id": "section-16",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may communicate with users through:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Email",
+          "SMS",
+          "Phone",
+          "Push notifications",
+          "In-app notifications",
+          "WhatsApp or other communication channels, where applicable"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Communications may relate to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Account activity",
+          "Transactions",
+          "Cashback",
+          "Withdrawals",
+          "Security alerts",
+          "Customer support",
+          "Service updates",
+          "Important policy changes"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Where legally required, appropriate consent or opt-out mechanisms may be provided for promotional communications."
+      }
+    ],
+    "icon": "Mail"
+  },
+  {
+    "num": 17,
+    "title": "MARKETING AND PROMOTIONAL COMMUNICATIONS",
+    "id": "section-17",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may send promotional communications regarding:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Products",
+          "Offers",
+          "Cashback opportunities",
+          "Rewards",
+          "Referral campaigns",
+          "New features",
+          "Special promotions"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Users may be provided with options to opt out of certain promotional communications."
+      },
+      {
+        "type": "paragraph",
+        "text": "Transactional, security or legally required communications may continue even where promotional communications have been disabled."
+      }
+    ],
+    "icon": "Bell"
+  },
+  {
+    "num": 18,
+    "title": "CHILDREN'S PRIVACY",
+    "id": "section-18",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart services are not intended to be used in violation of applicable age or child-protection laws."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart does not knowingly seek to collect unnecessary personal information from children."
+      },
+      {
+        "type": "paragraph",
+        "text": "If we become aware that personal information has been collected from a child in circumstances where such collection is not permitted, we may take appropriate steps to delete or restrict such information, subject to applicable law."
+      }
+    ],
+    "icon": "AlertCircle"
+  },
+  {
+    "num": 19,
+    "title": "THIRD-PARTY WEBSITES AND SERVICES",
+    "id": "section-19",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may contain links to third-party websites, applications, merchants and services."
+      },
+      {
+        "type": "paragraph",
+        "text": "Examples may include e-commerce platforms, affiliate networks, payment providers and other service providers."
+      },
+      {
+        "type": "paragraph",
+        "text": "Once you leave Lio Mart and access a third-party service, that third party's privacy policy and terms may apply."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart is not responsible for the privacy practices, security, content or policies of third-party services."
+      }
+    ],
+    "icon": "Link2"
+  },
+  {
+    "num": 20,
+    "title": "DATA SHARING FOR FRAUD PREVENTION",
+    "id": "section-20",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "To protect the platform and its users, Lio Mart may analyse account, device, transaction, referral and activity information for fraud or abuse detection."
+      },
+      {
+        "type": "paragraph",
+        "text": "Where reasonably necessary, relevant information may be shared with service providers, payment partners, affiliate partners or competent authorities for investigating suspected fraud, abuse or unlawful activity."
+      }
+    ],
+    "icon": "ShieldAlert"
+  },
+  {
+    "num": 21,
+    "title": "INTERNATIONAL DATA PROCESSING",
+    "id": "section-21",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Some technology, hosting, analytics, affiliate or service providers used by Lio Mart may process information in locations outside the user's state or country."
+      },
+      {
+        "type": "paragraph",
+        "text": "Where applicable, Lio Mart will seek to use reasonable safeguards and comply with applicable legal requirements relating to such processing."
+      }
+    ],
+    "icon": "Globe"
+  },
+  {
+    "num": 22,
+    "title": "DATA BREACH AND SECURITY INCIDENTS",
+    "id": "section-22",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "If Lio Mart becomes aware of a security incident involving personal information, it may take reasonable steps to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Investigate the incident",
+          "Contain and mitigate its impact",
+          "Secure affected systems",
+          "Take corrective measures",
+          "Notify affected users or authorities where required by applicable law"
+        ]
+      }
+    ],
+    "icon": "AlertTriangle"
+  },
+  {
+    "num": 23,
+    "title": "CHANGES TO PERSONAL INFORMATION",
+    "id": "section-23",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Users should promptly notify Lio Mart or update their account if their personal information changes."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may require additional verification before changing sensitive information such as payment details, identity information or KYC information."
+      }
+    ],
+    "icon": "Edit3"
+  },
+  {
+    "num": 24,
+    "title": "ACCOUNT DELETION",
+    "id": "section-24",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Users may request closure or deletion of their Lio Mart account, subject to applicable procedures."
+      },
+      {
+        "type": "paragraph",
+        "text": "Account deletion may not immediately result in deletion of all information where Lio Mart is required to retain certain records for:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Legal compliance",
+          "Fraud prevention",
+          "Financial or transaction records",
+          "Dispute resolution",
+          "Security",
+          "Regulatory requirements"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "After the applicable retention period, information may be deleted, anonymised or securely disposed of."
+      }
+    ],
+    "icon": "Trash2"
+  },
+  {
+    "num": 25,
+    "title": "GRIEVANCE REDRESSAL",
+    "id": "section-25",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "If you have any privacy-related question, concern, complaint or request, you may contact Lio Mart using the contact details below."
+      },
+      {
+        "type": "subheading",
+        "text": "Grievance Officer / Privacy Contact:"
+      },
+      {
+        "type": "paragraph",
+        "text": "Name: [Name]"
+      },
+      {
+        "type": "paragraph",
+        "text": "Email: [support@liomart.co.in](mailto:support@liomart.co.in)"
+      },
+      {
+        "type": "paragraph",
+        "text": "Phone: [Phone Number]"
+      },
+      {
+        "type": "paragraph",
+        "text": "Address: [Registered Business Address]"
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart will endeavour to review and respond to legitimate privacy-related requests within a reasonable period and in accordance with applicable law."
+      }
+    ],
+    "icon": "HelpCircle"
+  },
+  {
+    "num": 26,
+    "title": "LEGAL BASIS FOR PROCESSING",
+    "id": "section-26",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Depending on the circumstances and applicable law, Lio Mart may process personal information based on:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "User consent",
+          "Performance of requested services",
+          "Legitimate operational purposes",
+          "Fraud prevention and security",
+          "Legal or regulatory obligations",
+          "Protection of rights and interests",
+          "Other lawful grounds available under applicable law"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Where consent is required, Lio Mart may provide an appropriate consent mechanism."
+      }
+    ],
+    "icon": "Scale"
+  },
+  {
+    "num": 27,
+    "title": "PRIVACY OF LOGIN CREDENTIALS",
+    "id": "section-27",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Users are responsible for keeping their:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Passwords",
+          "OTPs",
+          "Authentication information",
+          "Account access details",
+          "confidential"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart will not normally ask users to disclose passwords or OTPs through unofficial channels."
+      },
+      {
+        "type": "paragraph",
+        "text": "If you believe your account has been compromised, you should contact Lio Mart promptly."
+      }
+    ],
+    "icon": "Key"
+  },
+  {
+    "num": 28,
+    "title": "DATA OF BUSINESS PARTNERS AND AFFILIATE PARTNERS",
+    "id": "section-28",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Where Lio Mart works with merchants, affiliate networks, advertisers, technology providers or other business partners, certain business and transaction information may be exchanged as reasonably necessary to:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "Track referrals",
+          "Validate transactions",
+          "Reconcile commissions",
+          "Process cashback",
+          "Prevent fraud",
+          "Operate campaigns",
+          "Resolve transaction disputes"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "Such partners may independently process information under their own policies."
+      }
+    ],
+    "icon": "Briefcase"
+  },
+  {
+    "num": 29,
+    "title": "PRIVACY POLICY UPDATES",
+    "id": "section-29",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "Lio Mart may modify or update this Privacy Policy from time to time."
+      },
+      {
+        "type": "paragraph",
+        "text": "Changes may be made because of:"
+      },
+      {
+        "type": "list",
+        "items": [
+          "New services or features",
+          "Changes in technology",
+          "Changes in business operations",
+          "Security requirements",
+          "Changes in applicable laws or regulations"
+        ]
+      },
+      {
+        "type": "paragraph",
+        "text": "The updated version will be published on the Lio Mart website or application."
+      },
+      {
+        "type": "paragraph",
+        "text": "The “Last Updated” date at the beginning of this Policy indicates when it was most recently revised."
+      }
+    ],
+    "icon": "RefreshCw"
+  },
+  {
+    "num": 30,
+    "title": "SEVERABILITY",
+    "id": "section-30",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "If any provision of this Privacy Policy is determined to be invalid, unlawful or unenforceable, the remaining provisions shall continue to remain effective to the extent permitted by applicable law."
+      }
+    ],
+    "icon": "FileCheck"
+  },
+  {
+    "num": 31,
+    "title": "GOVERNING LAW",
+    "id": "section-31",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "This Privacy Policy shall be interpreted in accordance with the applicable laws of India, subject to the applicable jurisdiction and legal requirements."
+      },
+      {
+        "type": "paragraph",
+        "text": "Nothing in this Privacy Policy is intended to limit any mandatory rights available to users under applicable law."
+      }
+    ],
+    "icon": "FileText"
+  },
+  {
+    "num": 32,
+    "title": "CONTACT INFORMATION",
+    "id": "section-32",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "For privacy questions, data requests, complaints or concerns, please contact:"
+      },
+      {
+        "type": "subheading",
+        "text": "LIO MART"
+      },
+      {
+        "type": "paragraph",
+        "text": "Website: [https://liomart.co.in](https://liomart.co.in/)"
+      },
+      {
+        "type": "paragraph",
+        "text": "Email: [support@liomart.co.in](mailto:support@liomart.co.in)"
+      },
+      {
+        "type": "paragraph",
+        "text": "Privacy / Grievance Contact: [Name]"
+      },
+      {
+        "type": "paragraph",
+        "text": "Phone: [Phone Number]"
+      },
+      {
+        "type": "paragraph",
+        "text": "Registered Address: [Complete Business / Registered Address]"
+      }
+    ],
+    "icon": "PhoneCall"
+  },
+  {
+    "num": 33,
+    "title": "ACCEPTANCE OF THIS PRIVACY POLICY",
+    "id": "section-33",
+    "blocks": [
+      {
+        "type": "paragraph",
+        "text": "By accessing, registering with, or using Lio Mart, you acknowledge that you have read and understood this Privacy Policy."
+      },
+      {
+        "type": "paragraph",
+        "text": "Where applicable law requires a specific form of consent, Lio Mart will seek such consent through an appropriate mechanism."
+      },
+      {
+        "type": "paragraph",
+        "text": "If you do not agree with this Privacy Policy, you should discontinue use of the relevant Lio Mart services."
+      },
+      {
+        "type": "paragraph",
+        "text": "Lio Mart – Affiliate Shopping • Cashback • Rewards • Referral"
+      },
+      {
+        "type": "paragraph",
+        "text": "© Lio Mart. All Rights Reserved."
+      }
+    ],
+    "icon": "CheckCircle2"
+  }
+]
