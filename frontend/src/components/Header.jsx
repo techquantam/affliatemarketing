@@ -320,9 +320,17 @@ export default function Header({
             How it Works
           </a>
           <button
+            type="button"
             className={`nav-link ${currentView === 'admin-login' || currentView === 'admin-panel' ? 'active' : ''}`}
-            onClick={() => setView('admin-login')}
-            style={{ fontWeight: '700', color: 'var(--primary)' }}
+            onClick={(e) => {
+              e.preventDefault();
+              const hasAdmin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('admin_session') === 'active') ||
+                (typeof localStorage !== 'undefined' && (Boolean(localStorage.getItem('admin_session')) || localStorage.getItem('is_admin') === 'true'));
+              if (typeof setView === 'function') {
+                setView(hasAdmin ? 'admin-panel' : 'admin-login');
+              }
+            }}
+            style={{ fontWeight: '700', color: 'var(--primary)', cursor: 'pointer', touchAction: 'manipulation' }}
           >
             Admin Panel
           </button>

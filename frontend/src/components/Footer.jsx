@@ -37,7 +37,19 @@ export default function Footer({ setView }) {
             <ul className="footer-links-list">
               <li><a href="#how-it-works" onClick={(e) => { e.preventDefault(); if (setView) setView('home'); setTimeout(() => { const el = document.getElementById('how-it-works') || document.querySelector('.how-it-works-section'); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 100); }}>How it Works</a></li>
               <li><a href="#" onClick={(e) => { e.preventDefault(); if (setView) setView('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>About LIO MART</a></li>
-              <li><a href="#" onClick={(e) => { e.preventDefault(); setView('admin-login'); }}>Admin Portal</a></li>
+              <li>
+                <a 
+                  href="#admin" 
+                  onClick={(e) => { 
+                    e.preventDefault(); 
+                    const hasAdmin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('admin_session') === 'active') ||
+                      (typeof localStorage !== 'undefined' && (Boolean(localStorage.getItem('admin_session')) || localStorage.getItem('is_admin') === 'true'));
+                    if (typeof setView === 'function') setView(hasAdmin ? 'admin-panel' : 'admin-login'); 
+                  }}
+                >
+                  Admin Portal
+                </a>
+              </li>
               <li><a href="#/terms-and-conditions" onClick={(e) => { e.preventDefault(); if (setView) setView('terms-and-conditions'); else window.location.hash = '#/terms-and-conditions'; }}>Terms & Conditions</a></li>
               <li><a href="#/privacy-policy" onClick={(e) => { e.preventDefault(); if (setView) setView('privacy-policy'); else window.location.hash = '#/privacy-policy'; }}>Privacy Policy</a></li>
             </ul>

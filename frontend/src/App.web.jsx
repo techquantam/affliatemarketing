@@ -662,10 +662,23 @@ export default function App() {
     }
   }, []);
 
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
-    const session = sessionStorage.getItem('admin_session');
-    return session === 'active';
-  });
+  const checkIsAdmin = () => {
+    try {
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('admin_session') === 'active') return true;
+      if (typeof localStorage !== 'undefined') {
+        if (localStorage.getItem('admin_session')) return true;
+        if (localStorage.getItem('is_admin') === 'true') return true;
+        const user = localStorage.getItem('user_session');
+        if (user) {
+          const parsed = JSON.parse(user);
+          if (parsed?.role === 'admin' || parsed?.role === 'super_admin' || parsed?.isAdmin) return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  };
+
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(checkIsAdmin);
 
   const [currentUser, setCurrentUser] = useState(() => {
     const storedUser = localStorage.getItem('user_session');
@@ -688,10 +701,10 @@ export default function App() {
     }
 
     if (hash === '#/admin/login' || path === '/admin/login') {
-      return 'admin-login';
+      return checkIsAdmin() ? 'admin-panel' : 'admin-login';
     }
     if (hash.startsWith('#/admin') || path.startsWith('/admin')) {
-      return sessionStorage.getItem('admin_session') === 'active' ? 'admin-panel' : 'admin-login';
+      return checkIsAdmin() ? 'admin-panel' : 'admin-login';
     }
     if (hash === '#/dashboard' || path === '/dashboard') {
       const hasSession = typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_session'));
@@ -1199,20 +1212,26 @@ export default function App() {
   // Sync routes when logged in
   useEffect(() => {
     const path = window.location.pathname;
-    if (path.startsWith('/admin')) {
-      if (isAdminLoggedIn) {
+    const hash = window.location.hash;
+    if (path.startsWith('/admin') || hash.startsWith('#/admin')) {
+      const hasAdmin = isAdminLoggedIn || checkIsAdmin();
+      if (hasAdmin) {
         setViewRaw('admin-panel');
         if (path === '/admin/login' || path === '/admin') {
-          window.history.pushState(null, '', '/admin/dashboard');
+          try {
+            window.history.replaceState(null, '', '/admin/dashboard');
+          } catch (e) {}
         }
       } else {
         setViewRaw('admin-login');
         if (path !== '/admin/login') {
-          window.history.pushState(null, '', '/admin/login');
+          try {
+            window.history.replaceState(null, '', '/admin/login');
+          } catch (e) {}
         }
       }
     }
-  }, [isAdminLoggedIn]);
+  }, [isAdminLoggedIn, currentView]);
 
   // Sync navigation popstate and hashchange
   useEffect(() => {
@@ -1228,6 +1247,12 @@ export default function App() {
   }, [isAdminLoggedIn]);
 
   const setView = (viewName) => {
+    if (viewName === 'admin-login') {
+      const hasAdmin = isAdminLoggedIn || checkIsAdmin();
+      if (hasAdmin) {
+        viewName = 'admin-panel';
+      }
+    }
     setViewRaw(viewName);
     
     let newPath = '/';
@@ -2060,6 +2085,8 @@ export default function App() {
         <AdminLogin
           onLoginSuccess={(adminUser) => {
             sessionStorage.setItem('admin_session', 'active');
+            localStorage.setItem('admin_session', JSON.stringify(adminUser));
+            localStorage.setItem('is_admin', 'true');
             localStorage.setItem('user_session', JSON.stringify(adminUser));
             setCurrentUser(adminUser);
             setIsAdminLoggedIn(true);

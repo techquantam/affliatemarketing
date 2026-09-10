@@ -947,7 +947,13 @@ export default function MobileApp({
           {/* Admin Panel Button */}
           {setView && (
             <button
-              onClick={() => setView('admin-login')}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                const hasAdmin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('admin_session') === 'active') ||
+                  (typeof localStorage !== 'undefined' && (Boolean(localStorage.getItem('admin_session')) || localStorage.getItem('is_admin') === 'true'));
+                setView(hasAdmin ? 'admin-panel' : 'admin-login');
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -961,7 +967,8 @@ export default function MobileApp({
                 fontWeight: '700',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                touchAction: 'manipulation'
               }}
               title="Admin Panel"
             >

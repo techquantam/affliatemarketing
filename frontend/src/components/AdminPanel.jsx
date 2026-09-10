@@ -131,12 +131,12 @@ export default function AdminPanel({
   const setActiveTab = (tabId) => {
     setActiveTabRaw(tabId);
     const newHash = `#/admin/${tabId}`;
-    const newPath = `/admin/${tabId}`;
     if (window.location.hash !== newHash) {
-      window.location.hash = newHash;
-    }
-    if (window.location.pathname !== newPath) {
-      window.history.pushState(null, '', newPath);
+      try {
+        window.history.replaceState(null, '', newHash);
+      } catch (e) {
+        window.location.hash = newHash;
+      }
     }
   };
 
@@ -1342,16 +1342,10 @@ export default function AdminPanel({
       {isMobileOpen && (
         <div
           className="admin-sidebar-backdrop"
-          onClick={() => setIsMobileOpen(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(2px)',
-            zIndex: 99,
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsMobileOpen(false);
           }}
         />
       )}
@@ -1404,10 +1398,17 @@ export default function AdminPanel({
         <header className="admin-navbar">
           <div className="admin-navbar-left">
             <button
+              type="button"
               className="admin-toggle-sidebar-btn"
-              onClick={() => {
-                setIsSidebarCollapsed(!isSidebarCollapsed);
-                setIsMobileOpen(!isMobileOpen);
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof window !== 'undefined' && window.innerWidth <= 1024) {
+                  setIsMobileOpen((prev) => !prev);
+                } else {
+                  setIsSidebarCollapsed((prev) => !prev);
+                  setIsMobileOpen(false);
+                }
               }}
               aria-label="Toggle sidebar"
             >

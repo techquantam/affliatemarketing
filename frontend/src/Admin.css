@@ -21,7 +21,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 100;
+  z-index: 106;
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
 }
 
@@ -124,7 +124,7 @@
   padding: 0 32px;
   position: sticky;
   top: 0;
-  z-index: 90;
+  z-index: 105;
   transition: background-color 0.3s ease;
 }
 
@@ -135,13 +135,44 @@
 }
 
 .admin-toggle-sidebar-btn {
-  display: none;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
   color: var(--text);
   cursor: pointer;
   padding: 8px;
   border-radius: var(--radius-sm);
   background-color: var(--card-bg);
   border: 1px solid var(--border);
+  position: relative;
+  z-index: 110;
+  touch-action: manipulation;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.admin-toggle-sidebar-btn:hover {
+  background-color: var(--border);
+  color: var(--primary);
+}
+
+.admin-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .admin-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 99;
+    touch-action: manipulation;
+  }
 }
 
 .admin-navbar-right {
