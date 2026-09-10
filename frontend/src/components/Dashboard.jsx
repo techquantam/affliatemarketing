@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { toast } from 'react-toastify';
 import { Wallet, Link, History, Gift, Copy, Check, ShieldCheck, ArrowUpRight, Share2, Percent, Trash2, Play, ExternalLink, Plus, BookOpen, HelpCircle, User, Camera, ArrowLeft, ShieldAlert, CreditCard, Landmark, RotateCw } from 'lucide-react';
-import { apiSharedLinks, apiSharedCommissions, apiSettings, apiUsers, apiUpload } from '../services/api';
+import { apiSharedLinks, apiSharedCommissions, apiSettings, apiUsers, apiUpload, BASE_URL } from '../services/api';
+import axios from 'axios';
 import UserLedger from './UserLedger';
 import UserSupport from './UserSupport';
 import ReferralShareModal from './ReferralShareModal';
@@ -63,20 +64,17 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   const [minLimit, setMinLimit] = useState(500);
 
   useEffect(() => {
-    const fetchMinLimit = () => {
-      axios.get('/api/settings')
-        .then(res => {
-          const min = res.data?.min_withdrawal ?? res.data?.minimumWithdrawal;
-          if (min != null && !isNaN(parseFloat(min))) setMinLimit(parseFloat(min));
-        })
-        .catch(() => {
-          axios.get(`${BASE_URL}/settings`)
-            .then(res => {
-              const min = res.data?.min_withdrawal ?? res.data?.minimumWithdrawal;
-              if (min != null && !isNaN(parseFloat(min))) setMinLimit(parseFloat(min));
-            })
-            .catch(() => {});
-        });
+    let isMounted = true;
+    const fetchMinLimit = async () => {
+      try {
+        const res = await apiSettings.get();
+        const min = res?.min_withdrawal ?? res?.minimumWithdrawal;
+        if (isMounted && min != null && !isNaN(parseFloat(min))) {
+          setMinLimit(parseFloat(min));
+        }
+      } catch (err) {
+        console.warn('Failed to fetch min withdrawal limit:', err);
+      }
     };
     fetchMinLimit();
     const handleSettingsUpdated = (e) => {
@@ -85,7 +83,10 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
       else fetchMinLimit();
     };
     window.addEventListener('settings:updated', handleSettingsUpdated);
-    return () => window.removeEventListener('settings:updated', handleSettingsUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('settings:updated', handleSettingsUpdated);
+    };
   }, []);
 
   // --- PROFILE STATES ---
@@ -168,26 +169,32 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
 
   // Fetch shared links and commissions
   useEffect(() => {
+    let isMounted = true;
     const fetchSharedData = async () => {
+      const uid = currentUser?.id || currentUser?._id;
+      if (!uid) return;
       try {
         setLoadingShared(true);
         const [links, comms, settings] = await Promise.all([
-          apiSharedLinks.getByUser(currentUser.id),
-          apiSharedCommissions.getByUser(currentUser.id),
-          apiSettings.get()
+          apiSharedLinks.getByUser(uid).catch(() => []),
+          apiSharedCommissions.getByUser(uid).catch(() => []),
+          apiSettings.get().catch(() => ({}))
         ]);
-        setSharedLinks(links || []);
-        setSharedCommissions(comms || []);
-        setGlobalShareRate(settings?.sharedCommissionPercent || 5.0);
+        if (isMounted) {
+          setSharedLinks(links || []);
+          setSharedCommissions(comms || []);
+          setGlobalShareRate(settings?.sharedCommissionPercent || 5.0);
+        }
       } catch (err) {
         console.error('Failed to load shared link data:', err);
       } finally {
-        setLoadingShared(false);
+        if (isMounted) setLoadingShared(false);
       }
     };
     if (currentUser) {
       fetchSharedData();
     }
+    return () => { isMounted = false; };
   }, [currentUser]);
 
   const handleGenerateLink = async (e) => {

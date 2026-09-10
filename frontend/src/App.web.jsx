@@ -20,6 +20,7 @@ import CompareModal from './components/CompareModal';
 import CompareTray from './components/CompareTray';
 import PriceComparisonModal from './components/PriceComparisonModal';
 import ConvertLinkModal from './components/ConvertLinkModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsAndConditions from './components/TermsAndConditions';
 import Signup from './pages/Signup';
@@ -2458,16 +2459,18 @@ export default function App() {
 
         {currentView === 'dashboard' && (
           currentUser ? (
-            <Dashboard
-              currentUser={currentUser}
-              onAddNotification={addNotification}
-              setView={setView}
-              onAddWithdrawalRequest={handleAppWithdrawalRequest}
-              onUpdateUser={handleUpdateUser}
-              initialTab={dashboardTab}
-              setInitialTab={setDashboardTab}
-              onRefreshProfile={() => fetchFreshProfile(false)}
-            />
+            <ErrorBoundary>
+              <Dashboard
+                currentUser={currentUser}
+                onAddNotification={addNotification}
+                setView={setView}
+                onAddWithdrawalRequest={handleAppWithdrawalRequest}
+                onUpdateUser={handleUpdateUser}
+                initialTab={dashboardTab}
+                setInitialTab={setDashboardTab}
+                onRefreshProfile={() => fetchFreshProfile(false)}
+              />
+            </ErrorBoundary>
           ) : (
             <div style={{ padding: '60px 20px', textAlign: 'center', backgroundColor: 'var(--card-bg)', borderRadius: '16px', margin: '40px auto', maxWidth: '480px', border: '1px solid var(--border)' }}>
               <div style={{ fontSize: '44px', marginBottom: '12px' }}>🔐</div>
