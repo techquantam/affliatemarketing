@@ -1301,8 +1301,11 @@ export default function App() {
   };
 
   const addNotification = (message, type = 'success') => {
-    const id = Date.now();
+    const id = Date.now() + Math.random();
     setNotifications((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    }, 5000);
   };
 
   const removeNotification = (id) => {

@@ -17,12 +17,17 @@ export default function Notification({ notifications, removeNotification }) {
 }
 
 function Toast({ notification, onClose }) {
+  const onCloseRef = React.useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      onClose();
-    }, 4000);
+      if (onCloseRef.current) {
+        onCloseRef.current();
+      }
+    }, 5000);
     return () => clearTimeout(timer);
-  }, [onClose]);
+  }, [notification.id]);
 
   const isInfo = notification.type === 'info';
   const isError = notification.type === 'error';
