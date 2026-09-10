@@ -83,43 +83,25 @@ export default function AdminPanel({
   setView
 }) {
   const getInitialTab = () => {
-    const hash = window.location.hash;
-    if (hash === '#/admin/users') return 'users';
-    if (hash === '#/admin/roles') return 'roles';    if (hash === '#/admin/roles') return 'roles';    if (hash === '#/admin/products') return 'products';
-    if (hash === '#/admin/withdrawals') return 'withdrawals';
-    if (hash === '#/admin/kyc-management' || hash === '#/admin/kyc') return 'kyc-management';
-    if (hash === '#/admin/click-logs') return 'click-logs';
-    if (hash === '#/admin/conversions') return 'conversions';
-    if (hash === '#/admin/referrals') return 'referrals';
-    if (hash === '#/admin/settings') return 'settings';
-    if (hash === '#/admin/seo') return 'seo';
-    if (hash === '#/admin/shared-commissions') return 'shared-commissions';
-    if (hash === '#/admin/categories') return 'categories';
-    if (hash === '#/admin/deals') return 'deals';
-    if (hash === '#/admin/stores') return 'stores';
-    if (hash === '#/admin/banners') return 'banners';
+    const hash = (typeof window !== 'undefined' ? window.location.hash : '') || '';
+    const path = (typeof window !== 'undefined' ? window.location.pathname : '') || '';
 
-    const path = window.location.pathname;
-    if (path === '/admin/users') return 'users';
-    if (path === '/admin/roles') return 'roles';
-    if (path === '/admin/products') return 'products';
-    if (path === '/admin/withdrawals') return 'withdrawals';
-    if (path === '/admin/kyc-management' || hash === '#/admin/kyc-management') return 'kyc-management';
-    if (path === '/admin/click-logs') return 'click-logs';
-    if (path === '/admin/conversions') return 'conversions';
-    if (path === '/admin/referrals') return 'referrals';
-    if (hash === '#/admin/settings') return 'settings';
-    if (hash === '#/admin/seo') return 'seo';
-    if (hash === '#/admin/activity-logs') return 'activity-logs';
-    if (hash === '#/admin/login-history') return 'login-history';
-    if (hash === '#/admin/shared-commissions') return 'shared-commissions';
-    if (hash === '#/admin/categories') return 'categories';
-    if (hash === '#/admin/deals') return 'deals';
-    if (path === '/admin/stores' || hash === '#/admin/stores') return 'stores';
-    if (path === '/admin/banners' || hash === '#/admin/banners') return 'banners';
-    if (path === '/admin/affiliate-network' || hash === '#/admin/affiliate-network') return 'affiliate-network';
-    if (path === '/admin/ledger' || hash === '#/admin/ledger') return 'ledger';
-    if (path === '/admin/tickets' || hash === '#/admin/tickets') return 'tickets';
+    // Check hash first: #/admin/<tab>
+    if (hash.startsWith('#/admin/')) {
+      const tab = hash.replace('#/admin/', '').split('?')[0].split('/')[0].trim().toLowerCase();
+      if (tab === 'kyc') return 'kyc-management';
+      if (tab === 'push-notifications' || tab === 'notifications') return 'notifications';
+      if (tab) return tab;
+    }
+
+    // Check path: /admin/<tab>
+    if (path.startsWith('/admin/')) {
+      const tab = path.replace('/admin/', '').split('?')[0].split('/')[0].trim().toLowerCase();
+      if (tab === 'kyc') return 'kyc-management';
+      if (tab === 'push-notifications' || tab === 'notifications') return 'notifications';
+      if (tab && tab !== 'login') return tab;
+    }
+
     return 'dashboard';
   };
 
@@ -129,8 +111,9 @@ export default function AdminPanel({
   const [showNotifications, setShowNotifications] = useState(false);
 
   const setActiveTab = (tabId) => {
-    setActiveTabRaw(tabId);
-    const newHash = `#/admin/${tabId}`;
+    const normalizedTab = (tabId === 'push-notifications') ? 'notifications' : tabId;
+    setActiveTabRaw(normalizedTab);
+    const newHash = `#/admin/${normalizedTab}`;
     if (window.location.hash !== newHash) {
       try {
         window.history.replaceState(null, '', newHash);
@@ -516,7 +499,7 @@ export default function AdminPanel({
     ? rawAllowedModules
     : (ROLE_MODULE_DEFAULTS[adminRole] || []);
 
-  const menuItems = isSuperAdmin
+  const menuItems = (isSuperAdmin || adminRole === 'ADMIN')
     ? allMenuItems
     : allMenuItems.filter(item => allowedModules.includes(item.id));
 
@@ -1145,9 +1128,11 @@ export default function AdminPanel({
             currentUser={currentUser}
           />
         );
+      case 'push-notifications':
       case 'notifications':
         return (
           <AdminNotifications
+            users={users}
             onAddNotification={onAddNotification}
             currentUser={currentUser}
           />
@@ -1361,11 +1346,24 @@ export default function AdminPanel({
         <nav className="admin-sidebar-menu">
           {menuItems.map((item) => {
             const Icon = item.icon;
+            const isItemActive = activeTab === item.id || (item.id === 'notifications' && activeTab === 'push-notifications');
             return (
               <div
                 key={item.id}
-                className={`admin-sidebar-link ${activeTab === item.id ? 'active' : ''}`}
-                onClick={() => handleMobileNavClick(item.id)}
+                role="button"
+                tabIndex={0}
+                className={`admin-sidebar-link ${isItemActive ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleMobileNavClick(item.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleMobileNavClick(item.id);
+                  }
+                }}
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
@@ -1487,6 +1485,20 @@ export default function AdminPanel({
                         No pending alerts.
                       </div>
                     )}
+                  </div>
+                  <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-secondary"
+                      style={{ width: '100%', fontSize: '11px', padding: '6px', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                      onClick={() => {
+                        setActiveTab('notifications');
+                        setShowNotifications(false);
+                      }}
+                    >
+                      <Bell size={13} />
+                      <span>Open Push Notifications</span>
+                    </button>
                   </div>
                 </div>
               )}

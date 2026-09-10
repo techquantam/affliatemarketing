@@ -4,10 +4,10 @@ import { apiNotifications } from '../services/api';
 import { apiUsers } from '../services/api';
 import { AdminTable, AdminFormInput, AdminFormSelect } from './AdminComponents';
 
-export default function AdminNotifications({ onAddNotification, currentUser }) {
+export default function AdminNotifications({ onAddNotification, currentUser, users: initialUsers = [] }) {
   const [notifications, setNotifications] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState(initialUsers || []);
+  const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Form State
@@ -20,23 +20,27 @@ export default function AdminNotifications({ onAddNotification, currentUser }) {
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
+    if (initialUsers && initialUsers.length > 0) {
+      setUsers(initialUsers);
+    }
+  }, [initialUsers]);
+
+  useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      // Fetch users for the dropdown lookup and fetch global/recent notifications
-      const [usersList, notifList] = await Promise.all([
-        apiUsers.getAll().catch(() => []),
-        // Since we want to display all notifications sent by admin, we can fetch for user 'admin' or list all. 
-        // Our controller has a GET /user/{id} that returns user + global notifications.
-        // Let's call getUserNotifications with 'admin' or just load a list from our new notifications table.
-        // Note: getUserNotifications("all") or getUserNotifications("admin") gets global announcements.
-        // To see ALL notifications, let's load for current user id or fetch global list.
-        apiNotifications.getByUser(currentUser?.id || 'admin').catch(() => [])
-      ]);
-      setUsers(usersList || []);
+      const notifPromise = apiNotifications.getByUser(currentUser?.id || 'admin').catch(() => []);
+      const usersPromise = (!users || users.length === 0) && (!initialUsers || initialUsers.length === 0)
+        ? apiUsers.getAll().catch(() => [])
+        : Promise.resolve(users.length > 0 ? users : initialUsers);
+
+      const [usersList, notifList] = await Promise.all([usersPromise, notifPromise]);
+      if (usersList && usersList.length > 0) {
+        setUsers(usersList);
+      }
       setNotifications(notifList || []);
     } catch (err) {
       console.error(err);
