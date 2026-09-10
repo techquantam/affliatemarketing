@@ -694,7 +694,8 @@ export default function App() {
       return sessionStorage.getItem('admin_session') === 'active' ? 'admin-panel' : 'admin-login';
     }
     if (hash === '#/dashboard' || path === '/dashboard') {
-      return 'dashboard';
+      const hasSession = typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_session'));
+      return hasSession ? 'dashboard' : 'home';
     }
     if (hash === '#/store' || path === '/store') {
       return 'store';
@@ -1063,13 +1064,16 @@ export default function App() {
   // Keep currentUser wallet updated
   useEffect(() => {
     if (!currentUser?.id) return;
+    let isCancelled = false;
     
     const fetchUserWallet = async () => {
+      if (isCancelled || !localStorage.getItem('user_session')) return;
       try {
         const walletData = await apiWallet.getBalance(currentUser.id);
+        if (isCancelled || !localStorage.getItem('user_session')) return;
         if (walletData) {
           setCurrentUser(prev => {
-            if (!prev) return null;
+            if (!prev || isCancelled || !localStorage.getItem('user_session')) return null;
             // Only update if changed to avoid infinite loops
             if (
               prev.wallet &&
@@ -1087,8 +1091,10 @@ export default function App() {
                 referral: prev.wallet?.referral || 0
               }
             };
-            // Save updated session to localStorage so it stays fresh across reloads
-            localStorage.setItem('user_session', JSON.stringify(updated));
+            // Save updated session to localStorage only if user is still logged in
+            if (localStorage.getItem('user_session')) {
+              localStorage.setItem('user_session', JSON.stringify(updated));
+            }
             return updated;
           });
         }
@@ -1101,7 +1107,10 @@ export default function App() {
     
     // Refresh user wallet balance every 10 seconds when user is active
     const interval = setInterval(fetchUserWallet, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
   }, [currentUser?.id, currentView]);
 
   // Listen for blocked user event from API client / middleware
@@ -1420,20 +1429,34 @@ export default function App() {
 
   const handleUpdateUser = (updatedUser) => {
     if (!updatedUser) return;
+    // CRITICAL: If user is logged out, NEVER resurrect session or write to localStorage!
+    const activeSession = typeof localStorage !== 'undefined' ? localStorage.getItem('user_session') : null;
+    if (!activeSession) return;
+
     setCurrentUser(prev => {
-      const merged = { ...(prev || {}), ...updatedUser };
+      if (!prev || !localStorage.getItem('user_session')) return null;
+      const merged = { ...prev, ...updatedUser };
       localStorage.setItem('user_session', JSON.stringify(merged));
       return merged;
     });
   };
 
   const handleLogout = (silent = false) => {
-    localStorage.removeItem('user_session');
-    localStorage.removeItem('admin_session');
-    localStorage.removeItem('is_admin');
-    sessionStorage.removeItem('admin_session');
+    try {
+      localStorage.removeItem('user_session');
+      localStorage.removeItem('admin_session');
+      localStorage.removeItem('is_admin');
+      sessionStorage.removeItem('admin_session');
+      sessionStorage.clear();
+    } catch (e) {}
     setCurrentUser(null);
     setIsAdminLoggedIn(false);
+    setUserNotifications([]);
+    setTrackedOrders([]);
+    setWithdrawRequests([]);
+    if (window.history && window.history.pushState) {
+      window.history.pushState(null, '', '/');
+    }
     setView('home');
     if (!silent) {
       addNotification('Logged out successfully. See you again!', 'info');
@@ -1442,11 +1465,13 @@ export default function App() {
 
   // --- REAL-TIME LIVE USER PROFILE & KYC/PAYMENT STATUS SYNC ---
   const fetchFreshProfile = React.useCallback(async (silent = true) => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || !localStorage.getItem('user_session')) return;
     try {
       let fresh = await apiUsers.getById(currentUser.id);
+      if (!localStorage.getItem('user_session')) return;
       try {
         const freshKyc = await apiUsers.getKycStatus(currentUser.id);
+        if (!localStorage.getItem('user_session')) return;
         if (freshKyc) {
           fresh = {
             ...fresh,
@@ -1519,6 +1544,7 @@ export default function App() {
             }
           }
 
+          if (!localStorage.getItem('user_session')) return;
           handleUpdateUser(fresh);
           if (!silent) {
             addNotification('Profile & verification status refreshed.', 'info');

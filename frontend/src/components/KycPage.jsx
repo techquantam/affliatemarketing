@@ -201,7 +201,7 @@ export default function KycPage({ currentUser, setCurrentUser, onAddNotification
       setKycData(prev => ({ ...prev, ...updated, status: 'pending', kycStatus: 'pending' }));
 
       if (setCurrentUser) {
-        setCurrentUser(prev => ({ ...prev, ...updated, status: 'pending', kycStatus: 'pending' }));
+        setCurrentUser(prev => prev ? ({ ...prev, ...updated, status: 'pending', kycStatus: 'pending' }) : null);
       }
 
       if (onAddNotification) {

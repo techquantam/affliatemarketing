@@ -259,13 +259,16 @@ export default function App() {
   // Keep currentUser wallet updated
   useEffect(() => {
     if (!currentUser?.id) return;
+    let isCancelled = false;
     
     const fetchUserWallet = async () => {
+      if (isCancelled || !localStorage.getItem('user_session')) return;
       try {
         const walletData = await apiWallet.getBalance(currentUser.id);
+        if (isCancelled || !localStorage.getItem('user_session')) return;
         if (walletData) {
           setCurrentUser(prev => {
-            if (!prev) return null;
+            if (!prev || isCancelled || !localStorage.getItem('user_session')) return null;
             // Only update if changed to avoid infinite loops
             if (
               prev.wallet &&
@@ -283,8 +286,10 @@ export default function App() {
                 referral: prev.wallet?.referral || 0
               }
             };
-            // Save updated session to localStorage so it stays fresh across reloads
-            localStorage.setItem('user_session', JSON.stringify(updated));
+            // Save updated session to localStorage only if user is still logged in
+            if (localStorage.getItem('user_session')) {
+              localStorage.setItem('user_session', JSON.stringify(updated));
+            }
             return updated;
           });
         }
@@ -297,7 +302,10 @@ export default function App() {
     
     // Refresh user wallet balance every 10 seconds when user is active
     const interval = setInterval(fetchUserWallet, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
   }, [currentUser?.id, currentView]);
 
   useEffect(() => {
@@ -389,7 +397,7 @@ export default function App() {
         }
 
         setCurrentUser(prev => {
-          if (!prev) return null;
+          if (!prev || !localStorage.getItem('user_session')) return null;
           const merged = {
             ...prev,
             ...fresh,
@@ -398,7 +406,9 @@ export default function App() {
               ...(fresh.wallet || {})
             }
           };
-          localStorage.setItem('user_session', JSON.stringify(merged));
+          if (localStorage.getItem('user_session')) {
+            localStorage.setItem('user_session', JSON.stringify(merged));
+          }
           return merged;
         });
 
@@ -497,7 +507,14 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    try {
+      localStorage.removeItem('user_session');
+      localStorage.removeItem('admin_session');
+      localStorage.removeItem('is_admin');
+      sessionStorage.clear();
+    } catch (e) {}
     setCurrentUser(null);
+    setWithdrawRequests([]);
     addNotification('Logged out successfully.', 'info');
   };
 
