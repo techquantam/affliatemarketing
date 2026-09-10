@@ -12,18 +12,39 @@ console.log(`[API Service] Running in BACKEND (${BASE_URL}) mode. Native: ${isCa
 
 // --- HELPER WRAPPER TO MAKE FETCH REQUESTS ---
 async function request(url, options = {}, retryCount = 0) {
+  let adminId = null;
   let currentUserId = null;
+
+  try {
+    const rawAdmin = typeof localStorage !== 'undefined' ? (localStorage.getItem('admin_session') || sessionStorage.getItem('admin_session')) : null;
+    if (rawAdmin && rawAdmin !== 'active') {
+      const a = JSON.parse(rawAdmin);
+      adminId = a.id || a._id;
+    }
+  } catch (e) {}
+
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('user_session') : null;
     if (raw) {
       const u = JSON.parse(raw);
-      currentUserId = u.id || u._id;
+      if (u.role === 'ADMIN' || u.role === 'SUPER_ADMIN' || u.isAdmin) {
+        adminId = adminId || u.id || u._id;
+      }
+      // Only treat as regular user ID if not marked as blocked
+      const isBlocked = u.status === 'blocked' || u.isBlocked === true || u.is_blocked === 1;
+      if (!isBlocked) {
+        currentUserId = u.id || u._id;
+      }
     }
   } catch (e) {}
 
+  const isPrivilegedAction = url.includes('/admin') || url.includes('/block') || url.includes('/unblock') || url.includes('/status') || url.includes('/kyc');
+  const effectiveUserId = (isPrivilegedAction && adminId) ? adminId : (adminId || currentUserId);
+
   const defaultHeaders = {
     'Content-Type': 'application/json',
-    ...(currentUserId ? { 'X-User-Id': String(currentUserId), 'userId': String(currentUserId) } : {})
+    ...(adminId ? { 'X-Admin-Id': String(adminId) } : {}),
+    ...(effectiveUserId ? { 'X-User-Id': String(effectiveUserId), 'userId': String(effectiveUserId) } : {})
   };
 
   // In Capacitor native, the WebView origin is http://localhost which causes
@@ -166,15 +187,18 @@ export const apiUsers = {
   },
   verifyOtp: (identifier, otp) => request('/users/verify-otp', { method: 'POST', body: JSON.stringify({ identifier, otp }) }),
   resendOtp: (identifier) => request('/users/resend-otp', { method: 'POST', body: JSON.stringify({ identifier }) }),
+  getById: (id) => request(`/users/${id}?_t=${Date.now()}`),
   updateStatus: (id, status) => request(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   blockUser: async (id) => {
     let res;
     let lastErr;
+    const payload = { status: 'blocked', isBlocked: true, is_blocked: 1 };
+
     // 1. Primary: POST /users/{id}/block
     try {
       res = await request(`/users/${id}/block`, {
         method: 'POST',
-        body: JSON.stringify({ status: 'blocked', isBlocked: true, is_blocked: 1 })
+        body: JSON.stringify(payload)
       });
     } catch (e1) {
       lastErr = e1;
@@ -182,15 +206,15 @@ export const apiUsers = {
       try {
         res = await request(`/admin/users/${id}/block`, {
           method: 'POST',
-          body: JSON.stringify({ status: 'blocked', isBlocked: true, is_blocked: 1 })
+          body: JSON.stringify(payload)
         });
       } catch (e2) {
         lastErr = e2;
-        // 3. Fallback: POST /block-user/{id}
+        // 3. Fallback: PUT /users/{id}/status
         try {
-          res = await request(`/block-user/${id}`, {
-            method: 'POST',
-            body: JSON.stringify({ userId: id })
+          res = await request(`/users/${id}/status`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
           });
         } catch (e3) {
           lastErr = e3;
@@ -198,13 +222,16 @@ export const apiUsers = {
           try {
             res = await request(`/users/${id}`, {
               method: 'PUT',
-              body: JSON.stringify({ status: 'blocked', isBlocked: true, is_blocked: 1 })
+              body: JSON.stringify(payload)
             });
           } catch (e4) {
             lastErr = e4;
-            // 5. Final fallback: PUT /users/{id}/block
+            // 5. Fallback: POST /admin/block/{id}
             try {
-              res = await request(`/users/${id}/block`, { method: 'PUT' });
+              res = await request(`/admin/block/${id}`, {
+                method: 'POST',
+                body: JSON.stringify({ isBlocked: true, action: 'block' })
+              });
             } catch (e5) {
               throw lastErr || e5;
             }
@@ -229,11 +256,13 @@ export const apiUsers = {
   unblockUser: async (id) => {
     let res;
     let lastErr;
+    const payload = { status: 'active', isBlocked: false, is_blocked: 0 };
+
     // 1. Primary: POST /users/{id}/unblock
     try {
       res = await request(`/users/${id}/unblock`, {
         method: 'POST',
-        body: JSON.stringify({ status: 'active', isBlocked: false, is_blocked: 0 })
+        body: JSON.stringify(payload)
       });
     } catch (e1) {
       lastErr = e1;
@@ -241,15 +270,15 @@ export const apiUsers = {
       try {
         res = await request(`/admin/users/${id}/unblock`, {
           method: 'POST',
-          body: JSON.stringify({ status: 'active', isBlocked: false, is_blocked: 0 })
+          body: JSON.stringify(payload)
         });
       } catch (e2) {
         lastErr = e2;
-        // 3. Fallback: POST /unblock-user/{id}
+        // 3. Fallback: PUT /users/{id}/status
         try {
-          res = await request(`/unblock-user/${id}`, {
-            method: 'POST',
-            body: JSON.stringify({ userId: id })
+          res = await request(`/users/${id}/status`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
           });
         } catch (e3) {
           lastErr = e3;
@@ -257,13 +286,16 @@ export const apiUsers = {
           try {
             res = await request(`/users/${id}`, {
               method: 'PUT',
-              body: JSON.stringify({ status: 'active', isBlocked: false, is_blocked: 0 })
+              body: JSON.stringify(payload)
             });
           } catch (e4) {
             lastErr = e4;
-            // 5. Final fallback: PUT /users/{id}/unblock
+            // 5. Fallback: POST /admin/block/{id}
             try {
-              res = await request(`/users/${id}/unblock`, { method: 'PUT' });
+              res = await request(`/admin/block/${id}`, {
+                method: 'POST',
+                body: JSON.stringify({ isBlocked: false, action: 'unblock' })
+              });
             } catch (e5) {
               throw lastErr || e5;
             }

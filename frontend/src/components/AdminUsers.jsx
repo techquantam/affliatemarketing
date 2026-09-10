@@ -112,9 +112,6 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       }));
     }
 
-    // Instant toast message
-    onAddNotification(`User "${user.name}" has been ${actionVerb} successfully.`, 'success');
-
     // Broadcast change across tabs so active user sessions get notified immediately
     try {
       if (typeof BroadcastChannel !== 'undefined') {
@@ -142,6 +139,10 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
       } else {
         res = await apiUsers.unblockUser(targetId);
       }
+
+      // Show success notification once confirmed by server
+      onAddNotification(`User "${user.name}" has been ${actionVerb} successfully.`, 'success');
+
       if (res && typeof res === 'object') {
         setUsers((prev) =>
           prev.map((u) => {

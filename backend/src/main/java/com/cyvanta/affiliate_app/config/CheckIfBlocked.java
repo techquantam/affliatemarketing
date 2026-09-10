@@ -29,6 +29,16 @@ public class CheckIfBlocked extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+        // Allow administrative, status update, auth, and health endpoints to bypass blocking
+        if (path.contains("/admin") || path.contains("/block") || path.contains("/unblock") ||
+            path.contains("/status") || path.contains("/login") || path.contains("/register") ||
+            path.contains("/verify-otp") || path.contains("/resend-otp") || path.contains("/forgot-password") ||
+            path.contains("/reset-password") || path.contains("/health")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String userId = request.getHeader("X-User-Id");
         if (userId == null || userId.isBlank()) {
             userId = request.getParameter("user_id");
@@ -41,6 +51,10 @@ public class CheckIfBlocked extends OncePerRequestFilter {
             Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
+                if (user.getRole() == User.Role.ADMIN || user.getRole() == User.Role.SUPER_ADMIN) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 boolean isBlocked = Boolean.TRUE.equals(user.getIsBlocked())
                         || (user.getIs_blocked() != null && user.getIs_blocked() == 1)
                         || "blocked".equalsIgnoreCase(user.getStatus());
