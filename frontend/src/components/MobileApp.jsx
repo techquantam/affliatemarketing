@@ -708,12 +708,6 @@ export default function MobileApp({
   // --- URL CONVERTER HANDLERS (MOBILE) ---
   const handleConvertUrl = async (e) => {
     e.preventDefault();
-    if (isGuest) {
-      onAddNotification('Please Login / Sign Up to convert links.', 'error');
-      openAuthModal();
-      return;
-    }
-
     if (!convertInputUrl.trim()) {
       onAddNotification('Please paste a product URL.', 'error');
       return;
@@ -734,15 +728,24 @@ export default function MobileApp({
     setConvertStore(store);
     try {
       const newLink = await apiSharedLinks.create({
-        userId: user.id,
-        userName: user.name,
+        userId: user?.id || 'guest',
+        userName: user?.name || 'Guest',
         productName: `Converted ${store} Product`,
         store: store,
         productUrl: url,
         userSharePercent: 100
       });
-      const defaultShortUrl = `${window.location.origin}/#/share/${newLink.id}`;
-      const finalShortUrl = newLink.shortUrl || defaultShortUrl;
+      const cleanOrigin = window.location.origin.replace(/\/+$/, '');
+      const defaultShortUrl = `${cleanOrigin}/#/share/${newLink.id}`;
+      let finalShortUrl = newLink.shortUrl || defaultShortUrl;
+      if (finalShortUrl) {
+        finalShortUrl = finalShortUrl
+          .replace(/^https?:\/\/[^/]+/, cleanOrigin)
+          .replace(/\/#+\/share\//, '/#/share/');
+        if (!finalShortUrl.includes('/#/share/')) {
+          finalShortUrl = defaultShortUrl;
+        }
+      }
       
       setConvertResultUrl(finalShortUrl);
       onAddNotification(`Converted to tracked ${store} link successfully!`, 'success');

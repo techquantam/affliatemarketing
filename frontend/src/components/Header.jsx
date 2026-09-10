@@ -30,6 +30,8 @@ export default function Header({
   userNotifications = [],
   onMarkAllNotificationsRead,
   onMarkNotificationRead,
+  onOpenConvertLinkModal,
+  onAddNotification,
 }) {
   const [searchQuery, setSearchQuery] = useState(homeSearchQuery || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -276,7 +278,9 @@ export default function Header({
           <button
             className={`nav-link ${currentView === 'dashboard' && dashboardTab === 'url-converter' ? 'active' : ''}`}
             onClick={() => {
-              if (currentUser) {
+              if (onOpenConvertLinkModal) {
+                onOpenConvertLinkModal();
+              } else if (currentUser) {
                 if (setDashboardTab) setDashboardTab('url-converter');
                 setView('dashboard');
               } else {
@@ -293,7 +297,8 @@ export default function Header({
                 if (setDashboardTab) setDashboardTab('overview');
                 setView('dashboard');
               } else {
-                openAuthModal();
+                if (onAddNotification) onAddNotification('Please log in to view your wallet and cashback balance.', 'info');
+                if (typeof openAuthModal === 'function') openAuthModal('login');
               }
             }}
           >
@@ -304,11 +309,12 @@ export default function Header({
             className="nav-link" 
             onClick={(e) => {
               e.preventDefault();
+              if (setHomeSearchQuery) setHomeSearchQuery('');
               if (setView) setView('home');
               setTimeout(() => {
                 const el = document.getElementById('how-it-works') || document.querySelector('.how-it-works-section');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }, 100);
+              }, 150);
             }}
           >
             How it Works

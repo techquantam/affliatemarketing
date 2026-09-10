@@ -19,6 +19,7 @@ import MobileApp from './components/MobileApp';
 import CompareModal from './components/CompareModal';
 import CompareTray from './components/CompareTray';
 import PriceComparisonModal from './components/PriceComparisonModal';
+import ConvertLinkModal from './components/ConvertLinkModal';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsAndConditions from './components/TermsAndConditions';
 import Signup from './pages/Signup';
@@ -874,6 +875,9 @@ export default function App() {
   const [generatedShareData, setGeneratedShareData] = useState(null);
   const [shareModalUrl, setShareModalUrl] = useState(null);
   const [shareModalTitle, setShareModalTitle] = useState(null);
+
+  // Convert Link Modal state
+  const [isConvertLinkModalOpen, setIsConvertLinkModalOpen] = useState(false);
 
   // 1. Fetch static catalog data function
   const loadCatalogData = React.useCallback(async () => {
@@ -2003,6 +2007,10 @@ export default function App() {
           userNotifications={userNotifications}
           onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
           onMarkNotificationRead={handleMarkNotificationRead}
+          dashboardTab={dashboardTab}
+          setDashboardTab={setDashboardTab}
+          onOpenConvertLinkModal={() => setIsConvertLinkModalOpen(true)}
+          onAddNotification={addNotification}
           onCategorySelect={(categoryId) => {
             setActiveCategory(categoryId);
             setHomeSearchQuery('');
@@ -2011,6 +2019,15 @@ export default function App() {
           onDealSelect={(deal) => {
             handleGrabProductDeal(deal);
           }}
+        />
+        <ConvertLinkModal
+          isOpen={isConvertLinkModalOpen}
+          onClose={() => setIsConvertLinkModalOpen(false)}
+          currentUser={currentUser}
+          openAuthModal={handleOpenAuthModal}
+          onAddNotification={addNotification}
+          setView={setView}
+          setDashboardTab={setDashboardTab}
         />
         <Notification notifications={notifications} removeNotification={removeNotification} />
         <AdminLogin
@@ -2218,6 +2235,8 @@ export default function App() {
         userNotifications={userNotifications}
         onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
         onMarkNotificationRead={handleMarkNotificationRead}
+        onOpenConvertLinkModal={() => setIsConvertLinkModalOpen(true)}
+        onAddNotification={addNotification}
         onCategorySelect={(categoryId) => {
           setActiveCategory(categoryId);
           setHomeSearchQuery('');
@@ -2235,8 +2254,7 @@ export default function App() {
           style={{
             position: 'sticky',
             top: '64px',
-            zIndex: 40,
-            background: 'white',
+            zIndex: 998,
             backgroundColor: 'var(--card-bg, #ffffff)'
           }}
         >
@@ -2261,6 +2279,7 @@ export default function App() {
               setView={setView}
               currentUser={currentUser}
               openAuthModal={handleOpenAuthModal}
+              onOpenConvertLinkModal={() => setIsConvertLinkModalOpen(true)}
             />
 
             {homeSearchQuery ? (
@@ -2514,6 +2533,17 @@ export default function App() {
         onBuyAndEarn={executeGrabDealTracked}
         onReferLink={handleReferLink}
         storesData={storesData}
+      />
+
+      {/* Universal Instant Link Converter Modal */}
+      <ConvertLinkModal
+        isOpen={isConvertLinkModalOpen}
+        onClose={() => setIsConvertLinkModalOpen(false)}
+        currentUser={currentUser}
+        openAuthModal={handleOpenAuthModal}
+        onAddNotification={addNotification}
+        setView={setView}
+        setDashboardTab={setDashboardTab}
       />
 
       {/* Share Modal Fallback */}

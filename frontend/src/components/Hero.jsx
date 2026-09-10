@@ -34,7 +34,7 @@ const FALLBACK_SLIDES = [
   },
 ];
 
-export default function Hero({ banners, onCtaClick, setView, currentUser, openAuthModal }) {
+export default function Hero({ banners, onCtaClick, setView, currentUser, openAuthModal, onOpenConvertLinkModal }) {
   const [activeSlide, setActiveSlide] = useState(0);
 
   const displaySlides = banners && banners.length > 0 ? banners : FALLBACK_SLIDES;
@@ -50,7 +50,9 @@ export default function Hero({ banners, onCtaClick, setView, currentUser, openAu
 
   const handleCta = () => {
     if (activeSlide === 2) {
-      if (currentUser) {
+      if (onOpenConvertLinkModal) {
+        onOpenConvertLinkModal();
+      } else if (currentUser) {
         setView('dashboard');
       } else {
         openAuthModal();
