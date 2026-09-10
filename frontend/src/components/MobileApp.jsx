@@ -559,14 +559,23 @@ export default function MobileApp({
         productName: dealItem.title || dealItem.name,
         store: storeItem.platform,
         productUrl: storeItem.link || getProductPlatformUrl(dealItem, storeItem.platform),
-        userSharePercent: 100
+        userSharePercent: 100,
+        productImage: dealItem.image,
+        dealPrice: storeItem.dealPrice || dealItem.dealPrice || dealItem.price,
+        originalPrice: storeItem.retailPrice || dealItem.retailPrice,
+        cashbackPercent: storeItem.cashbackPercent || dealItem.cashbackValue || 10
       });
+      const cleanOrigin = window.location.origin.replace(/\/+$/, '');
       let shareUrl = res.shortUrl;
       if (shareUrl) {
         shareUrl = shareUrl
-          .replace('https://liomart.com', window.location.origin + '/#')
-          .replace('https://liomart.co.in', window.location.origin + '/#')
-          .replace('http://localhost:5173', window.location.origin);
+          .replace(/^https?:\/\/[^/]+/, cleanOrigin)
+          .replace(/\/#+\/share\//, '/#/share/');
+        if (!shareUrl.includes('/#/share/')) {
+          shareUrl = `${cleanOrigin}/#/share/${res.id}`;
+        }
+      } else {
+        shareUrl = `${cleanOrigin}/#/share/${res.id}`;
       }
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareUrl);
@@ -575,6 +584,7 @@ export default function MobileApp({
         onAddNotification(`Referral link created!`, 'success');
       }
     } catch (err) {
+      console.error('Failed to create referral link:', err);
       onAddNotification('Failed to create referral link.', 'error');
     }
   };

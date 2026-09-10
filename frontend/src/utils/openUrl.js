@@ -153,20 +153,25 @@ export const openExternalUrl = async (url) => {
   if (!url) return;
   const targetUrl = ensureProtocol(url);
 
-  // 1. In Native Android/Capacitor App: open Chrome Custom Tab / In-App browser immediately
+  // 1. In Native Android/Capacitor App: open Chrome Custom Tab / System Browser immediately
   if (Capacitor.isNativePlatform()) {
     try {
-      await Browser.open({ url: targetUrl, windowName: '_blank' });
+      await Browser.open({ url: targetUrl, windowName: '_system' });
       return;
     } catch (err) {
       console.warn('Native Browser.open failed, falling back to window.open', err);
     }
   }
 
-  // 2. In Web Browser / Fallback: open new tab directly
+  // 2. In Web Browser / Fallback: open new tab cleanly without reloading the parent LIO MART window
   try {
-    const newWindow = window.open(targetUrl, '_blank', 'noopener,noreferrer');
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+    const newWindow = window.open(targetUrl, '_blank');
+    if (newWindow) {
+      try {
+        newWindow.opener = null;
+      } catch (e) {}
+    } else {
+      // If browser blocked popup window, navigate current tab as fallback
       window.location.href = targetUrl;
     }
   } catch (e) {

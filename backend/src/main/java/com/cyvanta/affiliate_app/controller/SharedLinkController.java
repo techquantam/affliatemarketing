@@ -39,6 +39,13 @@ public class SharedLinkController {
         return ResponseEntity.ok(sharedLinkRepository.findAll());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<SharedLink> getById(@PathVariable String id) {
+        return sharedLinkRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<SharedLink>> getByUser(@PathVariable String userId) {
         return ResponseEntity.ok(sharedLinkRepository.findByUserId(userId));
@@ -52,7 +59,8 @@ public class SharedLinkController {
         if (link.getTotalEarnings() == null) link.setTotalEarnings(0.0);
         link.setStatus("active");
         SharedLink saved = sharedLinkRepository.save(link);
-        saved.setShortUrl(frontendUrl + "/#/share/" + saved.getId());
+        String baseUrl = frontendUrl != null ? frontendUrl.trim().replaceAll("[/#]+$", "") : "http://localhost:5173";
+        saved.setShortUrl(baseUrl + "/#/share/" + saved.getId());
         return ResponseEntity.ok(sharedLinkRepository.save(saved));
     }
 

@@ -210,10 +210,22 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
         productUrl: newLinkUrl,
         userSharePercent: 100
       });
-      const defaultShortUrl = `${window.location.origin}/#/share/${newLink.id}`;
-      const savedLink = { ...newLink, shortUrl: newLink.shortUrl || defaultShortUrl };
+      const cleanOrigin = window.location.origin.replace(/\/+$/, '');
+      const defaultShortUrl = `${cleanOrigin}/#/share/${newLink.id}`;
+      let finalShortUrl = newLink.shortUrl;
+      if (finalShortUrl) {
+        finalShortUrl = finalShortUrl
+          .replace(/^https?:\/\/[^/]+/, cleanOrigin)
+          .replace(/\/#+\/share\//, '/#/share/');
+        if (!finalShortUrl.includes('/#/share/')) {
+          finalShortUrl = `${cleanOrigin}/#/share/${newLink.id}`;
+        }
+      } else {
+        finalShortUrl = defaultShortUrl;
+      }
+      const savedLink = { ...newLink, shortUrl: finalShortUrl };
       setSharedLinks(prev => [savedLink, ...prev]);
-      setGeneratedShortUrl(newLink.shortUrl || defaultShortUrl);
+      setGeneratedShortUrl(finalShortUrl);
       setNewLinkProduct('');
       setNewLinkUrl('');
       onAddNotification('Shared link generated successfully!', 'success');
@@ -617,8 +629,19 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
         productUrl: url,
         userSharePercent: 100
       });
-      const defaultShortUrl = `${window.location.origin}/#/share/${newLink.id}`;
-      const finalShortUrl = newLink.shortUrl || defaultShortUrl;
+      const cleanOrigin = window.location.origin.replace(/\/+$/, '');
+      const defaultShortUrl = `${cleanOrigin}/#/share/${newLink.id}`;
+      let finalShortUrl = newLink.shortUrl;
+      if (finalShortUrl) {
+        finalShortUrl = finalShortUrl
+          .replace(/^https?:\/\/[^/]+/, cleanOrigin)
+          .replace(/\/#+\/share\//, '/#/share/');
+        if (!finalShortUrl.includes('/#/share/')) {
+          finalShortUrl = `${cleanOrigin}/#/share/${newLink.id}`;
+        }
+      } else {
+        finalShortUrl = defaultShortUrl;
+      }
       
       const savedLink = { ...newLink, shortUrl: finalShortUrl };
       setSharedLinks(prev => [savedLink, ...prev]);

@@ -92,9 +92,18 @@ export const buildAffiliateTrackingUrl = ({ targetUrl, storeName = 'Amazon', use
   }
 
   if (network === 'cuelinks') {
-    const pubId = configs.cuelinks?.publisherId || '189241';
-    const redirectBase = configs.cuelinks?.redirectDomain || 'https://linksredirect.com/';
-    return `${redirectBase}?pub_id=${encodeURIComponent(pubId)}&subid=${encodeURIComponent(subId)}&url=${encodeURIComponent(targetUrl)}`;
+    const pubId = configs.cuelinks?.publisherId;
+    const isRealPublisherId = pubId && 
+      pubId !== '189241' && 
+      !pubId.toLowerCase().includes('example') && 
+      configs.cuelinks?.status === 'active';
+
+    if (isRealPublisherId) {
+      const redirectBase = configs.cuelinks?.redirectDomain || 'https://linksredirect.com/';
+      return `${redirectBase}?pub_id=${encodeURIComponent(pubId)}&subid=${encodeURIComponent(subId)}&url=${encodeURIComponent(targetUrl)}`;
+    }
+    // If dummy or unconfigured Cuelinks, return clean targetUrl to prevent 403 Forbidden / white screen
+    return targetUrl;
   }
 
   return targetUrl;

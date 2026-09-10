@@ -41,9 +41,15 @@ const AdBanners = ({ banners }) => {
       {banners.map(b => (
         <a 
           key={b.id} 
-          href={b.targetUrl || '#'} 
-          target="_blank" 
-          rel="noopener noreferrer" 
+          href={b.targetUrl && b.targetUrl !== '#' ? b.targetUrl : 'javascript:void(0)'} 
+          onClick={(e) => {
+            if (!b.targetUrl || b.targetUrl === '#') {
+              e.preventDefault();
+            } else {
+              e.preventDefault();
+              openExternalUrl(b.targetUrl);
+            }
+          }}
           className="promo-ad-banner-link"
           style={{ 
             display: 'block', 
@@ -228,104 +234,415 @@ const DEFAULT_PRODUCTS = [
   }
 ];
 
-const ShareLanding = ({ products, currentUser, openAuthModal }) => {
-  const path = window.location.pathname.startsWith('/share/') 
-    ? window.location.pathname.split('/share/')[1]
-    : window.location.hash.replace('#/share/', '');
-  
+const ShareLanding = ({ products = [], deals = [], storesData = [], currentUser, openAuthModal, onNotification, setView }) => {
+  const getShareIdFromLocation = () => {
+    const href = window.location.href || '';
+    const match = href.match(/\/share\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return match[1].split(/[?&#/]/)[0];
+    }
+    const hash = window.location.hash || '';
+    if (hash.includes('/share/')) {
+      const parts = hash.split('/share/')[1];
+      return parts ? parts.split(/[?&#/]/)[0] : '';
+    }
+    const pathname = window.location.pathname || '';
+    if (pathname.includes('/share/')) {
+      const parts = pathname.split('/share/')[1];
+      return parts ? parts.split(/[?&#/]/)[0] : '';
+    }
+    return '';
+  };
+
   const [landingData, setLandingData] = useState(null);
-  const [landingSession, setLandingSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
+    const shareId = getShareIdFromLocation();
+    if (!shareId) {
+      setLoading(false);
+      setErrorMsg('Invalid referral link.');
+      return;
+    }
+
     const fetchShareData = async () => {
       try {
-        const links = await apiSharedLinks.getAll();
-        const match = links.find(l => l.id === path || l.shortUrl.endsWith(path));
-        if (match) {
-          setLandingData(match);
-          // Store shareId so future checkouts are attributed to this referrer
-          localStorage.setItem('shareId', match.id);
-          // Record click instantly
-          const clickData = await apiSharedLinks.incrementClicks(match.id);
-          setLandingSession(clickData);
+        setLoading(true);
+        setErrorMsg(null);
+        let link = null;
+
+        // 1. Direct ID lookup
+        try {
+          link = await apiSharedLinks.getById(shareId);
+        } catch (e) {
+          // Fallback to getAll
+        }
+
+        // 2. Fallback to getAll() if direct lookup fails
+        if (!link || !link.id) {
+          const links = await apiSharedLinks.getAll().catch(() => []);
+          link = (links || []).find(l => 
+            l.id === shareId || 
+            (l.shortUrl && (l.shortUrl.endsWith(shareId) || l.shortUrl.includes(`/share/${shareId}`)))
+          );
+        }
+
+        if (link && link.id) {
+          setLandingData(link);
+          localStorage.setItem('shareId', link.id);
+          // Increment click count silently
+          apiSharedLinks.incrementClicks(link.id).catch(e => console.warn('Increment click failed', e));
+        } else {
+          setErrorMsg('Referral link expired or not found.');
         }
       } catch (err) {
-        console.error(err);
+        console.error('Error loading share details:', err);
+        setErrorMsg('Failed to load referral details. Please try again.');
       } finally {
         setLoading(false);
       }
     };
-    if (path) fetchShareData();
-  }, [path]);
 
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading Referral Details...</div>;
-  if (!landingData) return <div style={{ padding: '40px', textAlign: 'center' }}>Referral Link Expired or Not Found.</div>;
+    fetchShareData();
+  }, []);
 
-  const mockProduct = products.find(p => p.name === landingData.productName) || {
-    id: `prod-${landingData.id}`,
-    name: landingData.productName,
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300',
-    category: 'electronics',
-    title: landingData.productName
+  // Match corresponding deal or product from catalog for extra attributes
+  const matchedDeal = React.useMemo(() => {
+    if (!landingData?.productName) return null;
+    const lName = landingData.productName.toLowerCase().trim();
+    return (deals || []).find(d => {
+      const dTitle = (d.title || '').toLowerCase().trim();
+      const dName = (d.name || '').toLowerCase().trim();
+      return dTitle === lName || dName === lName || (dTitle && (lName.includes(dTitle) || dTitle.includes(lName))) || (dName && (lName.includes(dName) || dName.includes(lName)));
+    });
+  }, [deals, landingData]);
+
+  const matchedProduct = React.useMemo(() => {
+    if (!landingData?.productName) return null;
+    const lName = landingData.productName.toLowerCase().trim();
+    return (products || []).find(p => {
+      const pName = (p.name || '').toLowerCase().trim();
+      const pTitle = (p.title || '').toLowerCase().trim();
+      return pName === lName || pTitle === lName || (pName && (lName.includes(pName) || pName.includes(lName))) || (pTitle && (lName.includes(pTitle) || pTitle.includes(lName)));
+    });
+  }, [products, landingData]);
+
+  const storeName = landingData?.store || matchedDeal?.platform || matchedProduct?.platform || 'Store';
+  
+  const matchedStore = React.useMemo(() => {
+    return (storesData || []).find(s => 
+      s.name && s.name.toLowerCase().trim() === storeName.toLowerCase().trim()
+    );
+  }, [storesData, storeName]);
+
+  const storeLogo = matchedStore?.logo || matchedDeal?.logo;
+
+  const productName = landingData?.productName || matchedDeal?.title || matchedDeal?.name || 'Special Cashback Deal';
+
+  const productImage = landingData?.productImage || 
+                       matchedDeal?.image || 
+                       matchedProduct?.image || 
+                       'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400';
+
+  const dealPrice = typeof landingData?.dealPrice === 'number' && landingData.dealPrice > 0 
+    ? landingData.dealPrice 
+    : (typeof matchedDeal?.dealPrice === 'number' && matchedDeal.dealPrice > 0 
+        ? matchedDeal.dealPrice 
+        : (typeof matchedDeal?.price === 'number' ? matchedDeal.price : (matchedProduct?.price || 499)));
+
+  const originalPrice = typeof landingData?.originalPrice === 'number' && landingData.originalPrice > 0
+    ? landingData.originalPrice
+    : (typeof matchedDeal?.retailPrice === 'number' && matchedDeal.retailPrice > 0
+        ? matchedDeal.retailPrice
+        : Math.round(dealPrice * 1.35));
+
+  const cashbackPercent = typeof landingData?.cashbackPercent === 'number' && landingData.cashbackPercent > 0
+    ? landingData.cashbackPercent
+    : (matchedDeal?.cashbackValue || matchedDeal?.cashbackPercent || matchedProduct?.cashbackValue || 10);
+
+  const cashbackAmount = parseFloat(((dealPrice * cashbackPercent) / 100).toFixed(2));
+  const discountPercent = originalPrice > dealPrice ? Math.round(((originalPrice - dealPrice) / originalPrice) * 100) : 0;
+
+  const handleGrabDeal = () => {
+    const buyerId = currentUser?.id || 'guest';
+    const shareId = landingData?.id;
+    const productId = matchedDeal?.id || matchedProduct?.id || (landingData ? `prod-${landingData.id}` : 'prod');
+
+    if (currentUser) {
+      apiAffiliate.createClick(buyerId, shareId, productId).catch(e => console.error("Failed to log affiliate click", e));
+    }
+
+    const targetUrl = landingData?.productUrl || matchedDeal?.affiliateUrl || matchedDeal?.link || getStoreUrl(storeName);
+    openExternalUrl(targetUrl);
   };
 
-  const storeMock = {
-    platform: landingData.store,
-    dealPrice: 50.00,
-    effectivePrice: 50.00,
-    cashbackEarned: 5.0,
-    cashbackPercent: 10,
-    link: landingData.productUrl
-  };
+  if (loading) {
+    return (
+      <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', minHeight: '60vh' }}>
+        <div style={{ maxWidth: '440px', width: '100%', backgroundColor: 'var(--card-bg, #ffffff)', borderRadius: '16px', padding: '40px 24px', textAlign: 'center', border: '1px solid var(--border, #e5e7eb)', boxShadow: '0 10px 25px rgba(0,0,0,0.06)' }}>
+          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border, #e5e7eb)', borderTopColor: 'var(--primary, #ff4d00)', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
+          <h3 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: '700', color: 'var(--text-bold, #111827)' }}>Finding Your Deal...</h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted, #6b7280)' }}>Loading exclusive referral details and store cashback.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorMsg || !landingData) {
+    return (
+      <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', minHeight: '60vh' }}>
+        <div style={{ maxWidth: '440px', width: '100%', backgroundColor: 'var(--card-bg, #ffffff)', borderRadius: '16px', padding: '36px 24px', textAlign: 'center', border: '1px solid var(--border, #e5e7eb)', boxShadow: '0 10px 25px rgba(0,0,0,0.06)' }}>
+          <div style={{ fontSize: '44px', marginBottom: '14px' }}>🔍</div>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '19px', fontWeight: '700', color: 'var(--text-bold, #111827)' }}>Deal Not Available</h3>
+          <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: 'var(--text-muted, #6b7280)', lineHeight: '1.5' }}>
+            {errorMsg || 'This referral link may have expired or is no longer active.'}
+          </p>
+          <button
+            className="btn-primary"
+            onClick={() => { if (setView) setView('home'); else window.location.hash = '#/'; }}
+            style={{ width: '100%', padding: '13px', fontSize: '14px', fontWeight: '700', borderRadius: '10px' }}
+          >
+            Explore Top Deals on LIO MART
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 20px', minHeight: '60vh', backgroundColor: 'var(--bg)' }}>
-      <div style={{ maxWidth: '500px', width: '100%', backgroundColor: 'var(--card-bg)', borderRadius: '16px', padding: '32px', textAlign: 'center', border: '1px solid var(--border)', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
-        
-        {/* Added Product Image Display */}
-        <div style={{ width: '120px', height: '120px', borderRadius: '12px', overflow: 'hidden', margin: '0 auto 24px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-          <img src={mockProduct.image} alt={mockProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </div>
-
-        <h2 style={{ fontSize: '24px', margin: '0 0 8px 0', color: 'var(--text-bold)' }}>You've been invited!</h2>
-        <p style={{ fontSize: '15px', color: 'var(--text)', margin: '0 0 24px 0', lineHeight: '1.6' }}>
-          <strong>{landingData.userName}</strong> has shared an exclusive deal with you for <strong>{landingData.productName}</strong> from {landingData.store}.
-        </p>
-        <div style={{ padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '32px' }}>
-          <h4 style={{ margin: '0 0 8px 0', color: 'var(--secondary)', fontSize: '16px' }}>Exclusive Affiliate Deal</h4>
-          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-bold)' }}>
-            Click below to apply the deal. You will be redirected to the secure merchant site.
-          </p>
-        </div>
-        <button 
-          className="btn-primary" 
-          style={{ width: '100%', padding: '16px', fontSize: '16px', fontWeight: 'bold' }}
-          onClick={() => {
-            if (!currentUser) {
-              openAuthModal();
-              return;
-            }
-            
-            const buyerId = currentUser.id;
-            const shareId = landingData.id;
-            const productId = mockProduct.id;
-            
-            // Log click to the Affiliate Network tracker
-            // The backend will automatically simulate a purchase after 5s 
-            // and create a pending SharedCommission for the referrer
-            apiAffiliate.createClick(buyerId, shareId, productId).catch(e => console.error("Failed to log affiliate click", e));
-
-            if (landingData && landingData.productUrl) {
-              openExternalUrl(landingData.productUrl);
-            } else if (storeMock && storeMock.link) {
-              openExternalUrl(storeMock.link);
-            } else {
-              openExternalUrl(getStoreUrl(landingData?.store));
-            }
+    <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 16px 60px', minHeight: '70vh', backgroundColor: 'var(--bg)' }}>
+      <div
+        style={{
+          maxWidth: '460px',
+          width: '100%',
+          backgroundColor: 'var(--card-bg, #ffffff)',
+          borderRadius: '18px',
+          padding: '24px',
+          textAlign: 'center',
+          border: '1px solid var(--border, #e5e7eb)',
+          boxShadow: '0 15px 35px rgba(0,0,0,0.07)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        {/* Referrer Header Badge */}
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            backgroundColor: 'rgba(255, 77, 0, 0.08)',
+            border: '1px solid rgba(255, 77, 0, 0.2)',
+            borderRadius: '20px',
+            padding: '5px 14px',
+            marginBottom: '18px',
+            fontSize: '12.5px',
+            fontWeight: '600',
+            color: 'var(--primary, #ff4d00)'
           }}
         >
-          Grab Deal Now
+          <span>🎁</span>
+          <span>Shared by <strong>{landingData.userName || 'a friend'}</strong></span>
+        </div>
+
+        {/* Product Image Box */}
+        <div
+          style={{
+            width: '100%',
+            height: '220px',
+            borderRadius: '12px',
+            backgroundColor: '#f8fafc',
+            border: '1px solid var(--border, #e5e7eb)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            marginBottom: '18px',
+            position: 'relative'
+          }}
+        >
+          <img
+            src={productImage}
+            alt={productName}
+            style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400';
+            }}
+          />
+
+          {/* Store Badge Over Image */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '10px',
+              left: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid #e2e8f0',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.06)'
+            }}
+          >
+            {storeLogo && (
+              <img src={storeLogo} alt={storeName} style={{ height: '14px', maxWidth: '36px', objectFit: 'contain' }} />
+            )}
+            <span style={{ fontSize: '11px', fontWeight: '700', color: '#0f172a' }}>{storeName}</span>
+          </div>
+
+          {/* Cashback Badge */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '10px',
+              right: '10px',
+              backgroundColor: '#10b981',
+              color: '#ffffff',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '800',
+              letterSpacing: '0.4px',
+              boxShadow: '0 2px 6px rgba(16, 185, 129, 0.35)'
+            }}
+          >
+            {cashbackPercent}% CASHBACK
+          </div>
+        </div>
+
+        {/* Product Title */}
+        <h2
+          style={{
+            fontSize: '18px',
+            fontWeight: '800',
+            color: 'var(--text-bold, #111827)',
+            margin: '0 0 12px 0',
+            lineHeight: '1.4',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textAlign: 'left'
+          }}
+        >
+          {productName}
+        </h2>
+
+        {/* Price & Savings Row */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '10px',
+            marginBottom: '16px',
+            textAlign: 'left'
+          }}
+        >
+          <span style={{ fontSize: '26px', fontWeight: '800', color: '#10b981' }}>
+            ₹{dealPrice}
+          </span>
+          {originalPrice > dealPrice && (
+            <>
+              <span style={{ fontSize: '15px', color: 'var(--text-muted, #94a3b8)', textDecoration: 'line-through' }}>
+                ₹{originalPrice}
+              </span>
+              {discountPercent > 0 && (
+                <span style={{ fontSize: '12px', fontWeight: '700', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                  {discountPercent}% OFF
+                </span>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Cashback Highlight Box */}
+        <div
+          style={{
+            padding: '12px 14px',
+            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            textAlign: 'left'
+          }}
+        >
+          <div style={{ fontSize: '20px' }}>💰</div>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: '#047857' }}>
+              Earn ₹{cashbackAmount} Cashback!
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted, #4b5563)', marginTop: '2px' }}>
+              Buy from {storeName} through this link and cashback will be added to your Liomart wallet.
+            </div>
+          </div>
+        </div>
+
+        {/* Action Button */}
+        <button
+          className="btn-primary"
+          onClick={handleGrabDeal}
+          style={{
+            width: '100%',
+            padding: '15px',
+            fontSize: '16px',
+            fontWeight: '800',
+            borderRadius: '12px',
+            marginBottom: '10px',
+            boxShadow: '0 4px 14px rgba(255, 77, 0, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          <span>Shop on {storeName} & Earn Cashback</span>
+          <span>→</span>
+        </button>
+
+        {/* Login Prompt if not logged in */}
+        {!currentUser && (
+          <p style={{ margin: '8px 0 16px', fontSize: '12px', color: 'var(--text-muted, #6b7280)' }}>
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={() => openAuthModal && openAuthModal('login')}
+              style={{ background: 'none', border: 'none', color: 'var(--primary, #ff4d00)', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+            >
+              Log In
+            </button>
+            {' '}or{' '}
+            <button
+              type="button"
+              onClick={() => openAuthModal && openAuthModal('signup')}
+              style={{ background: 'none', border: 'none', color: 'var(--primary, #ff4d00)', fontWeight: '700', cursor: 'pointer', padding: 0 }}
+            >
+              Sign Up
+            </button>
+            {' '}to track wallet cashback.
+          </p>
+        )}
+
+        {/* Back button */}
+        <button
+          onClick={() => { if (setView) setView('home'); else window.location.hash = '#/'; }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-muted, #6b7280)',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            padding: '6px'
+          }}
+        >
+          ← Browse More Deals on LIO MART
         </button>
       </div>
     </div>
@@ -359,57 +676,37 @@ export default function App() {
   });
 
   const getInitialView = () => {
-    const hash = window.location.hash;
-    if (hash === '#/admin/login') {
-      return 'admin-login';
-    }
-    if (hash.startsWith('#/admin')) {
-      return sessionStorage.getItem('admin_session') === 'active' ? 'admin-panel' : 'admin-login';
-    }
-    if (hash === '#/dashboard') {
-      return 'dashboard';
-    }
-    if (hash === '#/store') {
-      return 'store';
-    }
-    if (hash.startsWith('#/share/')) {
+    const hash = window.location.hash || '';
+    const path = window.location.pathname || '';
+    const href = window.location.href || '';
+
+    // Check share-landing in hash, path, or href (supports /#/share, /#/#/share, /share)
+    if (hash.includes('/share/') || path.includes('/share/') || href.includes('/share/')) {
       return 'share-landing';
     }
-    if (hash === '#/privacy-policy' || hash === '#/privacy' || hash === '#privacy-policy') {
+
+    if (hash === '#/admin/login' || path === '/admin/login') {
+      return 'admin-login';
+    }
+    if (hash.startsWith('#/admin') || path.startsWith('/admin')) {
+      return sessionStorage.getItem('admin_session') === 'active' ? 'admin-panel' : 'admin-login';
+    }
+    if (hash === '#/dashboard' || path === '/dashboard') {
+      return 'dashboard';
+    }
+    if (hash === '#/store' || path === '/store') {
+      return 'store';
+    }
+    if (hash === '#/privacy-policy' || hash === '#/privacy' || hash === '#privacy-policy' || path === '/privacy-policy' || path === '/privacy') {
       return 'privacy-policy';
     }
-    if (hash === '#/terms-and-conditions' || hash === '#/terms-conditions' || hash === '#terms-conditions' || hash === '#/terms' || hash === '#terms-and-conditions' || hash === '#/terms-of-service' || hash === '#terms') {
+    if (hash === '#/terms-and-conditions' || hash === '#/terms-conditions' || hash === '#terms-conditions' || hash === '#/terms' || hash === '#terms-and-conditions' || hash === '#/terms-of-service' || hash === '#terms' || path === '/terms-and-conditions' || path === '/terms-conditions' || path === '/terms' || path === '/terms-of-service') {
       return 'terms-and-conditions';
     }
-    if (hash === '#/signup' || hash === '#/register' || hash === '#signup') {
+    if (hash === '#/signup' || hash === '#/register' || hash === '#signup' || path === '/signup' || path === '/register') {
       return 'signup';
     }
 
-    const path = window.location.pathname;
-    if (path.startsWith('/share/')) {
-      return 'share-landing';
-    }
-    if (path === '/privacy-policy' || path === '/privacy') {
-      return 'privacy-policy';
-    }
-    if (path === '/terms-and-conditions' || path === '/terms-conditions' || path === '/terms' || path === '/terms-of-service') {
-      return 'terms-and-conditions';
-    }
-    if (path === '/signup' || path === '/register') {
-      return 'signup';
-    }
-    if (path === '/admin/login') {
-      return 'admin-login';
-    }
-    if (path.startsWith('/admin')) {
-      return sessionStorage.getItem('admin_session') === 'active' ? 'admin-panel' : 'admin-login';
-    }
-    if (path === '/dashboard') {
-      return 'dashboard';
-    }
-    if (path === '/store') {
-      return 'store';
-    }
     return 'home';
   };
 
@@ -458,6 +755,14 @@ export default function App() {
       if ((refParam || isSignupPath) && !localStorage.getItem('user_session')) {
         setAuthInitialTab('signup');
         setIsAuthModalOpen(true);
+      }
+
+      // Clean up any double-hash in URL like /#/#/share/ to canonical /#/share/
+      if (window.location.hash && (window.location.hash.includes('/#/share/') || window.location.hash.startsWith('#/#'))) {
+        const fixedHash = window.location.hash.replace(/#+\/?#*\/?share\//, '#/share/');
+        try {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search + fixedHash);
+        } catch (e) {}
       }
     } catch (e) {
       console.warn('Error processing referral URL:', e);
@@ -1072,18 +1377,32 @@ export default function App() {
         userName: currentUser.name,
         productName: deal.title || deal.name,
         store: item.platform,
-        productUrl: item.link || 'https://google.com',
-        userSharePercent: 100
+        productUrl: item.link || deal.affiliateUrl || deal.link || 'https://google.com',
+        userSharePercent: 100,
+        productImage: deal.image || deal.thumbnail,
+        dealPrice: item.dealPrice || deal.dealPrice || deal.price,
+        originalPrice: item.retailPrice || deal.retailPrice,
+        cashbackPercent: item.cashbackPercent || deal.cashbackValue || 10
       });
-      if (generated.shortUrl) {
-         generated.shortUrl = generated.shortUrl
-           .replace('https://liomart.com', window.location.origin + '/#')
-           .replace('https://liomart.co.in', window.location.origin + '/#')
-           .replace('http://localhost:5173', window.location.origin);
+
+      const cleanOrigin = window.location.origin.replace(/\/+$/, '');
+      let cleanUrl = generated.shortUrl;
+      if (cleanUrl) {
+        cleanUrl = cleanUrl
+          .replace(/^https?:\/\/[^/]+/, cleanOrigin)
+          .replace(/\/#+\/share\//, '/#/share/');
+        if (!cleanUrl.includes('/#/share/')) {
+          cleanUrl = `${cleanOrigin}/#/share/${generated.id}`;
+        }
+      } else {
+        cleanUrl = `${cleanOrigin}/#/share/${generated.id}`;
       }
+      generated.shortUrl = cleanUrl;
+
       setGeneratedShareData(generated);
       setIsShareModalOpen(true);
     } catch (err) {
+      console.error('Failed to generate referral link:', err);
       addNotification('Failed to generate referral link.', 'error');
     }
   };
@@ -1293,7 +1612,7 @@ export default function App() {
     });
   }, [activeCategory, activeStores]);
 
-  const selectedStore = storesData.find((s) => (s.id && s.id === selectedStoreId) || (s._id && s._id === selectedStoreId));
+  const selectedStore = storesData.find((s) => (s.id && String(s.id) === String(selectedStoreId)) || (s._id && String(s._id) === String(selectedStoreId)));
 
   // Normalization helper for grouping products by name across shops
   const normalizeProdTitle = (str) => {
@@ -1763,8 +2082,34 @@ export default function App() {
         </div>
       );
     }
+    if (currentView === 'share-landing') {
+      return (
+        <div className="mobile-app-layout-root" style={{ minHeight: '100vh', background: 'var(--bg)', overflowY: 'auto' }}>
+          <Notification notifications={notifications} removeNotification={removeNotification} />
+          <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border, #e5e7eb)', background: 'var(--card-bg, #ffffff)', position: 'sticky', top: 0, zIndex: 50 }}>
+            <button 
+              onClick={() => setView('home')}
+              style={{ background: 'none', border: 'none', fontSize: '14px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary, #ff4d00)' }}
+            >
+              ← Back to Home
+            </button>
+            <span style={{ fontWeight: '800', fontSize: '15px', color: 'var(--text-bold, #111827)' }}>Special Deal</span>
+            <div style={{ width: '40px' }} />
+          </div>
+          <ShareLanding 
+            products={products}
+            deals={dynamicDeals}
+            storesData={storesData}
+            currentUser={currentUser}
+            openAuthModal={handleOpenAuthModal}
+            onNotification={addNotification}
+            setView={setView}
+          />
+        </div>
+      );
+    }
 
-    const selectedStore = storesData.find((s) => (s.id && s.id === selectedStoreId) || (s._id && s._id === selectedStoreId));
+    const selectedStore = storesData.find((s) => (s.id && String(s.id) === String(selectedStoreId)) || (s._id && String(s._id) === String(selectedStoreId)));
 
     return (
       <div className="mobile-app-layout-root">
@@ -1907,7 +2252,7 @@ export default function App() {
       )}
 
       <main className="main-container">
-        {currentView === 'home' && (
+        {(currentView === 'home' || !['store', 'dashboard', 'share-landing', 'privacy-policy', 'terms-and-conditions', 'signup', 'register', 'admin-login', 'admin-panel'].includes(currentView)) && (
           <>
             {/* Banner Slider */}
             <Hero
@@ -2052,55 +2397,77 @@ export default function App() {
           </>
         )}
 
-        {currentView === 'store' && selectedStore && (
-          <StoreDetail
-            store={selectedStore}
-            onBack={() => setView('home')}
-            onAddNotification={addNotification}
-            deals={storeSpecificDeals.filter(d => {
-              if (!selectedStore?.name) return false;
-              const storeName = selectedStore.name.trim().toLowerCase();
+        {currentView === 'store' && (
+          selectedStore ? (
+            <StoreDetail
+              store={selectedStore}
+              onBack={() => setView('home')}
+              onAddNotification={addNotification}
+              deals={storeSpecificDeals.filter(d => {
+                if (!selectedStore?.name) return false;
+                const storeName = selectedStore.name.trim().toLowerCase();
 
-              // 1. Match exact name, contains, or common aliases
-              if (d.platform) {
-                const dealPlatform = d.platform.trim().toLowerCase();
-                if (dealPlatform === storeName || dealPlatform.includes(storeName) || storeName.includes(dealPlatform)) {
-                  return true;
+                // 1. Match exact name, contains, or common aliases
+                if (d.platform) {
+                  const dealPlatform = d.platform.trim().toLowerCase();
+                  if (dealPlatform === storeName || dealPlatform.includes(storeName) || storeName.includes(dealPlatform)) {
+                    return true;
+                  }
                 }
-              }
 
-              // 2. Fallback for storeId matching if available
-              if (d.storeId && (d.storeId === selectedStore.id || d.storeId === selectedStore._id)) return true;
+                // 2. Fallback for storeId matching if available
+                if (d.storeId && (String(d.storeId) === String(selectedStore.id) || String(d.storeId) === String(selectedStore._id))) return true;
 
-              return false;
-            })}
-            onGrabDeal={handleGrabProductDeal}
-            onShareDeal={handleShareDeal}
-            currentUser={currentUser}
-            openAuthModal={handleOpenAuthModal}
-            compareList={compareList}
-            onToggleCompare={handleToggleCompare}
-          />
+                return false;
+              })}
+              onGrabDeal={handleGrabProductDeal}
+              onShareDeal={handleShareDeal}
+              currentUser={currentUser}
+              openAuthModal={handleOpenAuthModal}
+              compareList={compareList}
+              onToggleCompare={handleToggleCompare}
+            />
+          ) : (
+            <div style={{ padding: '60px 20px', textAlign: 'center', backgroundColor: 'var(--card-bg)', borderRadius: '16px', margin: '40px auto', maxWidth: '480px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '44px', marginBottom: '12px' }}>🏪</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-bold)', marginBottom: '8px' }}>Store Not Found</h3>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>The requested store could not be found or is inactive.</p>
+              <button className="btn-primary" onClick={() => setView('home')}>← Back to Stores</button>
+            </div>
+          )
         )}
 
-        {currentView === 'dashboard' && currentUser && (
-          <Dashboard
-            currentUser={currentUser}
-            onAddNotification={addNotification}
-            setView={setView}
-            onAddWithdrawalRequest={handleAppWithdrawalRequest}
-            onUpdateUser={handleUpdateUser}
-            initialTab={dashboardTab}
-            setInitialTab={setDashboardTab}
-            onRefreshProfile={() => fetchFreshProfile(false)}
-          />
+        {currentView === 'dashboard' && (
+          currentUser ? (
+            <Dashboard
+              currentUser={currentUser}
+              onAddNotification={addNotification}
+              setView={setView}
+              onAddWithdrawalRequest={handleAppWithdrawalRequest}
+              onUpdateUser={handleUpdateUser}
+              initialTab={dashboardTab}
+              setInitialTab={setDashboardTab}
+              onRefreshProfile={() => fetchFreshProfile(false)}
+            />
+          ) : (
+            <div style={{ padding: '60px 20px', textAlign: 'center', backgroundColor: 'var(--card-bg)', borderRadius: '16px', margin: '40px auto', maxWidth: '480px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '44px', marginBottom: '12px' }}>🔐</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-bold)', marginBottom: '8px' }}>Please Sign In</h3>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>You need to be logged in to view your dashboard and cashback earnings.</p>
+              <button className="btn-primary" onClick={() => handleOpenAuthModal('login')}>Log In / Sign Up</button>
+            </div>
+          )
         )}
 
         {currentView === 'share-landing' && (
           <ShareLanding 
             products={products}
+            deals={dynamicDeals}
+            storesData={storesData}
             currentUser={currentUser}
             openAuthModal={handleOpenAuthModal}
+            onNotification={addNotification}
+            setView={setView}
           />
         )}
 

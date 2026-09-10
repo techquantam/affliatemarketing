@@ -22,6 +22,10 @@ public class SharedLink {
     private String store;
     private String productUrl;
     private String shortUrl;
+    private String productImage;
+    private Double dealPrice;
+    private Double originalPrice;
+    private Double cashbackPercent;
     private Integer clicksCount;
     private Integer conversionsCount;
     private Double totalEarnings;

@@ -299,7 +299,18 @@ export default function Header({
           >
             My Wallet
           </button>
-          <a href="#how-it-works" className="nav-link" onClick={() => setView('home')}>
+          <a 
+            href="#how-it-works" 
+            className="nav-link" 
+            onClick={(e) => {
+              e.preventDefault();
+              if (setView) setView('home');
+              setTimeout(() => {
+                const el = document.getElementById('how-it-works') || document.querySelector('.how-it-works-section');
+                if (el) el.scrollIntoView({ behavior: 'smooth' });
+              }, 100);
+            }}
+          >
             How it Works
           </a>
           <button

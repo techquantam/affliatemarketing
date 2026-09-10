@@ -15,8 +15,7 @@ const config: CapacitorConfig = {
       '*.liomart.co.in',
       'api.liomart.co.in',
       'walrus-app-memsh.ondigitalocean.app',
-      '*.ondigitalocean.app',
-      '*'
+      '*.ondigitalocean.app'
     ],
   },
   android: {

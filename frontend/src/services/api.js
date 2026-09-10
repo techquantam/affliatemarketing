@@ -423,6 +423,7 @@ export const apiAffiliate = {
 
 export const apiSharedLinks = {
   getAll: () => request('/shared-links'),
+  getById: (id) => request(`/shared-links/${id}`),
   getByUser: (userId) => request(`/shared-links/user/${userId}`),
   create: (linkData) => request('/shared-links', { method: 'POST', body: JSON.stringify(linkData) }),
   delete: (id) => request(`/shared-links/${id}`, { method: 'DELETE' }),
