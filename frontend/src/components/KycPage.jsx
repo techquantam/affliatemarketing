@@ -64,11 +64,12 @@ export default function KycPage({ currentUser, setCurrentUser, onAddNotification
         if (fresh.selfieUrl) setSelfieUrl(fresh.selfieUrl);
 
         if (setCurrentUser) {
+          const { status: _kycStatusVal, ...cleanFreshKyc } = fresh;
           setCurrentUser(prev => prev ? {
             ...prev,
-            ...fresh,
-            kycStatus: fresh.status || fresh.kycStatus || 'approved',
-            kyc_status: fresh.status || fresh.kyc_status || 'approved',
+            ...cleanFreshKyc,
+            kycStatus: _kycStatusVal || fresh.kycStatus || 'approved',
+            kyc_status: _kycStatusVal || fresh.kyc_status || 'approved',
             is_verified: fresh.is_verified,
             is_kyc_verified: fresh.is_kyc_verified,
           } : fresh);

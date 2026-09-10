@@ -75,7 +75,6 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
       const updatedFields = {
         kycStatus: 'approved',
         kyc_status: 'approved',
-        status: 'approved',
         is_verified: 1,
         is_kyc_verified: 1,
         isKycVerified: true,
@@ -104,7 +103,6 @@ export default function AdminKYC({ users, setUsers, onAddNotification, currentUs
       const updatedFields = {
         kycStatus: 'rejected',
         kyc_status: 'rejected',
-        status: 'rejected',
         is_verified: 0,
         is_kyc_verified: 0,
         isKycVerified: false,

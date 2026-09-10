@@ -263,13 +263,14 @@ export default function MobileApp({
       if (uid) {
         const freshKyc = await apiUsers.getKycStatus(uid);
         if (freshKyc && onUpdateUser) {
+          const { status: _kycStatusVal, ...cleanFreshKyc } = freshKyc;
           onUpdateUser({
             ...currentUser,
-            ...freshKyc,
-            kycStatus: freshKyc.status || freshKyc.kycStatus,
-            kyc_status: freshKyc.status || freshKyc.kyc_status,
-            is_verified: freshKyc.is_verified,
-            is_kyc_verified: freshKyc.is_kyc_verified
+            ...cleanFreshKyc,
+            kycStatus: _kycStatusVal || freshKyc.kycStatus || currentUser?.kycStatus,
+            kyc_status: _kycStatusVal || freshKyc.kyc_status || currentUser?.kyc_status,
+            is_verified: freshKyc.is_verified ?? currentUser?.is_verified,
+            is_kyc_verified: freshKyc.is_kyc_verified ?? currentUser?.is_kyc_verified
           });
         }
       }

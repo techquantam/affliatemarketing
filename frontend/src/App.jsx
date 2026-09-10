@@ -358,11 +358,12 @@ export default function App() {
       try {
         const freshKyc = await apiUsers.getKycStatus(currentUser.id);
         if (freshKyc) {
+          const { status: _kycStatusVal, ...cleanFreshKyc } = freshKyc;
           fresh = {
             ...fresh,
-            ...freshKyc,
-            kycStatus: freshKyc.status || freshKyc.kycStatus || fresh?.kycStatus,
-            kyc_status: freshKyc.status || freshKyc.kyc_status || fresh?.kyc_status,
+            ...cleanFreshKyc,
+            kycStatus: _kycStatusVal || freshKyc.kycStatus || fresh?.kycStatus,
+            kyc_status: _kycStatusVal || freshKyc.kyc_status || fresh?.kyc_status,
             is_verified: freshKyc.is_verified ?? fresh?.is_verified,
             is_kyc_verified: freshKyc.is_kyc_verified ?? fresh?.is_kyc_verified
           };

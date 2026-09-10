@@ -169,10 +169,48 @@ export const apiUsers = {
   updateStatus: (id, status) => request(`/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
   blockUser: async (id) => {
     let res;
+    let lastErr;
+    // 1. Primary: POST /users/{id}/block
     try {
-      res = await request(`/users/${id}/block`, { method: 'PUT' });
-    } catch (e) {
-      res = await request(`/admin/users/${id}/block`, { method: 'PUT' });
+      res = await request(`/users/${id}/block`, {
+        method: 'POST',
+        body: JSON.stringify({ status: 'blocked', isBlocked: true, is_blocked: 1 })
+      });
+    } catch (e1) {
+      lastErr = e1;
+      // 2. Fallback: POST /admin/users/{id}/block
+      try {
+        res = await request(`/admin/users/${id}/block`, {
+          method: 'POST',
+          body: JSON.stringify({ status: 'blocked', isBlocked: true, is_blocked: 1 })
+        });
+      } catch (e2) {
+        lastErr = e2;
+        // 3. Fallback: POST /block-user/{id}
+        try {
+          res = await request(`/block-user/${id}`, {
+            method: 'POST',
+            body: JSON.stringify({ userId: id })
+          });
+        } catch (e3) {
+          lastErr = e3;
+          // 4. Fallback: PUT /users/{id}
+          try {
+            res = await request(`/users/${id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ status: 'blocked', isBlocked: true, is_blocked: 1 })
+            });
+          } catch (e4) {
+            lastErr = e4;
+            // 5. Final fallback: PUT /users/{id}/block
+            try {
+              res = await request(`/users/${id}/block`, { method: 'PUT' });
+            } catch (e5) {
+              throw lastErr || e5;
+            }
+          }
+        }
+      }
     }
     try {
       if (typeof window !== 'undefined') {
@@ -190,10 +228,48 @@ export const apiUsers = {
   },
   unblockUser: async (id) => {
     let res;
+    let lastErr;
+    // 1. Primary: POST /users/{id}/unblock
     try {
-      res = await request(`/users/${id}/unblock`, { method: 'PUT' });
-    } catch (e) {
-      res = await request(`/admin/users/${id}/unblock`, { method: 'PUT' });
+      res = await request(`/users/${id}/unblock`, {
+        method: 'POST',
+        body: JSON.stringify({ status: 'active', isBlocked: false, is_blocked: 0 })
+      });
+    } catch (e1) {
+      lastErr = e1;
+      // 2. Fallback: POST /admin/users/{id}/unblock
+      try {
+        res = await request(`/admin/users/${id}/unblock`, {
+          method: 'POST',
+          body: JSON.stringify({ status: 'active', isBlocked: false, is_blocked: 0 })
+        });
+      } catch (e2) {
+        lastErr = e2;
+        // 3. Fallback: POST /unblock-user/{id}
+        try {
+          res = await request(`/unblock-user/${id}`, {
+            method: 'POST',
+            body: JSON.stringify({ userId: id })
+          });
+        } catch (e3) {
+          lastErr = e3;
+          // 4. Fallback: PUT /users/{id}
+          try {
+            res = await request(`/users/${id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ status: 'active', isBlocked: false, is_blocked: 0 })
+            });
+          } catch (e4) {
+            lastErr = e4;
+            // 5. Final fallback: PUT /users/{id}/unblock
+            try {
+              res = await request(`/users/${id}/unblock`, { method: 'PUT' });
+            } catch (e5) {
+              throw lastErr || e5;
+            }
+          }
+        }
+      }
     }
     try {
       if (typeof window !== 'undefined') {
@@ -233,11 +309,11 @@ export const apiUsers = {
     try {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('user:kyc_updated', {
-          detail: { id: userId, status: 'approved', kycStatus: 'approved', kyc_status: 'approved', is_verified: 1, is_kyc_verified: 1, user: res }
+          detail: { id: userId, kycStatus: 'approved', kyc_status: 'approved', is_verified: 1, is_kyc_verified: 1, user: res }
         }));
         if (typeof BroadcastChannel !== 'undefined') {
           const bc = new BroadcastChannel('affiliate_admin_sync');
-          bc.postMessage({ type: 'USER_KYC_UPDATED', userId, status: 'approved', kycStatus: 'approved', is_verified: 1, is_kyc_verified: 1, data: res });
+          bc.postMessage({ type: 'USER_KYC_UPDATED', userId, kycStatus: 'approved', is_verified: 1, is_kyc_verified: 1, data: res });
           bc.close();
         }
       }
@@ -260,11 +336,11 @@ export const apiUsers = {
     try {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('user:kyc_updated', {
-          detail: { id: userId, status: 'rejected', kycStatus: 'rejected', kyc_status: 'rejected', is_verified: 0, is_kyc_verified: 0, user: res }
+          detail: { id: userId, kycStatus: 'rejected', kyc_status: 'rejected', is_verified: 0, is_kyc_verified: 0, user: res }
         }));
         if (typeof BroadcastChannel !== 'undefined') {
           const bc = new BroadcastChannel('affiliate_admin_sync');
-          bc.postMessage({ type: 'USER_KYC_UPDATED', userId, status: 'rejected', kycStatus: 'rejected', is_verified: 0, is_kyc_verified: 0, data: res });
+          bc.postMessage({ type: 'USER_KYC_UPDATED', userId, kycStatus: 'rejected', is_verified: 0, is_kyc_verified: 0, data: res });
           bc.close();
         }
       }
@@ -485,7 +561,7 @@ export const apiAdminManagement = {
     } catch (e) {
       const endpoint = isCurrentlyBlocked ? `/users/${userId}/unblock` : `/users/${userId}/block`;
       return request(endpoint, {
-        method: 'PUT',
+        method: 'POST',
         headers: requesterId ? { 'X-Admin-Id': requesterId } : {}
       });
     }
