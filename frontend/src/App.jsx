@@ -52,23 +52,13 @@ const DEFAULT_STORES = [
   },
   {
     id: 'nykaa',
-    name: 'Nykaa Beauty',
+    name: 'Nykaa',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Nykaa_Logo.svg',
     cashbackRate: '7%',
     category: 'health',
     description: 'Beauty, wellness and personal care with cashback.',
     isPopular: false,
     link: 'https://www.nykaa.com',
-  },
-  {
-    id: 'makemytrip',
-    name: 'MakeMyTrip',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fb/MakeMyTrip_Logo.svg',
-    cashbackRate: '9%',
-    category: 'travel',
-    description: 'Book flights, hotels and holiday packages at the best price.',
-    isPopular: false,
-    link: 'https://www.makemytrip.com',
   },
 ];
 

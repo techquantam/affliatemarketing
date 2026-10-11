@@ -60,6 +60,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
   const [isUploading, setIsUploading] = useState(false);
   const [prodCategory, setProdCategory] = useState('electronics');
   const [prodActive, setProdActive] = useState(true);
+  const [prodIsHotDeal, setProdIsHotDeal] = useState(false);
   const [formError, setFormError] = useState('');
 
   const platformOptions = stores.length > 0 
@@ -368,6 +369,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
     setImageFile(null);
     setProdCategory('electronics');
     setProdActive(true);
+    setProdIsHotDeal(false);
     setFormError('');
     setIsModalOpen(true);
   };
@@ -383,6 +385,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
     setImageFile(null);
     setProdCategory(item.category || 'electronics');
     setProdActive(item.status === 'active' || item.isActive === true || item.status === undefined);
+    setProdIsHotDeal(Boolean(item.isHotDeal || item.isHot || item.isFeatured));
     setFormError('');
     setIsModalOpen(true);
   };
@@ -419,6 +422,9 @@ export default function AdminProducts({ products, stores = [], categories = [], 
         category: prodCategory,
         status: prodActive ? 'active' : 'inactive',
         isActive: Boolean(prodActive),
+        isHotDeal: Boolean(prodIsHotDeal),
+        isHot: Boolean(prodIsHotDeal),
+        isFeatured: Boolean(prodIsHotDeal),
       };
 
       if (editItem) {
@@ -463,9 +469,11 @@ export default function AdminProducts({ products, stores = [], categories = [], 
     return matchesSearch && matchesPlatform;
   });
 
-  const headers = ['Image', 'Product Name', 'Platform', 'Category', 'Price', 'Commission', 'Status', 'Actions'];
+  const headers = ['Image', 'Product Name', 'Platform', 'Category', 'Price', 'Commission', 'Hot Deal', 'Status', 'Actions'];
 
-  const renderRow = (item, idx) => (
+  const renderRow = (item, idx) => {
+    const isHot = Boolean(item.isHotDeal || item.isHot || item.isFeatured);
+    return (
     <tr key={item.id} className="animate-fade">
       <td>
         <img
@@ -489,6 +497,38 @@ export default function AdminProducts({ products, stores = [], categories = [], 
       <td style={{ fontWeight: '600', color: 'var(--text-bold)' }}>₹{Number(item.price || 0).toFixed(2)}</td>
       <td style={{ color: 'var(--secondary)', fontWeight: '600' }}>
         {item.cashbackValue}%
+      </td>
+      <td>
+        <button
+          type="button"
+          onClick={() => {
+            const nextVal = !isHot;
+            onEditProduct({
+              ...item,
+              isHotDeal: nextVal,
+              isHot: nextVal,
+              isFeatured: nextVal
+            });
+          }}
+          title={isHot ? "Hot Deal is active (Pinned to top). Click to unmark." : "Click to mark as Hot Deal (Show at top of deals)."}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 10px',
+            borderRadius: '16px',
+            fontSize: '12px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            border: isHot ? '1px solid #ff4b2b' : '1px solid var(--border)',
+            background: isHot ? 'linear-gradient(135deg, rgba(255, 65, 108, 0.15), rgba(255, 75, 43, 0.22))' : 'var(--bg)',
+            color: isHot ? '#ff4b2b' : 'var(--text-light)',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <span>🔥</span>
+          <span>{isHot ? 'HOT' : 'Normal'}</span>
+        </button>
       </td>
       <td>
         <label className="admin-switch">
@@ -519,7 +559,7 @@ export default function AdminProducts({ products, stores = [], categories = [], 
         </div>
       </td>
     </tr>
-  );
+  );};
 
   const formattedExportProducts = React.useMemo(() => {
     if (!products || !Array.isArray(products)) return [];
@@ -734,6 +774,13 @@ export default function AdminProducts({ products, stores = [], categories = [], 
             id="prod-active"
             checked={prodActive}
             onChange={(e) => setProdActive(e.target.checked)}
+          />
+
+          <AdminFormSwitch
+            label="🔥 Mark as Hot Deal (Show at top with highlight badge)"
+            id="prod-hotdeal"
+            checked={prodIsHotDeal}
+            onChange={(e) => setProdIsHotDeal(e.target.checked)}
           />
         </form>
       </AdminModal>

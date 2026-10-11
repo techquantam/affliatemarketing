@@ -57,11 +57,10 @@ export default function KycPage({ currentUser, setCurrentUser, onAddNotification
       if (fresh) {
         setKycData(fresh);
         if (fresh.aadhaarNumber) setAadhaarNumber(fresh.aadhaarNumber);
-        if (fresh.panNumber) setPanNumber(fresh.panNumber);
-        if (fresh.aadhaarFrontUrl) setAadhaarFrontUrl(fresh.aadhaarFrontUrl);
-        if (fresh.aadhaarBackUrl) setAadhaarBackUrl(fresh.aadhaarBackUrl);
-        if (fresh.panCardUrl) setPanCardUrl(fresh.panCardUrl);
-        if (fresh.selfieUrl) setSelfieUrl(fresh.selfieUrl);
+        if (fresh.aadhaarFrontUrl) setAadhaarFront(fresh.aadhaarFrontUrl);
+        if (fresh.aadhaarBackUrl) setAadhaarBack(fresh.aadhaarBackUrl);
+        if (fresh.panCardUrl) setPanCard(fresh.panCardUrl);
+        if (fresh.selfieUrl) setSelfie(fresh.selfieUrl);
 
         if (setCurrentUser) {
           const { status: _kycStatusVal, ...cleanFreshKyc } = fresh;

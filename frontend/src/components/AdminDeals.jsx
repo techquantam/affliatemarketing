@@ -59,6 +59,9 @@ export default function AdminDeals({ deals, onAddDeal, onDeleteDeal }) {
       offerText: dealOffer,
       link: dealUrl || 'https://google.com',
       cashback: dealCashback,
+      isHotDeal: true,
+      isHot: true,
+      isFeatured: true,
       comparisons: comparisons.map(c => ({
         ...c,
         listedPrice: parseFloat(c.listedPrice) || 0,

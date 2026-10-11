@@ -47,6 +47,7 @@ public class UserController {
     @GetMapping
     public ResponseEntity<?> getAllUsers() {
         List<Map<String, Object>> response = userRepository.findAll().stream()
+                .filter(user -> !Boolean.FALSE.equals(user.getIsVerified()) && !"pending".equalsIgnoreCase(user.getStatus()))
                 .map(user -> {
                     Wallet wallet = walletService.getOrCreateWallet(user.getId());
                     return buildUserResponse(user, wallet);
@@ -332,17 +333,22 @@ public class UserController {
         
         if (existingUserOpt.isPresent()) {
             User existingUser = existingUserOpt.get();
-            if (Boolean.TRUE.equals(existingUser.getIsVerified()) || !"pending".equals(existingUser.getStatus())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "User already exists"));
+            if (Boolean.TRUE.equals(existingUser.getIsVerified()) && !"pending".equalsIgnoreCase(existingUser.getStatus())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "User already exists with this email/phone. Please login."));
             } else {
                 // User exists but pending, resend OTP
                 String otp = String.format("%06d", new Random().nextInt(999999));
                 existingUser.setOtp(otp);
                 existingUser.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
                 existingUser.setPasswordHash(passwordEncoder.encode(password));
-                userRepository.save(existingUser);
-                sendOtp(existingUser, otp);
-                return ResponseEntity.ok(Map.of("requireOtp", true, "message", "OTP resent", "identifier", email != null ? email : phone));
+                try {
+                    sendOtp(existingUser, otp);
+                    userRepository.save(existingUser);
+                    return ResponseEntity.ok(Map.of("requireOtp", true, "message", "OTP sent", "identifier", email != null ? email : phone));
+                } catch (Exception e) {
+                    log.error("[REGISTER] Failed to send OTP to pending user: {}", e.getMessage());
+                    return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Failed to send OTP"));
+                }
             }
         }
 
@@ -377,15 +383,16 @@ public class UserController {
             sendOtp(user, otp);
             return ResponseEntity.ok(Map.of("requireOtp", true, "message", "OTP sent", "identifier", email != null ? email : phone));
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            log.error("[REGISTER] Failed to send OTP to user {}: {}", user.getId(), e.getMessage());
+            try {
+                userRepository.delete(user);
+            } catch (Exception ignored) {}
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage() != null ? e.getMessage() : "Failed to send OTP"));
         }
     }
 
     private void sendOtp(User user, String otp) {
-        if (user.getEmail() != null) {
-            log.info("[OTP] Sending OTP via email to {}", user.getEmail());
-            emailService.sendOtpEmail(user.getEmail(), otp);
-        } else if (user.getPhone() != null) {
+        if (user.getPhone() != null && !user.getPhone().trim().isEmpty()) {
             log.info("[OTP] Sending OTP via SMS to phone={}", user.getPhone());
             try {
                 String verificationId = smsService.sendOtpSms(user.getPhone(), otp);
@@ -394,15 +401,20 @@ public class UserController {
                 userRepository.save(user);
                 log.info("[OTP] SMS OTP sent successfully to {}, verificationId={}", user.getPhone(), verificationId);
             } catch (Exception e) {
-                // MessageCentral failed (rate limit, network, etc.) — fall back to local OTP
-                log.warn("[OTP] MessageCentral failed for {}: {}. Falling back to local OTP.", user.getPhone(), e.getMessage());
-                user.setMcVerificationId(null); // null signals: use local OTP for verification
-                userRepository.save(user);
-                // Don't rethrow — user will verify with local OTP
+                log.error("[OTP] Failed to send SMS OTP to {}: {}", user.getPhone(), e.getMessage());
+                throw new RuntimeException("SMS delivery failed: " + e.getMessage());
+            }
+        } else if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+            log.info("[OTP] Sending OTP via email to {}", user.getEmail());
+            try {
+                emailService.sendOtpEmail(user.getEmail(), otp);
+            } catch (Exception e) {
+                log.error("[OTP] Failed to send Email OTP to {}: {}", user.getEmail(), e.getMessage());
+                throw new RuntimeException("Email delivery failed: " + e.getMessage());
             }
         } else {
             log.error("[OTP] User {} has neither email nor phone — cannot send OTP!", user.getId());
-            throw new RuntimeException("User has neither email nor phone");
+            throw new RuntimeException("User has neither email nor phone for OTP verification");
         }
     }
 
@@ -532,12 +544,23 @@ public class UserController {
                 ));
             }
 
-            if (Boolean.FALSE.equals(user.getIsVerified()) || "pending".equals(user.getStatus())) {
-                user.setIsVerified(true);
-                user.setStatus("active");
-                user.setOtp(null);
-                user.setOtpExpiry(null);
+            if (Boolean.FALSE.equals(user.getIsVerified()) || "pending".equalsIgnoreCase(user.getStatus())) {
+                String newOtp = String.format("%06d", new Random().nextInt(999999));
+                user.setOtp(newOtp);
+                user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
                 userRepository.save(user);
+                try {
+                    sendOtp(user, newOtp);
+                } catch (Exception e) {
+                    log.warn("[LOGIN] Failed to send verification OTP on login for user {}: {}", user.getId(), e.getMessage());
+                }
+                return ResponseEntity.status(403).body((Object) Map.of(
+                        "requireOtp", true,
+                        "status", false,
+                        "message", "Your account is not verified yet. An OTP has been sent. Please enter the OTP to continue.",
+                        "error", "Your account is not verified yet. An OTP has been sent. Please enter the OTP to continue.",
+                        "identifier", user.getPhone() != null ? user.getPhone() : user.getEmail()
+                ));
             }
 
             Wallet wallet = walletService.getOrCreateWallet(user.getId());
@@ -860,6 +883,16 @@ public class UserController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
                 .body(Map.of("message", "Admin deleted successfully", "id", id));
+    }
+
+    // --- Delete User ---
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable String id) {
+        return userRepository.findById(id).map(user -> {
+            userRepository.delete(user);
+            log.info("[User] Deleted user id={}, email={}, phone={}", user.getId(), user.getEmail(), user.getPhone());
+            return ResponseEntity.ok(Map.of("message", "User deleted successfully", "id", id));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     // --- Direct Reset Admin Password (SUPER_ADMIN only) ---

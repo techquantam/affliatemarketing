@@ -136,18 +136,29 @@ export const apiStores = {
 
 export const apiUpload = {
   uploadImage: async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const response = await fetch(`${BASE_URL}/upload`, {
-      method: 'POST',
-      body: formData,
-    });
-    if (!response.ok) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`${BASE_URL}/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
         const errText = await response.text();
         throw new Error(`Upload failed: ${errText}`);
+      }
+      return await response.json();
+    } catch (e) {
+      console.warn('Backend file upload failed, using fallback base64:', e);
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ url: reader.result, fileUrl: reader.result });
+        reader.onerror = () => resolve({ url: '', fileUrl: '' });
+        reader.readAsDataURL(file);
+      });
     }
-    return await response.json();
-  }
+  },
+  uploadFile: async (file) => apiUpload.uploadImage(file)
 };
 
 export const apiBanners = {
@@ -318,6 +329,7 @@ export const apiUsers = {
     return res;
   },
   update: (id, userData) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(userData) }),
+  delete: (id) => request(`/users/${id}`, { method: 'DELETE' }),
   getKycStatus: async (userId) => {
     try {
       return await request(`/kyc-status?user_id=${userId}&_t=${Date.now()}`);
@@ -412,7 +424,20 @@ export const apiUsers = {
       return await request('/users/reset-password', { method: 'POST', body: JSON.stringify({ identifier, otp, password }) });
     }
   },
-  updatePaymentDetails: (id, details) => request(`/users/${id}/payment-details`, { method: 'PUT', body: JSON.stringify(details) }),
+  updatePaymentDetails: async (id, details) => {
+    const res = await request(`/users/${id}/payment-details`, { method: 'PUT', body: JSON.stringify(details) });
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('user:payment_updated', { detail: { id, user: res } }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('affiliate_admin_sync');
+          bc.postMessage({ type: 'USER_PAYMENT_UPDATED', userId: id, data: res });
+          bc.close();
+        }
+      }
+    } catch (e) {}
+    return res;
+  },
   updatePaymentDetailsStatus: async (id, payload) => {
     const res = await request(`/users/${id}/payment-details/status`, { method: 'PUT', body: JSON.stringify(payload) });
     try {

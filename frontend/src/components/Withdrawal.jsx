@@ -86,8 +86,18 @@ export default function Withdrawal({
       Swal.fire({
         icon: 'warning',
         title: 'KYC Required',
-        text: 'E-KYC verification is mandatory before making a withdrawal. Please verify your KYC in the Profile section.',
-        confirmButtonColor: '#f59e0b'
+        text: 'E-KYC verification is mandatory before making a withdrawal. Please complete your KYC verification.',
+        confirmButtonColor: '#f59e0b',
+        confirmButtonText: 'Go to E-KYC',
+        showCancelButton: true,
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          if (onClose) onClose();
+          if (typeof window !== 'undefined') {
+            window.location.hash = '#/kyc';
+          }
+        }
       });
       toast.warn('E-KYC verification is mandatory before withdrawal.');
       return;
@@ -98,7 +108,17 @@ export default function Withdrawal({
         icon: 'warning',
         title: 'Payment Details Unverified',
         text: 'Bank Account or UPI details verification is mandatory before requesting withdrawal.',
-        confirmButtonColor: '#f59e0b'
+        confirmButtonColor: '#f59e0b',
+        confirmButtonText: 'Go to Payment Details',
+        showCancelButton: true,
+        cancelButtonText: 'Cancel'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          if (onClose) onClose();
+          if (typeof window !== 'undefined') {
+            window.location.hash = '#/payment';
+          }
+        }
       });
       toast.warn('Bank Account / UPI details must be approved by admin first.');
       return;

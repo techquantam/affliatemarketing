@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tag, Sparkles, Share2, ChevronDown, ChevronUp, ArrowLeftRight, Check } from 'lucide-react';
+import { Tag, Sparkles, Share2, ChevronDown, ChevronUp, ArrowLeftRight, Check, Flame } from 'lucide-react';
 
 export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCategory = 'all', compareList = [], onToggleCompare }) {
   const [showAll, setShowAll] = useState(false);
@@ -43,15 +43,58 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
               // Calculations
               const discountPercent = Math.round((((deal.retailPrice || 0) - (deal.dealPrice || 0)) / (deal.retailPrice || 1)) * 100);
               const isInCompare = compareList && compareList.some(item => item.id === deal.id);
+              const isHot = Boolean(deal.isHotDeal || deal.isHot || deal.isFeatured);
 
               return (
                 <div 
                   key={deal.id} 
-                  className="deal-card animate-fade" 
-                  style={{ position: 'relative', cursor: 'pointer' }}
+                  className={`deal-card animate-fade ${isHot ? 'deal-card-hot' : ''}`} 
+                  style={{ 
+                    position: 'relative', 
+                    cursor: 'pointer',
+                    ...(isHot ? {
+                      border: '2px solid #ff4b2b',
+                      boxShadow: '0 6px 20px rgba(255, 75, 43, 0.22)',
+                      background: 'linear-gradient(180deg, rgba(255, 75, 43, 0.04) 0%, var(--card-bg, #ffffff) 100%)',
+                    } : {})
+                  }}
                   onClick={() => onGrabDeal(deal)}
                 >
-                  <span className="deal-badge">{discountPercent > 0 ? `${discountPercent}% OFF` : 'SPECIAL'}</span>
+                  {isHot && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      background: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+                      color: '#ffffff',
+                      fontSize: '11px',
+                      fontWeight: '900',
+                      padding: '4px 10px',
+                      borderTopLeftRadius: '10px',
+                      borderBottomRightRadius: '10px',
+                      zIndex: 3,
+                      letterSpacing: '0.6px',
+                      boxShadow: '0 3px 10px rgba(255, 75, 43, 0.45)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      textTransform: 'uppercase'
+                    }}>
+                      <Flame size={13} fill="#ffffff" /> HOT DEAL
+                    </div>
+                  )}
+
+                  <span 
+                    className="deal-badge"
+                    style={isHot ? {
+                      top: '32px',
+                      left: '10px',
+                      backgroundColor: '#ff4b2b',
+                      color: '#ffffff'
+                    } : {}}
+                  >
+                    {discountPercent > 0 ? `${discountPercent}% OFF` : 'SPECIAL'}
+                  </span>
                   {deal.comparisons && deal.comparisons.length > 1 && (
                     <span style={{
                       position: 'absolute',
@@ -94,6 +137,19 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                         }}
                       />
                       <span className="deal-category">{deal.category}</span>
+                      {isHot && (
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: '800',
+                          color: '#ff4b2b',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          marginLeft: 'auto'
+                        }}>
+                          <Flame size={11} fill="#ff4b2b" /> Trending
+                        </span>
+                      )}
                     </div>
 
                     <h4 className="deal-title">{deal.title}</h4>
@@ -126,12 +182,19 @@ export default function TopDeals({ deals = [], onGrabDeal, onShareDeal, activeCa
                       <button
                         type="button"
                         className="btn-card-primary"
+                        style={isHot ? {
+                          background: 'linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%)',
+                          boxShadow: '0 3px 10px rgba(255, 75, 43, 0.35)',
+                          border: 'none',
+                          color: '#fff',
+                          fontWeight: '800'
+                        } : {}}
                         onClick={(e) => {
                           e.stopPropagation();
                           onGrabDeal(deal);
                         }}
                       >
-                        Buy
+                        {isHot ? '🔥 Grab Hot Deal' : 'Buy'}
                       </button>
 
                       <button

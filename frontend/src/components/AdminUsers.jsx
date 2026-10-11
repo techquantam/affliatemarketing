@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Edit2, Wallet, Check } from 'lucide-react';
+import { Search, Filter, ShieldCheck, ShieldAlert, Eye, Edit2, Wallet, Check, Trash2 } from 'lucide-react';
 import { AdminTable, AdminModal, AdminFormInput, AdminFormSelect, ExportDataButton } from './AdminComponents';
 import AdminWalletModal from './AdminWalletModal';
 import { apiUsers } from '../services/api';
@@ -368,6 +368,24 @@ export default function AdminUsers({ users, setUsers, onEditUser, onAddNotificat
             }}
           >
             {isUserBlocked(item) ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
+          </button>
+          <button
+            className="admin-btn-icon delete"
+            onClick={async () => {
+              if (window.confirm(`Are you sure you want to permanently delete user "${item.name}"?`)) {
+                try {
+                  await apiUsers.delete(item.id || item._id);
+                  setUsers(prev => prev.filter(u => (u.id || u._id) !== (item.id || item._id)));
+                  onAddNotification(`User "${item.name}" deleted successfully.`, 'info');
+                } catch (err) {
+                  onAddNotification(err.message || 'Failed to delete user', 'error');
+                }
+              }
+            }}
+            title="Delete User"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Trash2 size={14} />
           </button>
         </div>
       </td>

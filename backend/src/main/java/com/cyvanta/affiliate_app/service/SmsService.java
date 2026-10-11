@@ -143,6 +143,21 @@ public class SmsService {
             } else {
                 log.error("[SMS] Send OTP failed: status={}, body={}", response.getStatusCode(), response.getBody());
             }
+        } catch (org.springframework.web.client.HttpClientErrorException ex) {
+            String errBody = ex.getResponseBodyAsString();
+            log.warn("[SMS] MessageCentral sendOtp returned HTTP {}: {}", ex.getStatusCode(), errBody);
+            try {
+                JsonNode json = objectMapper.readTree(errBody);
+                if (json.has("data") && json.get("data").has("verificationId")) {
+                    String vId = json.get("data").get("verificationId").asText();
+                    log.info("[SMS] Recovered active verificationId from existing request: {}", vId);
+                    return vId;
+                }
+                if (json.has("verificationId")) {
+                    return json.get("verificationId").asText();
+                }
+            } catch (Exception ignored) {}
+            log.error("[SMS] sendOtpRequest client error for {}: status={}, body={}", mobile, ex.getStatusCode(), errBody);
         } catch (Exception e) {
             log.error("[SMS] sendOtpRequest exception for {}: {}", mobile, e.getMessage());
         }

@@ -50,6 +50,12 @@ public class Product {
     private String status = "active";
 
     @Builder.Default
+    private Boolean isHotDeal = false;
+
+    @Builder.Default
+    private Boolean isFeatured = false;
+
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     // --- Compatibility getters and setters for legacy code ---

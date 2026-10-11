@@ -24,21 +24,15 @@ public class EmailService {
 
         log.info("[EMAIL] Attempting to send OTP to {} (fromEmail={})", to, fromEmail);
 
-        // If SMTP is not configured, we just log it. 
-        if (fromEmail == null || fromEmail.isEmpty() || fromEmail.contains("your-email")) {
-            log.warn("[EMAIL] SMTP not configured properly. Printing OTP to console for testing.");
-            log.info("===========================================");
-            log.info("OTP for {}: {}", to, otp);
-            log.info("===========================================");
-            return;
+        // If SMTP is not configured, throw error so caller knows
+        if (fromEmail == null || fromEmail.isEmpty() || fromEmail.contains("your-email") || fromEmail.contains("dev@cyvanta.com")) {
+            log.warn("[EMAIL] SMTP not configured properly for OTP email.");
+            throw new RuntimeException("Email service is currently unavailable. Please register using your mobile number.");
         }
 
         if (mailSender == null) {
-            log.error("[EMAIL] JavaMailSender is not available! Check spring.mail.* configuration.");
-            log.info("===========================================");
-            log.info("OTP for {}: {}", to, otp);
-            log.info("===========================================");
-            return;
+            log.error("[EMAIL] JavaMailSender is not available!");
+            throw new RuntimeException("Email service is currently unavailable. Please register using your mobile number.");
         }
 
         try {
@@ -51,12 +45,7 @@ public class EmailService {
             log.info("[EMAIL] ✅ OTP email sent successfully to {}", to);
         } catch (Exception e) {
             log.error("[EMAIL] ❌ Failed to send OTP email to {} — Error: {}", to, e.getMessage());
-            // Still log the OTP as fallback so testing can proceed
-            log.info("===========================================");
-            log.info("FALLBACK OTP for {}: {}", to, otp);
-            log.info("===========================================");
-            // Do NOT re-throw — registration should still succeed even if email fails.
-            // The OTP is saved in DB and logged to console.
+            throw new RuntimeException("Failed to send OTP email: " + (e.getMessage() != null ? e.getMessage() : "SMTP error"));
         }
     }
 

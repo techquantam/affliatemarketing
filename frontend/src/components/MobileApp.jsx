@@ -170,7 +170,16 @@ export default function MobileApp({
   }, [storesData]);
 
   const sanitizedDeals = React.useMemo(() => {
-    return (dealsData || []).filter(d => !isBlacklistedBrand(d?.title) && !isBlacklistedBrand(d?.name) && !isBlacklistedBrand(d?.platform));
+    return (dealsData || [])
+      .filter(d => !isBlacklistedBrand(d?.title) && !isBlacklistedBrand(d?.name) && !isBlacklistedBrand(d?.platform))
+      .slice()
+      .sort((a, b) => {
+        const aHot = Boolean(a.isHotDeal || a.isHot || a.isFeatured);
+        const bHot = Boolean(b.isHotDeal || b.isHot || b.isFeatured);
+        if (aHot && !bHot) return -1;
+        if (!aHot && bHot) return 1;
+        return 0;
+      });
   }, [dealsData]);
 
   const [activeTab, setActiveTab] = useState('home');
@@ -233,26 +242,26 @@ export default function MobileApp({
       setProfileCity(currentUser.city || '');
       setProfileState(currentUser.state || '');
       setProfilePincode(currentUser.pincode || '');
-      setKycAadhaar(currentUser.aadhaarNumber || '');
-      setKycPan(currentUser.panNumber || '');
-      setAadhaarFront(currentUser.aadhaarFrontUrl || '');
-      setAadhaarBack(currentUser.aadhaarBackUrl || '');
-      setPanCard(currentUser.panCardUrl || '');
-      setSelfie(currentUser.selfieUrl || '');
 
-      setPayUpiId(currentUser.upiId || '');
-      setPayAccountName(currentUser.bankAccountName || '');
-      setPayAccountNumber(currentUser.bankAccountNumber || '');
-      setPayIfsc(currentUser.bankIfsc || '');
-      setPayBankName(currentUser.bankName || '');
-      if (currentUser.upiId || currentUser.bankAccountNumber) {
-        setIsEditingPayment(false);
+      setKycAadhaar(prev => (prev === '' ? (currentUser.aadhaarNumber || '') : prev));
+      setKycPan(prev => (prev === '' ? (currentUser.panNumber || '') : prev));
+      setAadhaarFront(prev => (prev === '' ? (currentUser.aadhaarFrontUrl || '') : prev));
+      setAadhaarBack(prev => (prev === '' ? (currentUser.aadhaarBackUrl || '') : prev));
+      setPanCard(prev => (prev === '' ? (currentUser.panCardUrl || '') : prev));
+      setSelfie(prev => (prev === '' ? (currentUser.selfieUrl || '') : prev));
+
+      if (!isEditingPayment) {
+        setPayUpiId(currentUser.upiId || '');
+        setPayAccountName(currentUser.bankAccountName || '');
+        setPayAccountNumber(currentUser.bankAccountNumber || '');
+        setPayIfsc(currentUser.bankIfsc || '');
+        setPayBankName(currentUser.bankName || '');
       }
       if (currentUser.upiId) {
         setUpiId(currentUser.upiId);
       }
     }
-  }, [currentUser]);
+  }, [currentUser, isEditingPayment]);
 
   const [refreshingMobileProfile, setRefreshingMobileProfile] = useState(false);
 
@@ -832,9 +841,15 @@ export default function MobileApp({
       }
     }
 
+    const uid = currentUser?.id || currentUser?._id;
+    if (!uid) {
+      onAddNotification('Please log in again to save payment details.', 'error');
+      return;
+    }
+
     setIsSavingPayment(true);
     try {
-      const updatedUser = await apiUsers.updatePaymentDetails(currentUser.id, {
+      const updatedUser = await apiUsers.updatePaymentDetails(uid, {
         upiId: cleanUpi,
         bankAccountName: cleanAccName,
         bankAccountNumber: cleanAccNo,
@@ -845,7 +860,7 @@ export default function MobileApp({
         onUpdateUser(updatedUser);
       }
       setIsEditingPayment(false);
-      onAddNotification('Payment details saved successfully!', 'success');
+      onAddNotification('Payment details saved successfully! Sent for verification.', 'success');
     } catch (err) {
       console.error(err);
       onAddNotification(err.message || 'Failed to save payment details.', 'error');
@@ -856,22 +871,34 @@ export default function MobileApp({
 
   // --- KYC FILE UPLOAD (MOBILE) ---
   const handleUploadKycFile = async (e, field) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadingField(field);
     try {
       const res = await apiUpload.uploadImage(file);
-      if (res && res.url) {
-        if (field === 'aadhaarFront') setAadhaarFront(res.url);
-        if (field === 'aadhaarBack') setAadhaarBack(res.url);
-        if (field === 'panCard') setPanCard(res.url);
-        if (field === 'selfie') setSelfie(res.url);
+      const url = res?.url || res?.fileUrl || res?.path;
+      if (url) {
+        if (field === 'aadhaarFront') setAadhaarFront(url);
+        if (field === 'aadhaarBack') setAadhaarBack(url);
+        if (field === 'panCard') setPanCard(url);
+        if (field === 'selfie') setSelfie(url);
         onAddNotification('Document uploaded successfully!', 'success');
+      } else {
+        throw new Error('No URL returned');
       }
     } catch (err) {
-      console.error(err);
-      onAddNotification('Failed to upload document. Please try again.', 'error');
+      console.warn('Upload fallback to local preview reader:', err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const localUrl = reader.result;
+        if (field === 'aadhaarFront') setAadhaarFront(localUrl);
+        if (field === 'aadhaarBack') setAadhaarBack(localUrl);
+        if (field === 'panCard') setPanCard(localUrl);
+        if (field === 'selfie') setSelfie(localUrl);
+        onAddNotification('Document attached successfully!', 'success');
+      };
+      reader.readAsDataURL(file);
     } finally {
       setUploadingField(null);
     }
@@ -880,6 +907,12 @@ export default function MobileApp({
   // --- KYC SUBMIT (MOBILE) ---
   const handleSubmitKyc = async (e) => {
     e.preventDefault();
+    const uid = currentUser?.id || currentUser?._id;
+    if (!uid) {
+      onAddNotification('Please log in again to submit KYC.', 'error');
+      return;
+    }
+
     if (!kycAadhaar.trim() || kycAadhaar.trim().length < 12) {
       onAddNotification('Please enter a valid 12-digit Aadhaar Number.', 'error');
       return;
@@ -895,7 +928,7 @@ export default function MobileApp({
 
     setIsSubmittingKyc(true);
     try {
-      const updatedUser = await apiUsers.update(currentUser.id, {
+      const updatedUser = await apiUsers.update(uid, {
         aadhaarNumber: kycAadhaar,
         panNumber: kycPan,
         aadhaarFrontUrl: aadhaarFront,
@@ -1582,18 +1615,45 @@ export default function MobileApp({
                                    normSelected.includes(normCat);
                           })
                           .slice(0, 60)
-                          .map(deal => (
+                          .map(deal => {
+                            const isHot = Boolean(deal.isHotDeal || deal.isHot || deal.isFeatured);
+                            return (
                             <div 
                               key={deal.id} 
-                              className="app-deal-item" 
+                              className={`app-deal-item ${isHot ? 'app-deal-item-hot' : ''}`} 
                               onClick={() => handleGrabDeal(deal)}
                               style={{
                                 width: '100%',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                boxShadow: 'var(--shadow)'
+                                boxShadow: isHot ? '0 4px 14px rgba(255, 75, 43, 0.22)' : 'var(--shadow)',
+                                border: isHot ? '2px solid #ff4b2b' : '1px solid var(--border)',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                position: 'relative'
                               }}
                             >
+                              {isHot && (
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  background: 'linear-gradient(135deg, #ff416c, #ff4b2b)',
+                                  color: '#fff',
+                                  fontSize: '9px',
+                                  fontWeight: '900',
+                                  padding: '2px 7px',
+                                  borderBottomRightRadius: '6px',
+                                  zIndex: 2,
+                                  letterSpacing: '0.4px',
+                                  boxShadow: '0 2px 6px rgba(255, 75, 43, 0.4)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '2px'
+                                }}>
+                                  🔥 HOT
+                                </div>
+                              )}
                               <div style={{
                                 width: '100%',
                                 height: '90px',
@@ -1635,7 +1695,7 @@ export default function MobileApp({
                                       }}
                                       style={{
                                         flex: 1,
-                                        backgroundColor: '#ff4f2f',
+                                        backgroundColor: isHot ? '#ff4b2b' : '#ff4f2f',
                                         color: '#fff',
                                         border: 'none',
                                         borderRadius: '4px',
@@ -1645,7 +1705,7 @@ export default function MobileApp({
                                         cursor: 'pointer'
                                       }}
                                     >
-                                      ⚡ Buy
+                                      {isHot ? '🔥 Buy Hot' : '⚡ Buy'}
                                     </button>
                                     <button
                                       onClick={(e) => {
@@ -1669,7 +1729,8 @@ export default function MobileApp({
                                 </div>
                               </div>
                             </div>
-                          ))}
+                          );
+                        })}
                       </div>
                     </div>
 

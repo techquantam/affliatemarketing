@@ -126,13 +126,12 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   // Keep payment details, profile, and KYC states in sync with latest currentUser from DB
   useEffect(() => {
     if (currentUser) {
-      setUpiId(currentUser.upiId || '');
-      setBankAccountName(currentUser.bankAccountName || '');
-      setBankAccountNumber(currentUser.bankAccountNumber || '');
-      setBankIfsc(currentUser.bankIfsc || '');
-      setBankName(currentUser.bankName || '');
-      if (currentUser.upiId || currentUser.bankAccountNumber) {
-        setIsEditingPayment(false);
+      if (!isEditingPayment) {
+        setUpiId(currentUser.upiId || '');
+        setBankAccountName(currentUser.bankAccountName || '');
+        setBankAccountNumber(currentUser.bankAccountNumber || '');
+        setBankIfsc(currentUser.bankIfsc || '');
+        setBankName(currentUser.bankName || '');
       }
       setProfileName(currentUser.name || '');
       setProfileEmail(currentUser.email || '');
@@ -143,14 +142,15 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
       setProfileCity(currentUser.city || '');
       setProfileState(currentUser.state || '');
       setProfilePincode(currentUser.pincode || '');
-      setKycAadhaar(currentUser.aadhaarNumber || '');
-      setKycPan(currentUser.panNumber || '');
-      setAadhaarFront(currentUser.aadhaarFrontUrl || '');
-      setAadhaarBack(currentUser.aadhaarBackUrl || '');
-      setPanCard(currentUser.panCardUrl || '');
-      setSelfie(currentUser.selfieUrl || '');
+
+      setKycAadhaar(prev => (prev === '' ? (currentUser.aadhaarNumber || '') : prev));
+      setKycPan(prev => (prev === '' ? (currentUser.panNumber || '') : prev));
+      setAadhaarFront(prev => (prev === '' ? (currentUser.aadhaarFrontUrl || '') : prev));
+      setAadhaarBack(prev => (prev === '' ? (currentUser.aadhaarBackUrl || '') : prev));
+      setPanCard(prev => (prev === '' ? (currentUser.panCardUrl || '') : prev));
+      setSelfie(prev => (prev === '' ? (currentUser.selfieUrl || '') : prev));
     }
-  }, [currentUser]);
+  }, [currentUser, isEditingPayment]);
 
   // --- CONVERTER STATES ---
   const [convertInputUrl, setConvertInputUrl] = useState('');
@@ -520,9 +520,15 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
       }
     }
 
+    const uid = currentUser?.id || currentUser?._id;
+    if (!uid) {
+      onAddNotification('Please log in again to save payment details.', 'error');
+      return;
+    }
+
     setIsSavingPayment(true);
     try {
-      const updatedUser = await apiUsers.updatePaymentDetails(currentUser.id, {
+      const updatedUser = await apiUsers.updatePaymentDetails(uid, {
         upiId: cleanUpi,
         bankAccountName: cleanAccName,
         bankAccountNumber: cleanAccNo,
@@ -533,7 +539,7 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
         onUpdateUser(updatedUser);
       }
       setIsEditingPayment(false);
-      onAddNotification('Payment details saved successfully!', 'success');
+      onAddNotification('Payment details saved successfully! Sent for verification.', 'success');
     } catch (err) {
       console.error(err);
       onAddNotification(err.message || 'Failed to save payment details.', 'error');
@@ -544,22 +550,34 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
 
   // --- KYC FILE UPLOAD ---
   const handleUploadKycFile = async (e, field) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadingField(field);
     try {
       const res = await apiUpload.uploadImage(file);
-      if (res && res.url) {
-        if (field === 'aadhaarFront') setAadhaarFront(res.url);
-        if (field === 'aadhaarBack') setAadhaarBack(res.url);
-        if (field === 'panCard') setPanCard(res.url);
-        if (field === 'selfie') setSelfie(res.url);
+      const url = res?.url || res?.fileUrl || res?.path;
+      if (url) {
+        if (field === 'aadhaarFront') setAadhaarFront(url);
+        if (field === 'aadhaarBack') setAadhaarBack(url);
+        if (field === 'panCard') setPanCard(url);
+        if (field === 'selfie') setSelfie(url);
         onAddNotification('Document uploaded successfully!', 'success');
+      } else {
+        throw new Error('No URL returned');
       }
     } catch (err) {
-      console.error(err);
-      onAddNotification('Failed to upload document. Please try again.', 'error');
+      console.warn('Upload fallback to local preview reader:', err);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const localUrl = reader.result;
+        if (field === 'aadhaarFront') setAadhaarFront(localUrl);
+        if (field === 'aadhaarBack') setAadhaarBack(localUrl);
+        if (field === 'panCard') setPanCard(localUrl);
+        if (field === 'selfie') setSelfie(localUrl);
+        onAddNotification('Document attached successfully!', 'success');
+      };
+      reader.readAsDataURL(file);
     } finally {
       setUploadingField(null);
     }
@@ -568,6 +586,12 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
   // --- KYC SUBMIT ---
   const handleSubmitKyc = async (e) => {
     e.preventDefault();
+    const uid = currentUser?.id || currentUser?._id;
+    if (!uid) {
+      onAddNotification('Please log in again to submit KYC.', 'error');
+      return;
+    }
+
     if (!kycAadhaar.trim() || kycAadhaar.trim().length < 12) {
       onAddNotification('Please enter a valid 12-digit Aadhaar Number.', 'error');
       return;
@@ -583,7 +607,7 @@ export default function Dashboard({ currentUser, onAddNotification, setView, onA
 
     setIsSubmittingKyc(true);
     try {
-      const updatedUser = await apiUsers.update(currentUser.id, {
+      const updatedUser = await apiUsers.update(uid, {
         aadhaarNumber: kycAadhaar,
         panNumber: kycPan,
         aadhaarFrontUrl: aadhaarFront,

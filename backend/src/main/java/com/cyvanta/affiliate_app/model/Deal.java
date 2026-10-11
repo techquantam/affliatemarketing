@@ -27,6 +27,12 @@ public class Deal {
     
     @Builder.Default
     private String status = "active";
+
+    @Builder.Default
+    private Boolean isHotDeal = true;
+
+    @Builder.Default
+    private Boolean isFeatured = true;
     
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

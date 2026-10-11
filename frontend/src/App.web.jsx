@@ -125,23 +125,13 @@ const DEFAULT_STORES = [
   },
   {
     id: 'nykaa',
-    name: 'Nykaa Beauty',
+    name: 'Nykaa',
     logo: 'https://upload.wikimedia.org/wikipedia/commons/5/5b/Nykaa_Logo.svg',
     cashbackRate: '7%',
     category: 'health',
     description: 'Beauty, wellness and personal care with cashback.',
     isPopular: false,
     link: 'https://www.nykaa.com',
-  },
-  {
-    id: 'makemytrip',
-    name: 'MakeMyTrip',
-    logo: 'https://upload.wikimedia.org/wikipedia/commons/f/fb/MakeMyTrip_Logo.svg',
-    cashbackRate: '9%',
-    category: 'travel',
-    description: 'Book flights, hotels and holiday packages at the best price.',
-    isPopular: false,
-    link: 'https://www.makemytrip.com',
   },
 ];
 
@@ -154,6 +144,8 @@ const DEFAULT_PRODUCTS = [
     category: 'electronics',
     platform: 'Amazon',
     status: 'active',
+    isHotDeal: true,
+    isHot: true,
     image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400',
     affiliateUrl: 'https://www.amazon.in/s?k=Apple+iPhone+15'
   },
@@ -176,6 +168,8 @@ const DEFAULT_PRODUCTS = [
     category: 'fashion',
     platform: 'Myntra',
     status: 'active',
+    isHotDeal: true,
+    isHot: true,
     image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400',
     affiliateUrl: 'https://www.myntra.com/nike-air-max-270'
   },
@@ -706,6 +700,10 @@ export default function App() {
     if (hash.startsWith('#/admin') || path.startsWith('/admin')) {
       return checkIsAdmin() ? 'admin-panel' : 'admin-login';
     }
+    if (hash === '#/kyc' || path === '/kyc' || hash === '#kyc' || hash === '#/profile' || path === '/profile' || hash === '#profile' || hash === '#/payment' || path === '/payment') {
+      const hasSession = typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_session'));
+      return hasSession ? 'dashboard' : 'home';
+    }
     if (hash === '#/dashboard' || path === '/dashboard') {
       const hasSession = typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('user_session'));
       return hasSession ? 'dashboard' : 'home';
@@ -727,7 +725,19 @@ export default function App() {
   };
 
   const [currentView, setViewRaw] = useState(getInitialView);
-  const [dashboardTab, setDashboardTab] = useState('overview');
+  const [dashboardTab, setDashboardTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hash || '';
+      const p = window.location.pathname || '';
+      if (h.includes('kyc') || p.includes('kyc') || h.includes('profile') || p.includes('profile')) {
+        return 'profile';
+      }
+      if (h.includes('payment') || p.includes('payment')) {
+        return 'payment';
+      }
+    }
+    return 'overview';
+  });
   const [selectedStoreId, setSelectedStoreId] = useState(null);
   const [activeCategory, setActiveCategory] = useState('all');
   const [homeSearchQuery, setHomeSearchQuery] = useState('');
@@ -976,14 +986,12 @@ export default function App() {
         }
       });
 
-      DEFAULT_STORES.forEach(ds => {
-        const dsId = ds.id || ds._id;
-        if (!allMergedStores.some(s => (s.id && s.id === dsId) || (
-          s.name && ds.name && s.name.trim().toLowerCase() === ds.name.trim().toLowerCase()
-        ))) {
+      // Fallback to DEFAULT_STORES only if no stores exist in DB or local cache
+      if (allMergedStores.length === 0) {
+        DEFAULT_STORES.forEach(ds => {
           allMergedStores.push(ds);
-        }
-      });
+        });
+      }
 
       const cleanedStores = allMergedStores.filter(s => !isBlacklistedBrand(s.name) && !isBlacklistedBrand(s.description));
       setStoresData(cleanedStores);
@@ -1236,6 +1244,13 @@ export default function App() {
   // Sync navigation popstate and hashchange
   useEffect(() => {
     const handlePopState = () => {
+      const h = window.location.hash || '';
+      const p = window.location.pathname || '';
+      if (h.includes('kyc') || p.includes('kyc') || h.includes('profile') || p.includes('profile')) {
+        setDashboardTab('profile');
+      } else if (h.includes('payment') || p.includes('payment')) {
+        setDashboardTab('payment');
+      }
       setViewRaw(getInitialView());
     };
     window.addEventListener('popstate', handlePopState);
@@ -1252,6 +1267,12 @@ export default function App() {
       if (hasAdmin) {
         viewName = 'admin-panel';
       }
+    } else if (viewName === 'kyc' || viewName === 'profile') {
+      setDashboardTab('profile');
+      viewName = 'dashboard';
+    } else if (viewName === 'payment') {
+      setDashboardTab('payment');
+      viewName = 'dashboard';
     }
     setViewRaw(viewName);
     
@@ -1825,6 +1846,8 @@ export default function App() {
           category = 'electronics';
         }
 
+        const isHot = items.some(it => Boolean(it.isHotDeal || it.isHot || it.isFeatured));
+
         productDeals.push({
           id: primaryProduct.id || `prod-${Date.now()}-${Math.random()}`,
           title: prodName,
@@ -1841,6 +1864,9 @@ export default function App() {
           affiliateUrl: bestItem.link,
           image: productImage,
           isProduct: true,
+          isHotDeal: isHot,
+          isHot: isHot,
+          isFeatured: isHot,
           bestPrice: bestItem.dealPrice,
           bestPriceShop: bestItem.platform,
           shopCount: comparisons.length,
@@ -1919,6 +1945,8 @@ export default function App() {
           finalComparisons[0].isBestPrice = true;
         }
 
+        const isHot = d.isHotDeal !== undefined ? Boolean(d.isHotDeal) : (d.isHot !== undefined ? Boolean(d.isHot) : true);
+
         const baseDeal = {
           ...d,
           title: d.name || d.title,
@@ -1930,6 +1958,9 @@ export default function App() {
           dealPrice,
           cashbackEarned,
           cashbackValue: cashbackVal,
+          isHotDeal: isHot,
+          isHot: isHot,
+          isFeatured: isHot,
           comparisons: finalComparisons
         };
         return baseDeal;
@@ -1942,6 +1973,15 @@ export default function App() {
         }
       });
     }
+
+    // Sort so ALL HOT DEALS appear at the very top!
+    combinedDeals.sort((a, b) => {
+      const aHot = Boolean(a.isHotDeal || a.isHot || a.isFeatured);
+      const bHot = Boolean(b.isHotDeal || b.isHot || b.isFeatured);
+      if (aHot && !bHot) return -1;
+      if (!aHot && bHot) return 1;
+      return 0;
+    });
 
     return combinedDeals;
   }, [dealsData, products, storesData]);
@@ -2041,6 +2081,12 @@ export default function App() {
         (deal.platform || '').toLowerCase().includes(query.toLowerCase()) ||
         (deal.affiliateUrl || '').toLowerCase().includes(query.toLowerCase())
       );
+    }).sort((a, b) => {
+      const aHot = Boolean(a.isHotDeal || a.isHot || a.isFeatured);
+      const bHot = Boolean(b.isHotDeal || b.isHot || b.isFeatured);
+      if (aHot && !bHot) return -1;
+      if (!aHot && bHot) return 1;
+      return 0;
     });
   }, [homeSearchQuery, dynamicDeals]);
 
@@ -2122,6 +2168,7 @@ export default function App() {
           onAddNotification={addNotification}
           onUpdateProducts={setProducts}
           onUpdateDeals={setDealsData}
+          storesData={storesData}
           onUpdateStores={setStoresData}
           onUpdateBanners={setBannersData}
           onUpdateCategories={setCategoriesData}
@@ -2514,7 +2561,7 @@ export default function App() {
           )
         )}
 
-        {currentView === 'dashboard' && (
+        {(currentView === 'dashboard' || currentView === 'kyc' || currentView === 'profile' || currentView === 'payment') && (
           currentUser ? (
             <ErrorBoundary>
               <Dashboard
@@ -2523,7 +2570,7 @@ export default function App() {
                 setView={setView}
                 onAddWithdrawalRequest={handleAppWithdrawalRequest}
                 onUpdateUser={handleUpdateUser}
-                initialTab={dashboardTab}
+                initialTab={currentView === 'kyc' || currentView === 'profile' ? 'profile' : currentView === 'payment' ? 'payment' : dashboardTab}
                 setInitialTab={setDashboardTab}
                 onRefreshProfile={() => fetchFreshProfile(false)}
               />
@@ -2532,7 +2579,7 @@ export default function App() {
             <div style={{ padding: '60px 20px', textAlign: 'center', backgroundColor: 'var(--card-bg)', borderRadius: '16px', margin: '40px auto', maxWidth: '480px', border: '1px solid var(--border)' }}>
               <div style={{ fontSize: '44px', marginBottom: '12px' }}>🔐</div>
               <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-bold)', marginBottom: '8px' }}>Please Sign In</h3>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>You need to be logged in to view your dashboard and cashback earnings.</p>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '20px' }}>You need to be logged in to view your dashboard and complete E-KYC verification.</p>
               <button className="btn-primary" onClick={() => handleOpenAuthModal('login')}>Log In / Sign Up</button>
             </div>
           )

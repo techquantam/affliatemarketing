@@ -261,7 +261,8 @@ export default function AdminStores({
     };
 
     if (editItem) {
-      onEditStore({ ...editItem, ...shopData });
+      const editId = editItem.id || editItem._id;
+      onEditStore({ ...editItem, id: editId, ...shopData });
     } else {
       onAddStore(shopData);
     }
@@ -269,22 +270,26 @@ export default function AdminStores({
     setIsModalOpen(false);
   };
 
+  // Helper to reliably check if a store is active
+  const isStoreActive = (s) => Boolean(s && s.isActive !== false && s.is_active !== 0 && s.status !== 'inactive' && s.status !== 'disabled' && s.status !== '0');
+
   // Quick 1-click Enable/Disable toggle
   const handleToggleShopStatus = (item) => {
+    const sid = item.id || item._id;
     if (onToggleStatus) {
-      onToggleStatus(item.id || item._id);
+      onToggleStatus(sid);
     } else {
-      const isNowActive = item.status === 'inactive' || item.isActive === false;
+      const isNowActive = !isStoreActive(item);
       const newStatus = isNowActive ? 'active' : 'inactive';
-      onEditStore({ ...item, status: newStatus, isActive: isNowActive });
+      onEditStore({ ...item, id: sid, status: newStatus, isActive: isNowActive, is_active: isNowActive ? 1 : 0 });
     }
   };
 
   // Filtered shops list based on search and status
   const filteredStores = useMemo(() => {
-    return stores.filter(store => {
+    return (stores || []).filter(store => {
       // Status filter
-      const isAct = store.isActive !== false && store.status !== 'inactive' && store.status !== 'disabled';
+      const isAct = isStoreActive(store);
       if (statusFilter === 'active' && !isAct) return false;
       if (statusFilter === 'inactive' && isAct) return false;
 
@@ -308,10 +313,11 @@ export default function AdminStores({
   const headers = ['Logo / Banner', 'Shop Name & Category', 'Owner Details', 'Address / Location', 'Commission', 'Status', 'Actions'];
 
   const renderRow = (item) => {
-    const isActive = item.status === 'active';
+    const isActive = isStoreActive(item);
+    const sid = item.id || item._id;
 
     return (
-      <tr key={item.id} className="animate-fade">
+      <tr key={sid || item.name} className="animate-fade">
         {/* Logo & Banner Thumbnail */}
         <td>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -469,8 +475,9 @@ export default function AdminStores({
             <button 
               className="admin-btn-icon delete" 
               onClick={() => {
+                const sid = item.id || item._id;
                 if (window.confirm(`Are you sure you want to permanently delete "${item.name}"?`)) {
-                  onDeleteStore(item.id);
+                  onDeleteStore(sid);
                 }
               }} 
               title="Delete Shop"
@@ -604,9 +611,9 @@ export default function AdminStores({
             fontSize: '13px'
           }}
         >
-          <option value="all">All Statuses ({stores.length})</option>
-          <option value="active">Active Only ({stores.filter(s => s.status === 'active').length})</option>
-          <option value="inactive">Disabled Only ({stores.filter(s => s.status !== 'active').length})</option>
+          <option value="all">All Statuses ({(stores || []).length})</option>
+          <option value="active">Active Only ({(stores || []).filter(isStoreActive).length})</option>
+          <option value="inactive">Disabled Only ({(stores || []).filter(s => !isStoreActive(s)).length})</option>
         </select>
       </div>
 

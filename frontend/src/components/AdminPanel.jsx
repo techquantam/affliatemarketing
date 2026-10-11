@@ -76,6 +76,7 @@ export default function AdminPanel({
   onAddNotification,
   onUpdateProducts,
   onUpdateDeals,
+  storesData: externalStoresData,
   onUpdateStores,
   onUpdateBanners,
   onUpdateCategories,
@@ -154,8 +155,42 @@ export default function AdminPanel({
   const [loginHistory, setLoginHistory] = useState([]);
   const [categories, setCategories] = useState([]);
   const [deals, setDeals] = useState([]);
-  const [storesData, setStoresData] = useState([]);
+  const [storesData, setStoresData] = useState(() => (Array.isArray(externalStoresData) && externalStoresData.length > 0 ? externalStoresData : []));
   const [banners, setBanners] = useState([]);
+
+  // Sync internal storesData when external prop updates
+  React.useEffect(() => {
+    if (externalStoresData && Array.isArray(externalStoresData)) {
+      setStoresData(externalStoresData);
+    }
+  }, [externalStoresData]);
+
+  // Synchronize store changes dispatched from anywhere
+  React.useEffect(() => {
+    const handleStoreChange = (e) => {
+      if (e?.detail) {
+        const item = e.detail;
+        const sid = item.id || item._id;
+        if (e.type === 'store:deleted') {
+          setStoresData((prev) => (prev || []).filter((s) => s.id !== sid && s._id !== sid));
+        } else {
+          setStoresData((prev) => {
+            const arr = Array.isArray(prev) ? prev : [];
+            const exists = arr.some((s) => (s.id && s.id === sid) || (s._id && s._id === sid));
+            return exists ? arr.map((s) => ((s.id && s.id === sid) || (s._id && s._id === sid) ? item : s)) : [item, ...arr];
+          });
+        }
+      }
+    };
+    window.addEventListener('store:created', handleStoreChange);
+    window.addEventListener('store:updated', handleStoreChange);
+    window.addEventListener('store:deleted', handleStoreChange);
+    return () => {
+      window.removeEventListener('store:created', handleStoreChange);
+      window.removeEventListener('store:updated', handleStoreChange);
+      window.removeEventListener('store:deleted', handleStoreChange);
+    };
+  }, []);
 
   // --- URL CONVERTER STATE ---
   const [convertInputUrl, setConvertInputUrl] = useState('');
@@ -928,9 +963,11 @@ export default function AdminPanel({
       } catch (e) {}
       if (onRefreshCatalog) await onRefreshCatalog();
       onAddNotification('Store added successfully.', 'success');
+      return newStore;
     } catch (err) {
       console.error(err);
       onAddNotification('Failed to add store.', 'error');
+      throw err;
     }
   };
 
